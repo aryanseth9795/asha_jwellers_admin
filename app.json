@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "AJ",
+    "slug": "asha-jwellers",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B1F4B"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.aryanseth9795.AJ"
+    },
+    "plugins": [
+      "expo-dev-client",
+      "expo-sqlite",
+      "expo-file-system",
+      "expo-image-picker",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7245c873-a703-48d6-a61b-7742c278b73a"
+      }
+    },
+    "owner": "aryanseth97s-organization"
+  }
+}
