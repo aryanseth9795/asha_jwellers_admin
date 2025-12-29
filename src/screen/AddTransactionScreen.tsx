@@ -8,6 +8,9 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -40,7 +43,10 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [productName, setProductName] = useState("");
+  const [amount, setAmount] = useState("");
 
   // Minimum date - 5 years ago
   const minDate = new Date();
@@ -126,6 +132,11 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
+    if (!amount) {
+      Alert.alert("Validation Error", "Please enter an amount.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -136,12 +147,15 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
           userId,
           media: savedImagePaths,
           openDate: selectedDate.toISOString(),
+          productName: productName.trim() || undefined,
+          amount: amount ? parseInt(amount, 10) : undefined,
         });
       } else {
         await createLenden({
           userId,
           date: selectedDate.toISOString(),
           media: savedImagePaths,
+          amount: amount ? parseInt(amount, 10) : undefined,
         });
       }
 
@@ -247,6 +261,43 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Input Fields */}
+      {entryType && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Details</Text>
+
+          {entryType === "rehan" && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Product Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter product name"
+                value={productName}
+                onChangeText={setProductName}
+                placeholderTextColor="#999"
+              />
+            </View>
+          )}
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>
+              Amount <Text style={styles.required}>*</Text>
+            </Text>
+            <View style={styles.amountInputWrapper}>
+              <Text style={styles.currencySymbol}>₹</Text>
+              <TextInput
+                style={styles.amountInput}
+                placeholder="0"
+                value={amount}
+                onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ""))}
+                keyboardType="numeric"
+                placeholderTextColor="#999"
+              />
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Date Selection */}
       {entryType && (
@@ -549,6 +600,46 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: "#F0F7FF",
+    borderWidth: 1,
+    borderColor: "#D0E4FF",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    color: "#1A1A1A",
+  },
+  amountInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F7FF",
+    borderWidth: 1,
+    borderColor: "#D0E4FF",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  currencySymbol: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#666",
+    marginRight: 8,
+  },
+  amountInput: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#1A1A1A",
   },
 });
 

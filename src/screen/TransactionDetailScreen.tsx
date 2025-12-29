@@ -10,6 +10,9 @@ import {
   Dimensions,
   Modal,
   Alert,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -21,8 +24,8 @@ import {
   getRehanById,
   getLendenById,
   getUserById,
-  updateRehanMedia,
-  updateLendenMedia,
+  updateRehanDetails,
+  updateLendenDetails,
   closeRehan,
 } from "../database/entryDatabase";
 import { User, Rehan, Lenden } from "../types/entry";
@@ -59,7 +62,14 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     null
   );
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Editable fields state
+  const [editProductName, setEditProductName] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [originalProductName, setOriginalProductName] = useState("");
+  const [originalAmount, setOriginalAmount] = useState("");
 
   useEffect(() => {
     loadData();
@@ -70,7 +80,21 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const changed =
       JSON.stringify(mediaPaths) !== JSON.stringify(originalMediaPaths);
     setHasChanges(changed);
-  }, [mediaPaths, originalMediaPaths]);
+    // Check if media or details have changed
+    const mediaChanged =
+      JSON.stringify(mediaPaths) !== JSON.stringify(originalMediaPaths);
+    const productNameChanged = editProductName !== originalProductName;
+    const amountChanged = editAmount !== originalAmount;
+
+    setHasChanges(mediaChanged || productNameChanged || amountChanged);
+  }, [
+    mediaPaths,
+    originalMediaPaths,
+    editProductName,
+    originalProductName,
+    editAmount,
+    originalAmount,
+  ]);
 
   const loadData = async () => {
     try {
@@ -210,14 +234,43 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       // Update database
+      // Update database
       if (transactionType === "rehan") {
-        await updateRehanMedia(transactionId, finalPaths);
+        await updateRehanDetails(
+          transactionId,
+          finalPaths,
+          editProductName.trim() || undefined,
+          editAmount ? parseInt(editAmount, 10) : undefined
+        );
       } else {
-        await updateLendenMedia(transactionId, finalPaths);
+        await updateLendenDetails(
+          transactionId,
+          finalPaths,
+          editAmount ? parseInt(editAmount, 10) : undefined
+        );
       }
 
       setMediaPaths(finalPaths);
       setOriginalMediaPaths(finalPaths);
+      setOriginalProductName(editProductName);
+      setOriginalAmount(editAmount);
+
+      // Refresh local data to show updated values in UI immediately
+      if (transactionType === "rehan" && rehan) {
+        setRehan({
+          ...rehan,
+          media: JSON.stringify(finalPaths),
+          productName: editProductName.trim() || undefined,
+          amount: editAmount ? parseInt(editAmount, 10) : undefined,
+        });
+      } else if (lenden) {
+        setLenden({
+          ...lenden,
+          media: JSON.stringify(finalPaths),
+          amount: editAmount ? parseInt(editAmount, 10) : undefined,
+        });
+      }
+
       setIsEditMode(false);
       Alert.alert("Success", "Changes saved successfully!");
     } catch (error) {
@@ -256,6 +309,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const cancelEdit = () => {
     setMediaPaths(originalMediaPaths);
+    setEditProductName(originalProductName);
+    setEditAmount(originalAmount);
     setIsEditMode(false);
   };
 
@@ -335,6 +390,89 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </Text>
             </View>
           )}
+        </View>
+
+        {/* Transaction Details Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Transaction Details</Text>
+          <View style={styles.infoCard}>
+            {/* Product Name Input or Display */}
+            {isEditMode && transactionType === "rehan" ? (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Product Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter product name"
+                  value={editProductName}
+                  onChangeText={setEditProductName}
+                />
+              </View>
+            ) : transactionType === "rehan" && rehan?.productName ? (
+              <View style={styles.infoRow}>
+                <View
+                  style={[styles.iconContainer, { backgroundColor: "#FFF3E0" }]}
+                >
+                  <Ionicons name="cube" size={20} color="#E65100" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Product Name</Text>
+                  <Text style={styles.infoValue}>{rehan.productName}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Amount Input or Display */}
+            {isEditMode ? (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Amount (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  value={editAmount}
+                  onChangeText={(text) =>
+                    setEditAmount(text.replace(/[^0-9]/g, ""))
+                  }
+                  keyboardType="numeric"
+                />
+              </View>
+            ) : (
+                transactionType === "rehan" ? rehan?.amount : lenden?.amount
+              ) ? (
+              <View style={styles.infoRow}>
+                <View
+                  style={[styles.iconContainer, { backgroundColor: "#E8F5E9" }]}
+                >
+                  <Ionicons name="cash" size={20} color="#2E7D32" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Amount</Text>
+                  <Text
+                    style={[
+                      styles.infoValue,
+                      { color: "#2E7D32", fontWeight: "700" },
+                    ]}
+                  >
+                    ₹
+                    {(transactionType === "rehan"
+                      ? rehan?.amount
+                      : lenden?.amount
+                    )?.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Fallback if no details and not in edit mode */}
+            {!isEditMode &&
+              !(transactionType === "rehan" && rehan?.productName) &&
+              !(transactionType === "rehan"
+                ? rehan?.amount
+                : lenden?.amount) && (
+                <Text style={styles.noDetailsText}>
+                  No additional details provided
+                </Text>
+              )}
+          </View>
         </View>
 
         {/* Customer Info Section */}
@@ -915,6 +1053,33 @@ const styles = StyleSheet.create({
   },
   navButtonDisabled: {
     opacity: 0.5,
+  },
+  noDetailsText: {
+    textAlign: "center",
+    color: "#999",
+    fontStyle: "italic",
+    padding: 10,
+  },
+  inputContainer: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F2F5",
+  },
+  inputLabel: {
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  input: {
+    fontSize: 16,
+    color: "#1A1A1A",
+    fontWeight: "500",
+    padding: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "#007AFF",
+    paddingBottom: 4,
   },
 });
 

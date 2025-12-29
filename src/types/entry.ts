@@ -21,12 +21,16 @@ export interface Rehan {
   status: number; // 0 = open, 1 = closed
   openDate: string;
   closedDate: string | null;
+  productName?: string;
+  amount?: number;
 }
 
 export interface NewRehan {
   userId: number;
   media: string[];
   openDate?: string; // Optional - defaults to current date if not provided
+  productName?: string;
+  amount?: number;
 }
 
 export interface Lenden {
@@ -34,12 +38,14 @@ export interface Lenden {
   userId: number;
   date: string;
   media: string; // JSON stringified array of image paths
+  amount?: number;
 }
 
 export interface NewLenden {
   userId: number;
   date: string;
   media: string[];
+  amount?: number;
 }
 
 // Entry type selection

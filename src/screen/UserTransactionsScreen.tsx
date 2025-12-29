@@ -163,15 +163,27 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
         )}
       </View>
 
+      {/* Amount Display */}
+      {item.amount && (
+        <Text style={styles.amountText}>₹{item.amount.toLocaleString()}</Text>
+      )}
+
       {/* Main content - show date for Rehan */}
-      {item.type === "rehan" && (
-        <View style={styles.cardBody}>
+      <View style={styles.cardBody}>
+        {item.type === "rehan" && item.productName && (
+          <View style={styles.infoRow}>
+            <Ionicons name="cube-outline" size={16} color="#666" />
+            <Text style={styles.infoText}>{item.productName}</Text>
+          </View>
+        )}
+
+        {item.type === "rehan" && (
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={16} color="#666" />
             <Text style={styles.infoText}>Opened: {formatDate(item.date)}</Text>
           </View>
-        </View>
-      )}
+        )}
+      </View>
 
       {/* Bill count indicator */}
       <View style={styles.mediaIndicator}>
@@ -504,6 +516,16 @@ const styles = StyleSheet.create({
   },
   textClosed: {
     color: "#C62828",
+  },
+  textClosed: {
+    color: "#C62828",
+  },
+  amountText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginTop: 8,
+    marginBottom: 4,
   },
   dateContainer: {
     flexDirection: "row",

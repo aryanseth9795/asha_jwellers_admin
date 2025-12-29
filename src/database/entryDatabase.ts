@@ -42,6 +42,8 @@ export const initDatabase = async () => {
         status INTEGER DEFAULT 0,
         openDate TEXT NOT NULL,
         closedDate TEXT,
+        productName TEXT,
+        amount INTEGER,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       );
     `);
@@ -53,9 +55,46 @@ export const initDatabase = async () => {
         userId INTEGER NOT NULL,
         date TEXT NOT NULL,
         media TEXT NOT NULL,
+        amount INTEGER,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       );
     `);
+
+    // Migrations to add columns if they don't exist (for existing app installs)
+    try {
+      // Check if columns exist in rehan, if not add them
+      const rehanInfo = await database.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(rehan)"
+      );
+      const rehanColumns = rehanInfo.map((c) => c.name);
+
+      if (!rehanColumns.includes("productName")) {
+        await database.execAsync(
+          "ALTER TABLE rehan ADD COLUMN productName TEXT"
+        );
+        console.log("Added productName to rehan table");
+      }
+      if (!rehanColumns.includes("amount")) {
+        await database.execAsync("ALTER TABLE rehan ADD COLUMN amount INTEGER");
+        console.log("Added amount to rehan table");
+      }
+
+      // Check if columns exist in lenden, if not add them
+      const lendenInfo = await database.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(lenden)"
+      );
+      const lendenColumns = lendenInfo.map((c) => c.name);
+
+      if (!lendenColumns.includes("amount")) {
+        await database.execAsync(
+          "ALTER TABLE lenden ADD COLUMN amount INTEGER"
+        );
+        console.log("Added amount to lenden table");
+      }
+    } catch (migrationError) {
+      console.error("Migration error:", migrationError);
+      // Continue anyway as tables might be fresh
+    }
 
     console.log("SQLite database initialized with User, Rehan, Lenden tables");
   } catch (error) {
@@ -183,10 +222,12 @@ export const createRehan = async (rehan: NewRehan): Promise<number> => {
     const media = JSON.stringify(rehan.media);
 
     const result = await database.runAsync(
-      "INSERT INTO rehan (userId, media, status, openDate) VALUES (?, ?, 0, ?)",
+      "INSERT INTO rehan (userId, media, status, openDate, productName, amount) VALUES (?, ?, 0, ?, ?, ?)",
       rehan.userId,
       media,
-      openDate
+      openDate,
+      rehan.productName || null,
+      rehan.amount || null
     );
 
     return result.lastInsertRowId;
@@ -240,21 +281,25 @@ export const getAllRehan = async (): Promise<Rehan[]> => {
   }
 };
 
-// Update Rehan media
-export const updateRehanMedia = async (
+// Update Rehan details (media, productName, amount)
+export const updateRehanDetails = async (
   id: number,
-  media: string[]
+  media: string[],
+  productName?: string,
+  amount?: number
 ): Promise<void> => {
   try {
     const database = await openDatabase();
     const mediaJson = JSON.stringify(media);
     await database.runAsync(
-      "UPDATE rehan SET media = ? WHERE id = ?",
+      "UPDATE rehan SET media = ?, productName = ?, amount = ? WHERE id = ?",
       mediaJson,
+      productName || null,
+      amount || null,
       id
     );
   } catch (error) {
-    console.error("Error updating Rehan media:", error);
+    console.error("Error updating Rehan details:", error);
     throw error;
   }
 };
@@ -295,10 +340,11 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
     const media = JSON.stringify(lenden.media);
 
     const result = await database.runAsync(
-      "INSERT INTO lenden (userId, date, media) VALUES (?, ?, ?)",
+      "INSERT INTO lenden (userId, date, media, amount) VALUES (?, ?, ?, ?)",
       lenden.userId,
       lenden.date,
-      media
+      media,
+      lenden.amount || null
     );
 
     return result.lastInsertRowId;
@@ -352,21 +398,23 @@ export const getAllLenden = async (): Promise<Lenden[]> => {
   }
 };
 
-// Update Lenden media
-export const updateLendenMedia = async (
+// Update Lenden details (media, amount)
+export const updateLendenDetails = async (
   id: number,
-  media: string[]
+  media: string[],
+  amount?: number
 ): Promise<void> => {
   try {
     const database = await openDatabase();
     const mediaJson = JSON.stringify(media);
     await database.runAsync(
-      "UPDATE lenden SET media = ? WHERE id = ?",
+      "UPDATE lenden SET media = ?, amount = ? WHERE id = ?",
       mediaJson,
+      amount || null,
       id
     );
   } catch (error) {
-    console.error("Error updating Lenden media:", error);
+    console.error("Error updating Lenden details:", error);
     throw error;
   }
 };
@@ -394,6 +442,8 @@ export interface Transaction {
   date: string;
   media: string;
   status?: number; // Only for Rehan
+  productName?: string;
+  amount?: number;
 }
 
 // Get all transactions (Rehan + Lenden) with user info, sorted by date
@@ -412,7 +462,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
       address: string | null;
       mobileNumber: string | null;
     }>(
-      `SELECT r.id, r.userId, r.media, r.status, r.openDate, 
+      `SELECT r.id, r.userId, r.media, r.status, r.openDate, r.productName, r.amount,
               u.name, u.address, u.mobileNumber
        FROM rehan r
        JOIN users u ON r.userId = u.id
@@ -429,7 +479,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
       address: string | null;
       mobileNumber: string | null;
     }>(
-      `SELECT l.id, l.userId, l.media, l.date, 
+      `SELECT l.id, l.userId, l.media, l.date, l.amount,
               u.name, u.address, u.mobileNumber
        FROM lenden l
        JOIN users u ON l.userId = u.id
@@ -448,6 +498,8 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
         date: r.openDate,
         media: r.media,
         status: r.status,
+        productName: r.productName,
+        amount: r.amount,
       })),
       ...lendenRows.map((l) => ({
         id: l.id,
@@ -458,6 +510,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
         userMobileNumber: l.mobileNumber,
         date: l.date,
         media: l.media,
+        amount: l.amount,
       })),
     ];
 
@@ -492,7 +545,7 @@ export const searchTransactions = async (
       address: string | null;
       mobileNumber: string | null;
     }>(
-      `SELECT r.id, r.userId, r.media, r.status, r.openDate, 
+      `SELECT r.id, r.userId, r.media, r.status, r.openDate, r.productName, r.amount,
               u.name, u.address, u.mobileNumber
        FROM rehan r
        JOIN users u ON r.userId = u.id
@@ -513,7 +566,7 @@ export const searchTransactions = async (
       address: string | null;
       mobileNumber: string | null;
     }>(
-      `SELECT l.id, l.userId, l.media, l.date, 
+      `SELECT l.id, l.userId, l.media, l.date, l.amount,
               u.name, u.address, u.mobileNumber
        FROM lenden l
        JOIN users u ON l.userId = u.id
@@ -536,6 +589,8 @@ export const searchTransactions = async (
         date: r.openDate,
         media: r.media,
         status: r.status,
+        productName: r.productName,
+        amount: r.amount,
       })),
       ...lendenRows.map((l) => ({
         id: l.id,
@@ -546,6 +601,7 @@ export const searchTransactions = async (
         userMobileNumber: l.mobileNumber,
         date: l.date,
         media: l.media,
+        amount: l.amount,
       })),
     ];
 
@@ -651,6 +707,8 @@ export const getTransactionsByUserId = async (
         date: r.openDate,
         media: r.media,
         status: r.status,
+        productName: r.productName,
+        amount: r.amount,
       })),
       ...lendenRows.map((l) => ({
         id: l.id,
@@ -661,6 +719,7 @@ export const getTransactionsByUserId = async (
         userMobileNumber: user.mobileNumber,
         date: l.date,
         media: l.media,
+        amount: l.amount,
       })),
     ];
 
