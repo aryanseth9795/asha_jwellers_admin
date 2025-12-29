@@ -56,6 +56,10 @@ export const initDatabase = async () => {
         date TEXT NOT NULL,
         media TEXT NOT NULL,
         amount INTEGER,
+        discount INTEGER,
+        remaining INTEGER,
+        jama INTEGER,
+        baki INTEGER,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       );
     `);
@@ -90,6 +94,26 @@ export const initDatabase = async () => {
           "ALTER TABLE lenden ADD COLUMN amount INTEGER"
         );
         console.log("Added amount to lenden table");
+      }
+      if (!lendenColumns.includes("discount")) {
+        await database.execAsync(
+          "ALTER TABLE lenden ADD COLUMN discount INTEGER"
+        );
+        console.log("Added discount to lenden table");
+      }
+      if (!lendenColumns.includes("remaining")) {
+        await database.execAsync(
+          "ALTER TABLE lenden ADD COLUMN remaining INTEGER"
+        );
+        console.log("Added remaining to lenden table");
+      }
+      if (!lendenColumns.includes("jama")) {
+        await database.execAsync("ALTER TABLE lenden ADD COLUMN jama INTEGER");
+        console.log("Added jama to lenden table");
+      }
+      if (!lendenColumns.includes("baki")) {
+        await database.execAsync("ALTER TABLE lenden ADD COLUMN baki INTEGER");
+        console.log("Added baki to lenden table");
       }
     } catch (migrationError) {
       console.error("Migration error:", migrationError);
@@ -208,6 +232,28 @@ export const deleteUser = async (id: number): Promise<void> => {
     await database.runAsync("DELETE FROM users WHERE id = ?", id);
   } catch (error) {
     console.error("Error deleting user:", error);
+    throw error;
+  }
+};
+
+// Update user details
+export const updateUser = async (
+  id: number,
+  name: string,
+  address?: string,
+  mobileNumber?: string
+): Promise<void> => {
+  try {
+    const database = await openDatabase();
+    await database.runAsync(
+      "UPDATE users SET name = ?, address = ?, mobileNumber = ? WHERE id = ?",
+      name,
+      address || null,
+      mobileNumber || null,
+      id
+    );
+  } catch (error) {
+    console.error("Error updating user:", error);
     throw error;
   }
 };
@@ -340,11 +386,15 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
     const media = JSON.stringify(lenden.media);
 
     const result = await database.runAsync(
-      "INSERT INTO lenden (userId, date, media, amount) VALUES (?, ?, ?, ?)",
+      "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       lenden.userId,
       lenden.date,
       media,
-      lenden.amount || null
+      lenden.amount || null,
+      lenden.discount || null,
+      lenden.remaining || null,
+      lenden.jama || null,
+      lenden.baki || null
     );
 
     return result.lastInsertRowId;
@@ -398,19 +448,27 @@ export const getAllLenden = async (): Promise<Lenden[]> => {
   }
 };
 
-// Update Lenden details (media, amount)
+// Update Lenden details (media, amount, discount, remaining, jama, baki)
 export const updateLendenDetails = async (
   id: number,
   media: string[],
-  amount?: number
+  amount?: number,
+  discount?: number,
+  remaining?: number,
+  jama?: number,
+  baki?: number
 ): Promise<void> => {
   try {
     const database = await openDatabase();
     const mediaJson = JSON.stringify(media);
     await database.runAsync(
-      "UPDATE lenden SET media = ?, amount = ? WHERE id = ?",
+      "UPDATE lenden SET media = ?, amount = ?, discount = ?, remaining = ?, jama = ?, baki = ? WHERE id = ?",
       mediaJson,
       amount || null,
+      discount || null,
+      remaining || null,
+      jama || null,
+      baki || null,
       id
     );
   } catch (error) {
@@ -444,6 +502,11 @@ export interface Transaction {
   status?: number; // Only for Rehan
   productName?: string;
   amount?: number;
+  // Lenden-specific fields
+  discount?: number;
+  remaining?: number;
+  jama?: number;
+  baki?: number;
 }
 
 // Get all transactions (Rehan + Lenden) with user info, sorted by date
@@ -461,6 +524,8 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
       name: string;
       address: string | null;
       mobileNumber: string | null;
+      productName?: string;
+      amount?: number;
     }>(
       `SELECT r.id, r.userId, r.media, r.status, r.openDate, r.productName, r.amount,
               u.name, u.address, u.mobileNumber
@@ -478,8 +543,13 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
       name: string;
       address: string | null;
       mobileNumber: string | null;
+      amount?: number;
+      discount?: number;
+      remaining?: number;
+      jama?: number;
+      baki?: number;
     }>(
-      `SELECT l.id, l.userId, l.media, l.date, l.amount,
+      `SELECT l.id, l.userId, l.media, l.date, l.amount, l.discount, l.remaining, l.jama, l.baki,
               u.name, u.address, u.mobileNumber
        FROM lenden l
        JOIN users u ON l.userId = u.id
@@ -511,6 +581,10 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
         date: l.date,
         media: l.media,
         amount: l.amount,
+        discount: l.discount,
+        remaining: l.remaining,
+        jama: l.jama,
+        baki: l.baki,
       })),
     ];
 
@@ -544,6 +618,8 @@ export const searchTransactions = async (
       name: string;
       address: string | null;
       mobileNumber: string | null;
+      productName?: string;
+      amount?: number;
     }>(
       `SELECT r.id, r.userId, r.media, r.status, r.openDate, r.productName, r.amount,
               u.name, u.address, u.mobileNumber
@@ -565,8 +641,13 @@ export const searchTransactions = async (
       name: string;
       address: string | null;
       mobileNumber: string | null;
+      amount?: number;
+      discount?: number;
+      remaining?: number;
+      jama?: number;
+      baki?: number;
     }>(
-      `SELECT l.id, l.userId, l.media, l.date, l.amount,
+      `SELECT l.id, l.userId, l.media, l.date, l.amount, l.discount, l.remaining, l.jama, l.baki,
               u.name, u.address, u.mobileNumber
        FROM lenden l
        JOIN users u ON l.userId = u.id
@@ -602,6 +683,10 @@ export const searchTransactions = async (
         date: l.date,
         media: l.media,
         amount: l.amount,
+        discount: l.discount,
+        remaining: l.remaining,
+        jama: l.jama,
+        baki: l.baki,
       })),
     ];
 
@@ -720,6 +805,10 @@ export const getTransactionsByUserId = async (
         date: l.date,
         media: l.media,
         amount: l.amount,
+        discount: l.discount,
+        remaining: l.remaining,
+        jama: l.jama,
+        baki: l.baki,
       })),
     ];
 

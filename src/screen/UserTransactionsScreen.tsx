@@ -168,6 +168,49 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.amountText}>₹{item.amount.toLocaleString()}</Text>
       )}
 
+      {/* Lenden Financial Summary */}
+      {item.type === "lenden" &&
+        (item.discount || item.remaining || item.jama || item.baki) && (
+          <View style={styles.lendenSummary}>
+            {item.discount ? (
+              <View style={styles.summaryChip}>
+                <Ionicons name="pricetag" size={12} color="#666" />
+                <Text style={styles.summaryChipText}>
+                  -₹{item.discount.toLocaleString()}
+                </Text>
+              </View>
+            ) : null}
+            {item.remaining ? (
+              <View style={styles.summaryChip}>
+                <Ionicons name="wallet" size={12} color="#666" />
+                <Text style={styles.summaryChipText}>
+                  ₹{item.remaining.toLocaleString()}
+                </Text>
+              </View>
+            ) : null}
+            {item.jama ? (
+              <View
+                style={[styles.summaryChip, { backgroundColor: "#E8F5E9" }]}
+              >
+                <Ionicons name="arrow-down-circle" size={12} color="#2E7D32" />
+                <Text style={[styles.summaryChipText, { color: "#2E7D32" }]}>
+                  ₹{item.jama.toLocaleString()}
+                </Text>
+              </View>
+            ) : null}
+            {item.baki ? (
+              <View
+                style={[styles.summaryChip, { backgroundColor: "#FFEBEE" }]}
+              >
+                <Ionicons name="arrow-up-circle" size={12} color="#C62828" />
+                <Text style={[styles.summaryChipText, { color: "#C62828" }]}>
+                  ₹{item.baki.toLocaleString()}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+
       {/* Main content - show date for Rehan */}
       <View style={styles.cardBody}>
         {item.type === "rehan" && item.productName && (
@@ -517,9 +560,6 @@ const styles = StyleSheet.create({
   textClosed: {
     color: "#C62828",
   },
-  textClosed: {
-    color: "#C62828",
-  },
   amountText: {
     fontSize: 18,
     fontWeight: "700",
@@ -669,6 +709,26 @@ const styles = StyleSheet.create({
   },
   dotClosedSmall: {
     backgroundColor: "#F44336",
+  },
+  lendenSummary: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 8,
+  },
+  summaryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#F5F5F5",
+    borderRadius: 8,
+  },
+  summaryChipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
   },
 });
 

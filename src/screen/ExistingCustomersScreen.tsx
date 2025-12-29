@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  Alert,
 } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
@@ -17,6 +19,7 @@ import {
   getUsersWithCounts,
   searchUsersWithCounts,
   UserWithCounts,
+  updateUser,
 } from "../database/entryDatabase";
 
 type ExistingCustomersScreenNavigationProp = NativeStackNavigationProp<
@@ -33,6 +36,14 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Edit modal state
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserWithCounts | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editMobile, setEditMobile] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const loadUsers = async (query?: string) => {
     try {
@@ -62,6 +73,51 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const onRefresh = () => {
     setIsRefreshing(true);
     loadUsers(searchQuery);
+  };
+
+  const openEditModal = (user: UserWithCounts) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditAddress(user.address || "");
+    setEditMobile(user.mobileNumber || "");
+    setIsEditModalVisible(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalVisible(false);
+    setEditingUser(null);
+    setEditName("");
+    setEditAddress("");
+    setEditMobile("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return;
+
+    if (!editName.trim()) {
+      Alert.alert("Validation Error", "Name is required");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateUser(
+        editingUser.id,
+        editName.trim(),
+        editAddress.trim() || undefined,
+        editMobile.trim() || undefined
+      );
+
+      // Refresh list
+      await loadUsers(searchQuery);
+      closeEditModal();
+      Alert.alert("Success", "Customer details updated successfully!");
+    } catch (error) {
+      console.error("Error updating user:", error);
+      Alert.alert("Error", "Failed to update customer. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const renderUser = ({ item }: { item: UserWithCounts }) => (
@@ -98,6 +154,12 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           )}
         </View>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => openEditModal(item)}
+        >
+          <Ionicons name="create-outline" size={20} color="#007AFF" />
+        </TouchableOpacity>
         <Ionicons name="chevron-forward" size={20} color="#CCC" />
       </View>
 
@@ -176,6 +238,91 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           }
         />
       )}
+
+      {/* Edit Customer Modal */}
+      <Modal
+        visible={isEditModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeEditModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Customer</Text>
+              <TouchableOpacity onPress={closeEditModal}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Name <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="Customer name"
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Address</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.textArea]}
+                  value={editAddress}
+                  onChangeText={setEditAddress}
+                  placeholder="Customer address"
+                  placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Mobile Number</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editMobile}
+                  onChangeText={setEditMobile}
+                  placeholder="Mobile number"
+                  placeholderTextColor="#999"
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={closeEditModal}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  isSaving && styles.saveButtonDisabled,
+                ]}
+                onPress={handleSaveEdit}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark" size={20} color="#fff" />
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -269,6 +416,10 @@ const styles = StyleSheet.create({
     color: "#666",
     flex: 1,
   },
+  editButton: {
+    padding: 8,
+    marginRight: 8,
+  },
   countsContainer: {
     flexDirection: "row",
     gap: 12,
@@ -322,6 +473,96 @@ const styles = StyleSheet.create({
     color: "#999",
     marginTop: 4,
     textAlign: "center",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F2F5",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1A1A1A",
+  },
+  modalBody: {
+    padding: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+  },
+  required: {
+    color: "#FF3B30",
+  },
+  modalInput: {
+    backgroundColor: "#F5F7FA",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    color: "#1A1A1A",
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  modalFooter: {
+    flexDirection: "row",
+    padding: 20,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F2F5",
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#F0F2F5",
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#666",
+  },
+  saveButton: {
+    flex: 1,
+    flexDirection: "row",
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#007AFF",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  saveButtonDisabled: {
+    backgroundColor: "#A0C4FF",
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
   },
 });
 

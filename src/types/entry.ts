@@ -39,6 +39,10 @@ export interface Lenden {
   date: string;
   media: string; // JSON stringified array of image paths
   amount?: number;
+  discount?: number;
+  remaining?: number;
+  jama?: number;
+  baki?: number;
 }
 
 export interface NewLenden {
@@ -46,6 +50,10 @@ export interface NewLenden {
   date: string;
   media: string[];
   amount?: number;
+  discount?: number;
+  remaining?: number;
+  jama?: number;
+  baki?: number;
 }
 
 // Entry type selection

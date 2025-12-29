@@ -43,10 +43,15 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [productName, setProductName] = useState("");
   const [amount, setAmount] = useState("");
+
+  // Lenden-specific fields
+  const [discount, setDiscount] = useState("");
+  const [remaining, setRemaining] = useState("");
+  const [jama, setJama] = useState("");
+  const [baki, setBaki] = useState("");
 
   // Minimum date - 5 years ago
   const minDate = new Date();
@@ -156,6 +161,10 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
           date: selectedDate.toISOString(),
           media: savedImagePaths,
           amount: amount ? parseInt(amount, 10) : undefined,
+          discount: discount ? parseInt(discount, 10) : undefined,
+          remaining: remaining ? parseInt(remaining, 10) : undefined,
+          jama: jama ? parseInt(jama, 10) : undefined,
+          baki: baki ? parseInt(baki, 10) : undefined,
         });
       }
 
@@ -296,6 +305,115 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
               />
             </View>
           </View>
+
+          {/* Lenden-specific fields */}
+          {entryType === "lenden" && (
+            <>
+              <View style={styles.fieldRow}>
+                <View style={[styles.inputContainer, { flex: 1 }]}>
+                  <Text style={styles.label}>
+                    <Ionicons name="pricetag-outline" size={14} color="#666" />{" "}
+                    Discount
+                  </Text>
+                  <View style={styles.amountInputWrapper}>
+                    <Text style={styles.currencySymbol}>₹</Text>
+                    <TextInput
+                      style={styles.amountInput}
+                      placeholder="0"
+                      value={discount}
+                      onChangeText={(text) =>
+                        setDiscount(text.replace(/[^0-9]/g, ""))
+                      }
+                      keyboardType="numeric"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                </View>
+                <View style={[styles.inputContainer, { flex: 1 }]}>
+                  <Text style={styles.label}>
+                    <Ionicons name="wallet-outline" size={14} color="#666" />{" "}
+                    Remaining
+                  </Text>
+                  <View style={styles.amountInputWrapper}>
+                    <Text style={styles.currencySymbol}>₹</Text>
+                    <TextInput
+                      style={styles.amountInput}
+                      placeholder="0"
+                      value={remaining}
+                      onChangeText={(text) =>
+                        setRemaining(text.replace(/[^0-9]/g, ""))
+                      }
+                      keyboardType="numeric"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.fieldRow}>
+                <View style={[styles.inputContainer, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: "#2E7D32" }]}>
+                    <Ionicons
+                      name="arrow-down-circle-outline"
+                      size={14}
+                      color="#2E7D32"
+                    />{" "}
+                    Jama (Credit)
+                  </Text>
+                  <View
+                    style={[
+                      styles.amountInputWrapper,
+                      { borderColor: "#A5D6A7" },
+                    ]}
+                  >
+                    <Text style={[styles.currencySymbol, { color: "#2E7D32" }]}>
+                      ₹
+                    </Text>
+                    <TextInput
+                      style={[styles.amountInput, { color: "#2E7D32" }]}
+                      placeholder="0"
+                      value={jama}
+                      onChangeText={(text) =>
+                        setJama(text.replace(/[^0-9]/g, ""))
+                      }
+                      keyboardType="numeric"
+                      placeholderTextColor="#A5D6A7"
+                    />
+                  </View>
+                </View>
+                <View style={[styles.inputContainer, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: "#C62828" }]}>
+                    <Ionicons
+                      name="arrow-up-circle-outline"
+                      size={14}
+                      color="#C62828"
+                    />{" "}
+                    Baki (Debit)
+                  </Text>
+                  <View
+                    style={[
+                      styles.amountInputWrapper,
+                      { borderColor: "#EF9A9A" },
+                    ]}
+                  >
+                    <Text style={[styles.currencySymbol, { color: "#C62828" }]}>
+                      ₹
+                    </Text>
+                    <TextInput
+                      style={[styles.amountInput, { color: "#C62828" }]}
+                      placeholder="0"
+                      value={baki}
+                      onChangeText={(text) =>
+                        setBaki(text.replace(/[^0-9]/g, ""))
+                      }
+                      keyboardType="numeric"
+                      placeholderTextColor="#EF9A9A"
+                    />
+                  </View>
+                </View>
+              </View>
+            </>
+          )}
         </View>
       )}
 
@@ -640,6 +758,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#1A1A1A",
+  },
+  fieldRow: {
+    flexDirection: "row",
+    gap: 12,
   },
 });
 

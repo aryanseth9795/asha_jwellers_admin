@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+// @ts-ignore
 import { ReactNativeZoomableView } from "@dudigital/react-native-zoomable-view";
 import { RootStackParamList } from "../types/entry";
 import {
@@ -62,7 +63,6 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     null
   );
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Editable fields state
@@ -71,22 +71,40 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [originalProductName, setOriginalProductName] = useState("");
   const [originalAmount, setOriginalAmount] = useState("");
 
+  // Lenden-specific edit fields
+  const [editDiscount, setEditDiscount] = useState("");
+  const [editRemaining, setEditRemaining] = useState("");
+  const [editJama, setEditJama] = useState("");
+  const [editBaki, setEditBaki] = useState("");
+  const [originalDiscount, setOriginalDiscount] = useState("");
+  const [originalRemaining, setOriginalRemaining] = useState("");
+  const [originalJama, setOriginalJama] = useState("");
+  const [originalBaki, setOriginalBaki] = useState("");
+
   useEffect(() => {
     loadData();
   }, [transactionId, transactionType]);
 
   useEffect(() => {
-    // Check if media has changed
-    const changed =
-      JSON.stringify(mediaPaths) !== JSON.stringify(originalMediaPaths);
-    setHasChanges(changed);
     // Check if media or details have changed
     const mediaChanged =
       JSON.stringify(mediaPaths) !== JSON.stringify(originalMediaPaths);
     const productNameChanged = editProductName !== originalProductName;
     const amountChanged = editAmount !== originalAmount;
+    const discountChanged = editDiscount !== originalDiscount;
+    const remainingChanged = editRemaining !== originalRemaining;
+    const jamaChanged = editJama !== originalJama;
+    const bakiChanged = editBaki !== originalBaki;
 
-    setHasChanges(mediaChanged || productNameChanged || amountChanged);
+    setHasChanges(
+      mediaChanged ||
+        productNameChanged ||
+        amountChanged ||
+        discountChanged ||
+        remainingChanged ||
+        jamaChanged ||
+        bakiChanged
+    );
   }, [
     mediaPaths,
     originalMediaPaths,
@@ -94,6 +112,14 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     originalProductName,
     editAmount,
     originalAmount,
+    editDiscount,
+    originalDiscount,
+    editRemaining,
+    originalRemaining,
+    editJama,
+    originalJama,
+    editBaki,
+    originalBaki,
   ]);
 
   const loadData = async () => {
@@ -117,6 +143,28 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           setOriginalMediaPaths(paths);
           const userData = await getUserById(lendenData.userId);
           setUser(userData);
+
+          // Initialize Lenden edit fields
+          setEditAmount(lendenData.amount ? lendenData.amount.toString() : "");
+          setOriginalAmount(
+            lendenData.amount ? lendenData.amount.toString() : ""
+          );
+          setEditDiscount(
+            lendenData.discount ? lendenData.discount.toString() : ""
+          );
+          setOriginalDiscount(
+            lendenData.discount ? lendenData.discount.toString() : ""
+          );
+          setEditRemaining(
+            lendenData.remaining ? lendenData.remaining.toString() : ""
+          );
+          setOriginalRemaining(
+            lendenData.remaining ? lendenData.remaining.toString() : ""
+          );
+          setEditJama(lendenData.jama ? lendenData.jama.toString() : "");
+          setOriginalJama(lendenData.jama ? lendenData.jama.toString() : "");
+          setEditBaki(lendenData.baki ? lendenData.baki.toString() : "");
+          setOriginalBaki(lendenData.baki ? lendenData.baki.toString() : "");
         }
       }
     } catch (error) {
@@ -246,7 +294,11 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         await updateLendenDetails(
           transactionId,
           finalPaths,
-          editAmount ? parseInt(editAmount, 10) : undefined
+          editAmount ? parseInt(editAmount, 10) : undefined,
+          editDiscount ? parseInt(editDiscount, 10) : undefined,
+          editRemaining ? parseInt(editRemaining, 10) : undefined,
+          editJama ? parseInt(editJama, 10) : undefined,
+          editBaki ? parseInt(editBaki, 10) : undefined
         );
       }
 
@@ -268,7 +320,16 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           ...lenden,
           media: JSON.stringify(finalPaths),
           amount: editAmount ? parseInt(editAmount, 10) : undefined,
+          discount: editDiscount ? parseInt(editDiscount, 10) : undefined,
+          remaining: editRemaining ? parseInt(editRemaining, 10) : undefined,
+          jama: editJama ? parseInt(editJama, 10) : undefined,
+          baki: editBaki ? parseInt(editBaki, 10) : undefined,
         });
+        // Update original values after save
+        setOriginalDiscount(editDiscount);
+        setOriginalRemaining(editRemaining);
+        setOriginalJama(editJama);
+        setOriginalBaki(editBaki);
       }
 
       setIsEditMode(false);
@@ -311,6 +372,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setMediaPaths(originalMediaPaths);
     setEditProductName(originalProductName);
     setEditAmount(originalAmount);
+    setEditDiscount(originalDiscount);
+    setEditRemaining(originalRemaining);
+    setEditJama(originalJama);
+    setEditBaki(originalBaki);
     setIsEditMode(false);
   };
 
