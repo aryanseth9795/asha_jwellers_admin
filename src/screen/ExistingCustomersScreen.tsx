@@ -20,6 +20,7 @@ import {
   searchUsersWithCounts,
   UserWithCounts,
   updateUser,
+  deleteUser,
 } from "../database/entryDatabase";
 
 type ExistingCustomersScreenNavigationProp = NativeStackNavigationProp<
@@ -44,6 +45,10 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const [editAddress, setEditAddress] = useState("");
   const [editMobile, setEditMobile] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Pagination
+  const [showAll, setShowAll] = useState(false);
+  const DISPLAY_LIMIT = 20;
 
   const loadUsers = async (query?: string) => {
     try {
@@ -120,6 +125,38 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const handleDeleteUser = (user: UserWithCounts) => {
+    Alert.alert(
+      "Delete Customer",
+      `Are you sure you want to delete "${
+        user.name
+      }"? This will also delete all ${
+        user.rehanCount + user.lendenCount
+      } associated transactions. This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteUser(user.id);
+              await loadUsers(searchQuery);
+              Alert.alert("Success", "Customer and all transactions deleted.");
+            } catch (error) {
+              console.error("Error deleting user:", error);
+              Alert.alert("Error", "Failed to delete customer.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Get displayed users based on pagination
+  const displayedUsers = showAll ? users : users.slice(0, DISPLAY_LIMIT);
+  const hasMoreUsers = users.length > DISPLAY_LIMIT;
+
   const renderUser = ({ item }: { item: UserWithCounts }) => (
     <TouchableOpacity
       style={styles.card}
@@ -159,6 +196,12 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           onPress={() => openEditModal(item)}
         >
           <Ionicons name="create-outline" size={20} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteUser(item)}
+        >
+          <Ionicons name="trash-outline" size={20} color="#FF3B30" />
         </TouchableOpacity>
         <Ionicons name="chevron-forward" size={20} color="#CCC" />
       </View>
@@ -222,12 +265,31 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       ) : (
         <FlatList
-          data={users}
+          data={displayedUsers}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderUser}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmpty}
+          ListFooterComponent={
+            hasMoreUsers && !searchQuery ? (
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => setShowAll(!showAll)}
+              >
+                <Text style={styles.viewAllButtonText}>
+                  {showAll
+                    ? "Show Less"
+                    : `View All (${users.length} customers)`}
+                </Text>
+                <Ionicons
+                  name={showAll ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color="#007AFF"
+                />
+              </TouchableOpacity>
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -418,7 +480,29 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 8,
+    marginRight: 4,
+  },
+  deleteButton: {
+    padding: 8,
     marginRight: 8,
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#F0F7FF",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#D0E4FF",
+  },
+  viewAllButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#007AFF",
   },
   countsContainer: {
     flexDirection: "row",

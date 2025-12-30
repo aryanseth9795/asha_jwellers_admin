@@ -43,6 +43,7 @@ export interface Lenden {
   remaining?: number;
   jama?: number;
   baki?: number;
+  status: number; // 0 = open, 1 = closed
 }
 
 export interface NewLenden {
@@ -52,8 +53,23 @@ export interface NewLenden {
   amount?: number;
   discount?: number;
   remaining?: number;
-  jama?: number;
+  jama?: number; // Legacy - now jama entries are stored in separate table
   baki?: number;
+  status?: number; // 0 = open, 1 = closed
+}
+
+// Jama Entry - multiple payments per Lenden
+export interface JamaEntry {
+  id: number;
+  lendenId: number;
+  amount: number;
+  date: string;
+}
+
+export interface NewJamaEntry {
+  lendenId: number;
+  amount: number;
+  date: string;
 }
 
 // Entry type selection

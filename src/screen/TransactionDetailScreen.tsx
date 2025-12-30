@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 // @ts-ignore
 import { ReactNativeZoomableView } from "@dudigital/react-native-zoomable-view";
-import { RootStackParamList } from "../types/entry";
+import { RootStackParamList, JamaEntry } from "../types/entry";
 import {
   getRehanById,
   getLendenById,
@@ -28,9 +28,16 @@ import {
   updateRehanDetails,
   updateLendenDetails,
   closeRehan,
+  getJamaEntriesByLendenId,
+  createJamaEntry,
+  deleteJamaEntry,
+  updateLendenBaki,
+  editJamaEntry,
 } from "../database/entryDatabase";
 import { User, Rehan, Lenden } from "../types/entry";
 import { saveImages } from "../storage/fileStorage";
+import BillTable from "../components/BillTable";
+import AddJamaModal from "../components/AddJamaModal";
 
 type TransactionDetailScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -80,6 +87,32 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [originalRemaining, setOriginalRemaining] = useState("");
   const [originalJama, setOriginalJama] = useState("");
   const [originalBaki, setOriginalBaki] = useState("");
+
+  // Jama Entries for Lenden
+  const [jamaEntries, setJamaEntries] = useState<JamaEntry[]>([]);
+  const [showAddJamaModal, setShowAddJamaModal] = useState(false);
+  const [editingJamaIndex, setEditingJamaIndex] = useState<number | null>(null);
+  const isEditingJama = editingJamaIndex !== null;
+
+  // Auto-calculate Remaining = Amount - Discount (only for lenden in edit mode)
+  useEffect(() => {
+    if (transactionType === "lenden" && isEditMode) {
+      const amount = parseInt(editAmount, 10) || 0;
+      const disc = parseInt(editDiscount, 10) || 0;
+      const calc = amount - disc;
+      setEditRemaining(calc > 0 ? calc.toString() : "0");
+    }
+  }, [editAmount, editDiscount, transactionType, isEditMode]);
+
+  // Auto-calculate Baki = Remaining - Jama (only for lenden in edit mode)
+  useEffect(() => {
+    if (transactionType === "lenden" && isEditMode) {
+      const rem = parseInt(editRemaining, 10) || 0;
+      const jam = parseInt(editJama, 10) || 0;
+      const calc = rem - jam;
+      setEditBaki(calc >= 0 ? calc.toString() : "0");
+    }
+  }, [editRemaining, editJama, transactionType, isEditMode]);
 
   useEffect(() => {
     loadData();
@@ -165,6 +198,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           setOriginalJama(lendenData.jama ? lendenData.jama.toString() : "");
           setEditBaki(lendenData.baki ? lendenData.baki.toString() : "");
           setOriginalBaki(lendenData.baki ? lendenData.baki.toString() : "");
+
+          // Load jama entries
+          const entries = await getJamaEntriesByLendenId(transactionId);
+          setJamaEntries(entries);
         }
       }
     } catch (error) {
@@ -252,14 +289,6 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleSaveChanges = async () => {
-    if (mediaPaths.length === 0) {
-      Alert.alert(
-        "Error",
-        "You must have at least one image. Cannot save with no images."
-      );
-      return;
-    }
-
     setIsSaving(true);
     try {
       // Find new images (ones that are temp URIs, not saved paths)
@@ -527,18 +556,235 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
             ) : null}
 
+            {/* Lenden-specific fields: Discount */}
+            {isEditMode && transactionType === "lenden" ? (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Discount (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  value={editDiscount}
+                  onChangeText={(text) =>
+                    setEditDiscount(text.replace(/[^0-9]/g, ""))
+                  }
+                  keyboardType="numeric"
+                />
+              </View>
+            ) : transactionType === "lenden" && lenden?.discount ? (
+              <View style={styles.infoRow}>
+                <View
+                  style={[styles.iconContainer, { backgroundColor: "#FFF8E1" }]}
+                >
+                  <Ionicons name="pricetag" size={20} color="#F9A825" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Discount</Text>
+                  <Text style={styles.infoValue}>
+                    ₹{lenden.discount.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Lenden-specific fields: Remaining */}
+            {isEditMode && transactionType === "lenden" ? (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>
+                  Remaining (₹) <Text style={styles.autoCalcLabel}>(auto)</Text>
+                </Text>
+                <TextInput
+                  style={[styles.input, styles.readOnlyInput]}
+                  value={editRemaining}
+                  editable={false}
+                  keyboardType="numeric"
+                />
+              </View>
+            ) : transactionType === "lenden" && lenden?.remaining ? (
+              <View style={styles.infoRow}>
+                <View
+                  style={[styles.iconContainer, { backgroundColor: "#E3F2FD" }]}
+                >
+                  <Ionicons name="wallet" size={20} color="#1976D2" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Remaining</Text>
+                  <Text style={styles.infoValue}>
+                    ₹{lenden.remaining.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Lenden-specific fields: Jama */}
+            {isEditMode && transactionType === "lenden" ? (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Jama (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0"
+                  value={editJama}
+                  onChangeText={(text) =>
+                    setEditJama(text.replace(/[^0-9]/g, ""))
+                  }
+                  keyboardType="numeric"
+                />
+              </View>
+            ) : transactionType === "lenden" && lenden?.jama ? (
+              <View style={styles.infoRow}>
+                <View
+                  style={[styles.iconContainer, { backgroundColor: "#E8F5E9" }]}
+                >
+                  <Ionicons
+                    name="arrow-down-circle"
+                    size={20}
+                    color="#2E7D32"
+                  />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Jama</Text>
+                  <Text style={[styles.infoValue, { color: "#2E7D32" }]}>
+                    ₹{lenden.jama.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Lenden-specific fields: Baki */}
+            {isEditMode && transactionType === "lenden" ? (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>
+                  Baki (₹) <Text style={styles.autoCalcLabel}>(auto)</Text>
+                </Text>
+                <TextInput
+                  style={[styles.input, styles.readOnlyInput]}
+                  value={editBaki}
+                  editable={false}
+                  keyboardType="numeric"
+                />
+              </View>
+            ) : transactionType === "lenden" && lenden?.baki ? (
+              <View style={styles.infoRow}>
+                <View
+                  style={[styles.iconContainer, { backgroundColor: "#FFEBEE" }]}
+                >
+                  <Ionicons name="arrow-up-circle" size={20} color="#C62828" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Baki</Text>
+                  <Text style={[styles.infoValue, { color: "#C62828" }]}>
+                    ₹{lenden.baki.toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
             {/* Fallback if no details and not in edit mode */}
             {!isEditMode &&
               !(transactionType === "rehan" && rehan?.productName) &&
-              !(transactionType === "rehan"
-                ? rehan?.amount
-                : lenden?.amount) && (
+              !(transactionType === "rehan" ? rehan?.amount : lenden?.amount) &&
+              !(
+                transactionType === "lenden" &&
+                (lenden?.discount ||
+                  lenden?.remaining ||
+                  lenden?.jama ||
+                  lenden?.baki)
+              ) && (
                 <Text style={styles.noDetailsText}>
                   No additional details provided
                 </Text>
               )}
           </View>
         </View>
+
+        {/* Jama Entries BillTable for Lenden */}
+        {transactionType === "lenden" && lenden && (lenden.amount || 0) > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Payment Summary</Text>
+              {lenden.status === 1 && (
+                <View style={styles.closedBadge}>
+                  <Text style={styles.closedBadgeText}>CLOSED</Text>
+                </View>
+              )}
+            </View>
+            <BillTable
+              amount={lenden.amount || 0}
+              discount={lenden.discount || 0}
+              jamaEntries={jamaEntries}
+              editable={!isEditMode}
+              onAddJama={() => setShowAddJamaModal(true)}
+              onEditJama={(index) => {
+                setEditingJamaIndex(index);
+                setShowAddJamaModal(true);
+              }}
+              onDeleteJama={async (index) => {
+                const entry = jamaEntries[index];
+                if (entry?.id) {
+                  try {
+                    await deleteJamaEntry(entry.id);
+                    await updateLendenBaki(transactionId);
+                    const entries = await getJamaEntriesByLendenId(
+                      transactionId
+                    );
+                    setJamaEntries(entries);
+                    const lendenData = await getLendenById(transactionId);
+                    if (lendenData) setLenden(lendenData);
+                  } catch (error) {
+                    Alert.alert("Error", "Failed to delete jama entry");
+                  }
+                }
+              }}
+            />
+          </View>
+        )}
+
+        {/* Add/Edit Jama Modal */}
+        <AddJamaModal
+          visible={showAddJamaModal}
+          onClose={() => {
+            setShowAddJamaModal(false);
+            setEditingJamaIndex(null);
+          }}
+          editMode={isEditingJama}
+          initialAmount={
+            isEditingJama ? jamaEntries[editingJamaIndex!]?.amount : undefined
+          }
+          initialDate={
+            isEditingJama ? jamaEntries[editingJamaIndex!]?.date : undefined
+          }
+          onAdd={async (amount, date) => {
+            try {
+              if (isEditingJama) {
+                // Edit existing entry
+                const entry = jamaEntries[editingJamaIndex!];
+                if (entry?.id) {
+                  await editJamaEntry(entry.id, amount, date.toISOString());
+                }
+              } else {
+                // Add new entry
+                await createJamaEntry({
+                  lendenId: transactionId,
+                  amount,
+                  date: date.toISOString(),
+                });
+              }
+              await updateLendenBaki(transactionId);
+              // Reload data
+              const entries = await getJamaEntriesByLendenId(transactionId);
+              setJamaEntries(entries);
+              const lendenData = await getLendenById(transactionId);
+              if (lendenData) setLenden(lendenData);
+              setEditingJamaIndex(null);
+            } catch (error) {
+              Alert.alert(
+                "Error",
+                isEditingJama
+                  ? "Failed to update jama entry"
+                  : "Failed to add jama entry"
+              );
+            }
+          }}
+        />
 
         {/* Customer Info Section */}
         <View style={styles.section}>
@@ -910,6 +1156,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1A1A1A",
   },
+  closedBadge: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  closedBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
   editButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1145,6 +1402,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#007AFF",
     paddingBottom: 4,
+  },
+  autoCalcLabel: {
+    color: "#999",
+    fontWeight: "400",
+    fontSize: 10,
+  },
+  readOnlyInput: {
+    backgroundColor: "#E8F5E9",
+    color: "#2E7D32",
+    padding: 8,
+    borderRadius: 6,
+    borderBottomWidth: 0,
   },
 });
 

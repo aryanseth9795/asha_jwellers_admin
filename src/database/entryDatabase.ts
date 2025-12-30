@@ -6,6 +6,8 @@ import {
   NewRehan,
   Lenden,
   NewLenden,
+  JamaEntry,
+  NewJamaEntry,
 } from "../types/entry";
 
 let db: SQLite.SQLiteDatabase | null = null;
@@ -64,6 +66,17 @@ export const initDatabase = async () => {
       );
     `);
 
+    // Create Jama Entries table (multiple jama payments per lenden)
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS jama_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lendenId INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
+      );
+    `);
+
     // Migrations to add columns if they don't exist (for existing app installs)
     try {
       // Check if columns exist in rehan, if not add them
@@ -114,6 +127,12 @@ export const initDatabase = async () => {
       if (!lendenColumns.includes("baki")) {
         await database.execAsync("ALTER TABLE lenden ADD COLUMN baki INTEGER");
         console.log("Added baki to lenden table");
+      }
+      if (!lendenColumns.includes("status")) {
+        await database.execAsync(
+          "ALTER TABLE lenden ADD COLUMN status INTEGER DEFAULT 0"
+        );
+        console.log("Added status to lenden table");
       }
     } catch (migrationError) {
       console.error("Migration error:", migrationError);
@@ -386,7 +405,7 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
     const media = JSON.stringify(lenden.media);
 
     const result = await database.runAsync(
-      "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       lenden.userId,
       lenden.date,
       media,
@@ -394,7 +413,8 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
       lenden.discount || null,
       lenden.remaining || null,
       lenden.jama || null,
-      lenden.baki || null
+      lenden.baki || null,
+      lenden.status ?? 0
     );
 
     return result.lastInsertRowId;
@@ -481,6 +501,8 @@ export const updateLendenDetails = async (
 export const deleteLenden = async (id: number): Promise<void> => {
   try {
     const database = await openDatabase();
+    // Delete associated jama entries first
+    await database.runAsync("DELETE FROM jama_entries WHERE lendenId = ?", id);
     await database.runAsync("DELETE FROM lenden WHERE id = ?", id);
   } catch (error) {
     console.error("Error deleting Lenden:", error);
@@ -548,8 +570,9 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
       remaining?: number;
       jama?: number;
       baki?: number;
+      status?: number; // Add status type
     }>(
-      `SELECT l.id, l.userId, l.media, l.date, l.amount, l.discount, l.remaining, l.jama, l.baki,
+      `SELECT l.id, l.userId, l.media, l.date, l.status, l.amount, l.discount, l.remaining, l.jama, l.baki,
               u.name, u.address, u.mobileNumber
        FROM lenden l
        JOIN users u ON l.userId = u.id
@@ -580,6 +603,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
         userMobileNumber: l.mobileNumber,
         date: l.date,
         media: l.media,
+        status: l.status,
         amount: l.amount,
         discount: l.discount,
         remaining: l.remaining,
@@ -646,8 +670,9 @@ export const searchTransactions = async (
       remaining?: number;
       jama?: number;
       baki?: number;
+      status?: number; // Add status type
     }>(
-      `SELECT l.id, l.userId, l.media, l.date, l.amount, l.discount, l.remaining, l.jama, l.baki,
+      `SELECT l.id, l.userId, l.media, l.date, l.status, l.amount, l.discount, l.remaining, l.jama, l.baki,
               u.name, u.address, u.mobileNumber
        FROM lenden l
        JOIN users u ON l.userId = u.id
@@ -682,6 +707,7 @@ export const searchTransactions = async (
         userMobileNumber: l.mobileNumber,
         date: l.date,
         media: l.media,
+        status: l.status,
         amount: l.amount,
         discount: l.discount,
         remaining: l.remaining,
@@ -804,6 +830,7 @@ export const getTransactionsByUserId = async (
         userMobileNumber: user.mobileNumber,
         date: l.date,
         media: l.media,
+        status: l.status, // Add status
         amount: l.amount,
         discount: l.discount,
         remaining: l.remaining,
@@ -821,5 +848,116 @@ export const getTransactionsByUserId = async (
   } catch (error) {
     console.error("Error getting transactions by user ID:", error);
     return [];
+  }
+};
+
+// ============ JAMA ENTRIES CRUD ============
+
+// Create new Jama Entry
+export const createJamaEntry = async (entry: NewJamaEntry): Promise<number> => {
+  try {
+    const database = await openDatabase();
+    const result = await database.runAsync(
+      "INSERT INTO jama_entries (lendenId, amount, date) VALUES (?, ?, ?)",
+      entry.lendenId,
+      entry.amount,
+      entry.date
+    );
+    return result.lastInsertRowId;
+  } catch (error) {
+    console.error("Error creating jama entry:", error);
+    throw error;
+  }
+};
+
+// Get all Jama Entries for a Lenden
+export const getJamaEntriesByLendenId = async (
+  lendenId: number
+): Promise<JamaEntry[]> => {
+  try {
+    const database = await openDatabase();
+    const rows = await database.getAllAsync<JamaEntry>(
+      "SELECT * FROM jama_entries WHERE lendenId = ? ORDER BY date ASC",
+      lendenId
+    );
+    return rows;
+  } catch (error) {
+    console.error("Error getting jama entries:", error);
+    return [];
+  }
+};
+
+// Delete a Jama Entry
+export const deleteJamaEntry = async (id: number): Promise<void> => {
+  try {
+    const database = await openDatabase();
+    await database.runAsync("DELETE FROM jama_entries WHERE id = ?", id);
+  } catch (error) {
+    console.error("Error deleting jama entry:", error);
+    throw error;
+  }
+};
+
+// Get total Jama amount for a Lenden
+export const getTotalJamaByLendenId = async (
+  lendenId: number
+): Promise<number> => {
+  try {
+    const database = await openDatabase();
+    const row = await database.getFirstAsync<{ total: number }>(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM jama_entries WHERE lendenId = ?",
+      lendenId
+    );
+    return row?.total ?? 0;
+  } catch (error) {
+    console.error("Error getting total jama:", error);
+    return 0;
+  }
+};
+
+// Update Lenden baki based on jama entries and auto-close if baki = 0
+export const updateLendenBaki = async (lendenId: number): Promise<void> => {
+  try {
+    const database = await openDatabase();
+    const lenden = await getLendenById(lendenId);
+    if (!lenden) return;
+
+    const totalJama = await getTotalJamaByLendenId(lendenId);
+    const remaining = lenden.remaining || 0;
+    const baki = remaining - totalJama;
+    const finalBaki = baki >= 0 ? baki : 0;
+
+    // Auto-close if baki becomes 0
+    const status = finalBaki === 0 ? 1 : 0;
+
+    await database.runAsync(
+      "UPDATE lenden SET baki = ?, status = ? WHERE id = ?",
+      finalBaki,
+      status,
+      lendenId
+    );
+  } catch (error) {
+    console.error("Error updating lenden baki:", error);
+    throw error;
+  }
+};
+
+// Edit a Jama Entry
+export const editJamaEntry = async (
+  id: number,
+  amount: number,
+  date: string
+): Promise<void> => {
+  try {
+    const database = await openDatabase();
+    await database.runAsync(
+      "UPDATE jama_entries SET amount = ?, date = ? WHERE id = ?",
+      amount,
+      date,
+      id
+    );
+  } catch (error) {
+    console.error("Error editing jama entry:", error);
+    throw error;
   }
 };

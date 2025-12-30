@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -17,6 +18,8 @@ import { RootStackParamList } from "../types/entry";
 import {
   getTransactionsByUserId,
   getUserById,
+  deleteRehan,
+  deleteLenden,
   Transaction,
 } from "../database/entryDatabase";
 import { User } from "../types/entry";
@@ -86,16 +89,49 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   // Filter transactions
+  // Filter transactions
   const filteredTransactions = transactions.filter((t) => {
     // Type filter
     if (typeFilter !== "all" && t.type !== typeFilter) return false;
-    // Status filter (only for Rehan)
-    if (typeFilter === "rehan" && statusFilter !== "all") {
+
+    // Status filter (for both Rehan and Lenden)
+    if (statusFilter !== "all") {
+      // Both Rehan and Lenden use status 0 for open and 1 for closed
+      if (t.status === undefined) return false; // Should not happen for valid data
       if (statusFilter === "open" && t.status !== 0) return false;
       if (statusFilter === "closed" && t.status !== 1) return false;
     }
     return true;
   });
+
+  const handleDeleteTransaction = (transaction: Transaction) => {
+    Alert.alert(
+      "Delete Transaction",
+      "Are you sure you want to delete this transaction? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              if (transaction.type === "rehan") {
+                await deleteRehan(transaction.id);
+              } else {
+                await deleteLenden(transaction.id);
+              }
+              await loadTransactions();
+            } catch (error) {
+              Alert.alert("Error", "Failed to delete transaction");
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const renderTransaction = ({ item }: { item: Transaction }) => (
     <TouchableOpacity
@@ -132,35 +168,68 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
           </Text>
         </View>
 
-        {/* Status for Rehan or Date for Lenden */}
-        {item.type === "rehan" ? (
-          <View
-            style={[
-              styles.statusBadge,
-              item.status === 0 ? styles.statusOpen : styles.statusClosed,
-            ]}
-          >
+        {/* Status for Rehan or Date for Lenden + Delete Button */}
+        <View style={styles.headerRight}>
+          {item.type === "rehan" ? (
             <View
               style={[
-                styles.statusDot,
-                item.status === 0 ? styles.dotOpen : styles.dotClosed,
-              ]}
-            />
-            <Text
-              style={[
-                styles.statusText,
-                item.status === 0 ? styles.textOpen : styles.textClosed,
+                styles.statusBadge,
+                item.status === 0 ? styles.statusOpen : styles.statusClosed,
               ]}
             >
-              {item.status === 0 ? "Open" : "Closed"}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.dateContainer}>
-            <Ionicons name="calendar-outline" size={14} color="#666" />
-            <Text style={styles.dateText}>{formatDate(item.date)}</Text>
-          </View>
-        )}
+              <View
+                style={[
+                  styles.statusDot,
+                  item.status === 0 ? styles.dotOpen : styles.dotClosed,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusText,
+                  item.status === 0 ? styles.textOpen : styles.textClosed,
+                ]}
+              >
+                {item.status === 0 ? "Open" : "Closed"}
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              {item.type === "lenden" && item.status === 1 && (
+                <View
+                  style={[
+                    styles.statusBadge,
+                    styles.statusClosed,
+                    { paddingVertical: 4, paddingHorizontal: 8 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      styles.textClosed,
+                      { fontSize: 11 },
+                    ]}
+                  >
+                    CLOSED
+                  </Text>
+                </View>
+              )}
+              <View style={styles.dateContainer}>
+                <Ionicons name="calendar-outline" size={14} color="#666" />
+                <Text style={styles.dateText}>{formatDate(item.date)}</Text>
+              </View>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeleteTransaction(item)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Amount Display */}
@@ -258,11 +327,22 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
     );
   }
 
+  // Calculate stats
+  const totalBaki = transactions
+    .filter((t) => t.type === "lenden" && t.baki)
+    .reduce((sum, t) => sum + (t.baki || 0), 0);
+
+  const totalOpenRehanAmount = transactions
+    .filter((t) => t.type === "rehan" && t.status === 0 && t.amount)
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       {/* Summary Header */}
       <View style={styles.summaryHeader}>
         <Text style={styles.summaryTitle}>{userName}'s Transactions</Text>
+
+        {/* Transaction Counts Row */}
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryCount}>
@@ -276,6 +356,32 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
               {transactions.filter((t) => t.type === "lenden").length}
             </Text>
             <Text style={styles.summaryLabel}>Len-Den</Text>
+          </View>
+        </View>
+
+        {/* Financial Stats Row */}
+        <View style={[styles.summaryRow, styles.statsRow]}>
+          <View style={styles.statItem}>
+            <View style={[styles.statIcon, styles.openRehanIcon]}>
+              <Ionicons name="document-text" size={16} color="#2E7D32" />
+            </View>
+            <View>
+              <Text style={[styles.statAmount, styles.openRehanAmount]}>
+                ₹{totalOpenRehanAmount.toLocaleString()}
+              </Text>
+              <Text style={styles.statLabel}>Open Rehan</Text>
+            </View>
+          </View>
+          <View style={styles.statItem}>
+            <View style={[styles.statIcon, styles.bakiIcon]}>
+              <Ionicons name="arrow-up-circle" size={16} color="#C62828" />
+            </View>
+            <View>
+              <Text style={[styles.statAmount, styles.bakiAmount]}>
+                ₹{totalBaki.toLocaleString()}
+              </Text>
+              <Text style={styles.statLabel}>Total Baki</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -295,7 +401,6 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
             ]}
             onPress={() => {
               setTypeFilter("all");
-              setStatusFilter("all");
             }}
           >
             <Text
@@ -330,7 +435,6 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
             ]}
             onPress={() => {
               setTypeFilter("lenden");
-              setStatusFilter("all");
             }}
           >
             <Text
@@ -343,52 +447,48 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
             </Text>
           </TouchableOpacity>
 
-          {/* Status Filters - only show when Rehan is selected */}
-          {typeFilter === "rehan" && (
-            <>
-              <View style={styles.filterDivider} />
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  styles.openChip,
-                  statusFilter === "open" && styles.openChipActive,
-                ]}
-                onPress={() =>
-                  setStatusFilter(statusFilter === "open" ? "all" : "open")
-                }
-              >
-                <View style={[styles.statusDotSmall, styles.dotOpenSmall]} />
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    statusFilter === "open" && styles.openChipTextActive,
-                  ]}
-                >
-                  Open
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.filterChip,
-                  styles.closedChip,
-                  statusFilter === "closed" && styles.closedChipActive,
-                ]}
-                onPress={() =>
-                  setStatusFilter(statusFilter === "closed" ? "all" : "closed")
-                }
-              >
-                <View style={[styles.statusDotSmall, styles.dotClosedSmall]} />
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    statusFilter === "closed" && styles.closedChipTextActive,
-                  ]}
-                >
-                  Closed
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
+          {/* Status Filters - Always show */}
+          <View style={styles.filterDivider} />
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              styles.openChip,
+              statusFilter === "open" && styles.openChipActive,
+            ]}
+            onPress={() =>
+              setStatusFilter(statusFilter === "open" ? "all" : "open")
+            }
+          >
+            <View style={[styles.statusDotSmall, styles.dotOpenSmall]} />
+            <Text
+              style={[
+                styles.filterChipText,
+                statusFilter === "open" && styles.openChipTextActive,
+              ]}
+            >
+              Open
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              styles.closedChip,
+              statusFilter === "closed" && styles.closedChipActive,
+            ]}
+            onPress={() =>
+              setStatusFilter(statusFilter === "closed" ? "all" : "closed")
+            }
+          >
+            <View style={[styles.statusDotSmall, styles.dotClosedSmall]} />
+            <Text
+              style={[
+                styles.filterChipText,
+                statusFilter === "closed" && styles.closedChipTextActive,
+              ]}
+            >
+              Closed
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </View>
 
@@ -479,6 +579,46 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: "#E5E5E5",
+  },
+  statsRow: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F2F5",
+    justifyContent: "space-around",
+  },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  statIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  openRehanIcon: {
+    backgroundColor: "#E8F5E9",
+  },
+  bakiIcon: {
+    backgroundColor: "#FFEBEE",
+  },
+  statAmount: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  openRehanAmount: {
+    color: "#2E7D32",
+  },
+  bakiAmount: {
+    color: "#C62828",
+  },
+  statLabel: {
+    fontSize: 11,
+    color: "#666",
+    marginTop: 2,
   },
   listContent: {
     padding: 16,
@@ -729,6 +869,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: "#666",
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  deleteButton: {
+    padding: 4,
   },
 });
 

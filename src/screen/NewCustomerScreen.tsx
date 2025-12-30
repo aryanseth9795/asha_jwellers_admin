@@ -20,9 +20,12 @@ import {
   createUser,
   createRehan,
   createLenden,
+  createJamaEntry,
 } from "../database/entryDatabase";
 import { saveImages } from "../storage/fileStorage";
 import CustomDatePicker from "../components/CustomDatePicker";
+import BillTable from "../components/BillTable";
+import AddJamaModal from "../components/AddJamaModal";
 
 type NewCustomerScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -51,6 +54,35 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
   // Date selection
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Rehan-specific fields
+  const [productName, setProductName] = useState("");
+  const [rehanAmount, setRehanAmount] = useState("");
+
+  // Lenden-specific fields
+  const [lendenAmount, setLendenAmount] = useState("");
+  const [discount, setDiscount] = useState("");
+
+  // Multiple Jama Entries
+  interface LocalJamaEntry {
+    amount: number;
+    date: string;
+  }
+  const [jamaEntries, setJamaEntries] = useState<LocalJamaEntry[]>([]);
+  const [showAddJamaModal, setShowAddJamaModal] = useState(false);
+
+  // Auto-calculate Remaining = Amount - Discount
+  const remaining = React.useMemo(() => {
+    const amount = parseInt(lendenAmount, 10) || 0;
+    const disc = parseInt(discount, 10) || 0;
+    return Math.max(0, amount - disc);
+  }, [lendenAmount, discount]);
+
+  // Auto-calculate Baki = Remaining - Total Jama
+  const baki = React.useMemo(() => {
+    const totalJama = jamaEntries.reduce((sum, entry) => sum + entry.amount, 0);
+    return Math.max(0, remaining - totalJama);
+  }, [remaining, jamaEntries]);
 
   // Minimum date - 5 years ago
   const minDate = new Date();
@@ -179,13 +211,28 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
           userId,
           media: savedImagePaths,
           openDate: selectedDate.toISOString(),
+          productName: productName.trim() || undefined,
+          amount: rehanAmount ? parseInt(rehanAmount, 10) : undefined,
         });
       } else {
-        await createLenden({
+        const lendenId = await createLenden({
           userId,
           date: selectedDate.toISOString(),
           media: savedImagePaths,
+          amount: lendenAmount ? parseInt(lendenAmount, 10) : undefined,
+          discount: discount ? parseInt(discount, 10) : undefined,
+          remaining: remaining || undefined,
+          baki: baki || undefined,
         });
+
+        // Create jama entries
+        for (const entry of jamaEntries) {
+          await createJamaEntry({
+            lendenId,
+            amount: entry.amount,
+            date: entry.date,
+          });
+        }
       }
 
       Alert.alert("Success", "Customer entry saved successfully!", [
@@ -330,6 +377,97 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         )}
 
+        {/* Rehan-specific Fields */}
+        {entryType === "rehan" && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Rehan Details</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Product Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter product name (optional)"
+                placeholderTextColor="#999"
+                value={productName}
+                onChangeText={setProductName}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Amount (₹)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter amount (optional)"
+                placeholderTextColor="#999"
+                value={rehanAmount}
+                onChangeText={setRehanAmount}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Lenden-specific Fields */}
+        {entryType === "lenden" && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Len-Den Details</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Amount (₹)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter amount"
+                placeholderTextColor="#999"
+                value={lendenAmount}
+                onChangeText={setLendenAmount}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Discount (₹)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter discount (optional)"
+                placeholderTextColor="#999"
+                value={discount}
+                onChangeText={setDiscount}
+                keyboardType="numeric"
+              />
+            </View>
+
+            {/* Bill Table with Jama Entries */}
+            {parseInt(lendenAmount, 10) > 0 && (
+              <View style={styles.inputGroup}>
+                <BillTable
+                  amount={parseInt(lendenAmount, 10) || 0}
+                  discount={parseInt(discount, 10) || 0}
+                  jamaEntries={jamaEntries}
+                  editable={true}
+                  onAddJama={() => setShowAddJamaModal(true)}
+                  onDeleteJama={(index) => {
+                    setJamaEntries((prev) =>
+                      prev.filter((_, i) => i !== index)
+                    );
+                  }}
+                />
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Add Jama Modal */}
+        <AddJamaModal
+          visible={showAddJamaModal}
+          onClose={() => setShowAddJamaModal(false)}
+          onAdd={(amount, date) => {
+            setJamaEntries((prev) => [
+              ...prev,
+              { amount, date: date.toISOString() },
+            ]);
+          }}
+        />
+
         {/* Bill Section - Only show if entry type is selected */}
         {entryType && (
           <View style={styles.section}>
@@ -452,6 +590,15 @@ const styles = StyleSheet.create({
   },
   required: {
     color: "#FF3B30",
+  },
+  autoCalc: {
+    color: "#999",
+    fontWeight: "400",
+    fontSize: 12,
+  },
+  readOnlyInput: {
+    backgroundColor: "#E8F5E9",
+    color: "#2E7D32",
   },
   input: {
     backgroundColor: "#F8F9FA",
