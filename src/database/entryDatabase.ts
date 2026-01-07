@@ -284,7 +284,7 @@ export const createRehan = async (rehan: NewRehan): Promise<number> => {
   try {
     const database = await openDatabase();
     const openDate = rehan.openDate || new Date().toISOString();
-    const media = JSON.stringify(rehan.media);
+    const media = JSON.stringify(rehan.media || []);
 
     const result = await database.runAsync(
       "INSERT INTO rehan (userId, media, status, openDate, productName, amount) VALUES (?, ?, 0, ?, ?, ?)",
@@ -402,7 +402,7 @@ export const deleteRehan = async (id: number): Promise<void> => {
 export const createLenden = async (lenden: NewLenden): Promise<number> => {
   try {
     const database = await openDatabase();
-    const media = JSON.stringify(lenden.media);
+    const media = JSON.stringify(lenden.media || []);
 
     const result = await database.runAsync(
       "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -779,6 +779,137 @@ export const searchUsersWithCounts = async (
     return rows;
   } catch (error) {
     console.error("Error searching users with counts:", error);
+    return [];
+  }
+};
+
+// Filter options interface for advanced filtering
+export interface UserFilterOptions {
+  name?: string;
+  address?: string;
+  mobileNumber?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  transactionType?: "rehan" | "lenden" | "both";
+}
+
+// Filter users with counts based on multiple criteria
+export const filterUsersWithCounts = async (
+  filters: UserFilterOptions
+): Promise<UserWithCounts[]> => {
+  try {
+    const database = await openDatabase();
+
+    // Build dynamic WHERE clause
+    const conditions: string[] = [];
+    const params: (string | number)[] = [];
+
+    // Name filter
+    if (filters.name && filters.name.trim()) {
+      conditions.push("u.name LIKE ?");
+      params.push(`%${filters.name.trim()}%`);
+    }
+
+    // Address filter
+    if (filters.address && filters.address.trim()) {
+      conditions.push("u.address LIKE ?");
+      params.push(`%${filters.address.trim()}%`);
+    }
+
+    // Mobile number filter
+    if (filters.mobileNumber && filters.mobileNumber.trim()) {
+      conditions.push("u.mobileNumber LIKE ?");
+      params.push(`%${filters.mobileNumber.trim()}%`);
+    }
+
+    // Transaction type filter - only include users with transactions of the specified type
+    if (filters.transactionType && filters.transactionType !== "both") {
+      if (filters.transactionType === "rehan") {
+        // Date filter for rehan
+        if (filters.dateFrom || filters.dateTo) {
+          let dateCondition = "(SELECT COUNT(*) FROM rehan WHERE userId = u.id";
+          if (filters.dateFrom) {
+            dateCondition += " AND date(openDate) >= date(?)";
+            params.push(filters.dateFrom);
+          }
+          if (filters.dateTo) {
+            dateCondition += " AND date(openDate) <= date(?)";
+            params.push(filters.dateTo);
+          }
+          dateCondition += ") > 0";
+          conditions.push(dateCondition);
+        } else {
+          conditions.push(
+            "(SELECT COUNT(*) FROM rehan WHERE userId = u.id) > 0"
+          );
+        }
+      } else if (filters.transactionType === "lenden") {
+        // Date filter for lenden
+        if (filters.dateFrom || filters.dateTo) {
+          let dateCondition =
+            "(SELECT COUNT(*) FROM lenden WHERE userId = u.id";
+          if (filters.dateFrom) {
+            dateCondition += " AND date(date) >= date(?)";
+            params.push(filters.dateFrom);
+          }
+          if (filters.dateTo) {
+            dateCondition += " AND date(date) <= date(?)";
+            params.push(filters.dateTo);
+          }
+          dateCondition += ") > 0";
+          conditions.push(dateCondition);
+        } else {
+          conditions.push(
+            "(SELECT COUNT(*) FROM lenden WHERE userId = u.id) > 0"
+          );
+        }
+      }
+    } else if (filters.dateFrom || filters.dateTo) {
+      // Date filter for both transaction types
+      let rehanCondition = "(SELECT COUNT(*) FROM rehan WHERE userId = u.id";
+      let lendenCondition = "(SELECT COUNT(*) FROM lenden WHERE userId = u.id";
+
+      if (filters.dateFrom) {
+        rehanCondition += " AND date(openDate) >= date(?)";
+        lendenCondition += " AND date(date) >= date(?)";
+      }
+      if (filters.dateTo) {
+        rehanCondition += " AND date(openDate) <= date(?)";
+        lendenCondition += " AND date(date) <= date(?)";
+      }
+
+      rehanCondition += ")";
+      lendenCondition += ")";
+
+      // Add parameters in the correct order
+      const dateParams: string[] = [];
+      if (filters.dateFrom) dateParams.push(filters.dateFrom);
+      if (filters.dateTo) dateParams.push(filters.dateTo);
+
+      // Params for rehan condition
+      params.push(...dateParams);
+      // Params for lenden condition
+      params.push(...dateParams);
+
+      conditions.push(`(${rehanCondition} > 0 OR ${lendenCondition} > 0)`);
+    }
+
+    // Build the final query
+    let query = `SELECT u.id, u.name, u.address, u.mobileNumber, u.createdAt,
+              (SELECT COUNT(*) FROM rehan WHERE userId = u.id) as rehanCount,
+              (SELECT COUNT(*) FROM lenden WHERE userId = u.id) as lendenCount
+       FROM users u`;
+
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(" AND ")}`;
+    }
+
+    query += " ORDER BY u.createdAt DESC";
+
+    const rows = await database.getAllAsync<UserWithCounts>(query, ...params);
+    return rows;
+  } catch (error) {
+    console.error("Error filtering users with counts:", error);
     return [];
   }
 };

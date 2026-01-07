@@ -10,17 +10,21 @@ import {
   RefreshControl,
   Modal,
   Alert,
+  Switch,
+  Platform,
 } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { RootStackParamList } from "../types/entry";
 import {
   getUsersWithCounts,
-  searchUsersWithCounts,
   UserWithCounts,
   updateUser,
   deleteUser,
+  filterUsersWithCounts,
+  UserFilterOptions,
 } from "../database/entryDatabase";
 
 type ExistingCustomersScreenNavigationProp = NativeStackNavigationProp<
@@ -34,9 +38,23 @@ interface Props {
 
 const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const [users, setUsers] = useState<UserWithCounts[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterName, setFilterName] = useState("");
+  const [filterAddress, setFilterAddress] = useState("");
+  const [filterMobile, setFilterMobile] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState<Date | null>(null);
+  const [filterDateTo, setFilterDateTo] = useState<Date | null>(null);
+  const [filterTransactionType, setFilterTransactionType] = useState<
+    "both" | "rehan" | "lenden"
+  >("both");
+
+  // Date picker states
+  const [showDateFromPicker, setShowDateFromPicker] = useState(false);
+  const [showDateToPicker, setShowDateToPicker] = useState(false);
 
   // Edit modal state
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
@@ -50,11 +68,37 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const [showAll, setShowAll] = useState(false);
   const DISPLAY_LIMIT = 20;
 
-  const loadUsers = async (query?: string) => {
+  // Check if any filter is active
+  const hasActiveFilters =
+    filterName.trim() !== "" ||
+    filterAddress.trim() !== "" ||
+    filterMobile.trim() !== "" ||
+    filterDateFrom !== null ||
+    filterDateTo !== null ||
+    filterTransactionType !== "both";
+
+  const loadUsers = async () => {
     try {
-      const data = query
-        ? await searchUsersWithCounts(query)
-        : await getUsersWithCounts();
+      let data: UserWithCounts[];
+
+      if (hasActiveFilters) {
+        const filters: UserFilterOptions = {
+          name: filterName.trim() || undefined,
+          address: filterAddress.trim() || undefined,
+          mobileNumber: filterMobile.trim() || undefined,
+          dateFrom: filterDateFrom
+            ? filterDateFrom.toISOString().split("T")[0]
+            : undefined,
+          dateTo: filterDateTo
+            ? filterDateTo.toISOString().split("T")[0]
+            : undefined,
+          transactionType: filterTransactionType,
+        };
+        data = await filterUsersWithCounts(filters);
+      } else {
+        data = await getUsersWithCounts();
+      }
+
       setUsers(data);
     } catch (error) {
       console.error("Error loading users:", error);
@@ -66,18 +110,38 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      loadUsers(searchQuery);
-    }, [searchQuery])
+      loadUsers();
+    }, [
+      filterName,
+      filterAddress,
+      filterMobile,
+      filterDateFrom,
+      filterDateTo,
+      filterTransactionType,
+    ])
   );
-
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
-    loadUsers(text);
-  };
 
   const onRefresh = () => {
     setIsRefreshing(true);
-    loadUsers(searchQuery);
+    loadUsers();
+  };
+
+  const clearAllFilters = () => {
+    setFilterName("");
+    setFilterAddress("");
+    setFilterMobile("");
+    setFilterDateFrom(null);
+    setFilterDateTo(null);
+    setFilterTransactionType("both");
+  };
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return "";
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   const openEditModal = (user: UserWithCounts) => {
@@ -114,7 +178,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
       );
 
       // Refresh list
-      await loadUsers(searchQuery);
+      await loadUsers();
       closeEditModal();
       Alert.alert("Success", "Customer details updated successfully!");
     } catch (error) {
@@ -141,7 +205,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           onPress: async () => {
             try {
               await deleteUser(user.id);
-              await loadUsers(searchQuery);
+              await loadUsers();
               Alert.alert("Success", "Customer and all transactions deleted.");
             } catch (error) {
               console.error("Error deleting user:", error);
@@ -229,33 +293,294 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
       <Ionicons name="people-outline" size={64} color="#CCC" />
       <Text style={styles.emptyTitle}>No Customers Found</Text>
       <Text style={styles.emptySubtitle}>
-        {searchQuery
-          ? "Try a different search term"
+        {hasActiveFilters
+          ? "Try adjusting your filters"
           : "Add your first customer to get started"}
       </Text>
+      {hasActiveFilters && (
+        <TouchableOpacity
+          style={styles.clearFiltersButton}
+          onPress={clearAllFilters}
+        >
+          <Ionicons name="refresh" size={18} color="#007AFF" />
+          <Text style={styles.clearFiltersButtonText}>Clear Filters</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Search Header */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputWrapper}>
-          <Ionicons name="search" size={20} color="#999" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by name, address, or mobile..."
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={handleSearch}
+      {/* Filter Toggle Header */}
+      <View style={styles.filterHeader}>
+        <TouchableOpacity
+          style={[
+            styles.filterToggleButton,
+            showFilters && styles.filterToggleActive,
+          ]}
+          onPress={() => setShowFilters(!showFilters)}
+        >
+          <Ionicons
+            name={showFilters ? "filter" : "filter-outline"}
+            size={20}
+            color={showFilters || hasActiveFilters ? "#007AFF" : "#666"}
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => handleSearch("")}>
-              <Ionicons name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
+          <Text
+            style={[
+              styles.filterToggleText,
+              (showFilters || hasActiveFilters) &&
+                styles.filterToggleTextActive,
+            ]}
+          >
+            Filters
+          </Text>
+          {hasActiveFilters && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>
+                {
+                  [
+                    filterName.trim(),
+                    filterAddress.trim(),
+                    filterMobile.trim(),
+                    filterDateFrom,
+                    filterDateTo,
+                    filterTransactionType !== "both"
+                      ? filterTransactionType
+                      : "",
+                  ].filter(Boolean).length
+                }
+              </Text>
+            </View>
           )}
-        </View>
+          <Ionicons
+            name={showFilters ? "chevron-up" : "chevron-down"}
+            size={18}
+            color="#666"
+          />
+        </TouchableOpacity>
+
+        {hasActiveFilters && (
+          <TouchableOpacity
+            style={styles.clearAllButton}
+            onPress={clearAllFilters}
+          >
+            <Ionicons name="close-circle" size={16} color="#FF3B30" />
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
+
+        <Text style={styles.resultCount}>
+          {users.length} customer{users.length !== 1 ? "s" : ""}
+        </Text>
       </View>
+
+      {/* Collapsible Filter Panel */}
+      {showFilters && (
+        <View style={styles.filterPanel}>
+          {/* Name Filter */}
+          <View style={styles.filterRow}>
+            <View style={styles.filterInputContainer}>
+              <Ionicons name="person-outline" size={18} color="#666" />
+              <TextInput
+                style={styles.filterInput}
+                placeholder="Filter by name..."
+                placeholderTextColor="#999"
+                value={filterName}
+                onChangeText={setFilterName}
+              />
+              {filterName.length > 0 && (
+                <TouchableOpacity onPress={() => setFilterName("")}>
+                  <Ionicons name="close-circle" size={18} color="#999" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Address Filter */}
+          <View style={styles.filterRow}>
+            <View style={styles.filterInputContainer}>
+              <Ionicons name="location-outline" size={18} color="#666" />
+              <TextInput
+                style={styles.filterInput}
+                placeholder="Filter by address..."
+                placeholderTextColor="#999"
+                value={filterAddress}
+                onChangeText={setFilterAddress}
+              />
+              {filterAddress.length > 0 && (
+                <TouchableOpacity onPress={() => setFilterAddress("")}>
+                  <Ionicons name="close-circle" size={18} color="#999" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Mobile Number Filter */}
+          <View style={styles.filterRow}>
+            <View style={styles.filterInputContainer}>
+              <Ionicons name="call-outline" size={18} color="#666" />
+              <TextInput
+                style={styles.filterInput}
+                placeholder="Filter by mobile..."
+                placeholderTextColor="#999"
+                value={filterMobile}
+                onChangeText={setFilterMobile}
+                keyboardType="phone-pad"
+              />
+              {filterMobile.length > 0 && (
+                <TouchableOpacity onPress={() => setFilterMobile("")}>
+                  <Ionicons name="close-circle" size={18} color="#999" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Date Range Filter */}
+          <View style={styles.dateFilterRow}>
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => setShowDateFromPicker(true)}
+            >
+              <Ionicons name="calendar-outline" size={18} color="#666" />
+              <Text
+                style={[
+                  styles.datePickerText,
+                  filterDateFrom && styles.datePickerTextActive,
+                ]}
+              >
+                {filterDateFrom ? formatDate(filterDateFrom) : "From Date"}
+              </Text>
+              {filterDateFrom && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setFilterDateFrom(null);
+                  }}
+                >
+                  <Ionicons name="close-circle" size={16} color="#999" />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+
+            <Text style={styles.dateSeparator}>—</Text>
+
+            <TouchableOpacity
+              style={styles.datePickerButton}
+              onPress={() => setShowDateToPicker(true)}
+            >
+              <Ionicons name="calendar-outline" size={18} color="#666" />
+              <Text
+                style={[
+                  styles.datePickerText,
+                  filterDateTo && styles.datePickerTextActive,
+                ]}
+              >
+                {filterDateTo ? formatDate(filterDateTo) : "To Date"}
+              </Text>
+              {filterDateTo && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setFilterDateTo(null);
+                  }}
+                >
+                  <Ionicons name="close-circle" size={16} color="#999" />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Transaction Type Switch */}
+          <View style={styles.transactionTypeContainer}>
+            <Text style={styles.transactionTypeLabel}>Transaction Type:</Text>
+            <View style={styles.transactionTypeSwitches}>
+              <TouchableOpacity
+                style={[
+                  styles.typeButton,
+                  filterTransactionType === "both" && styles.typeButtonActive,
+                ]}
+                onPress={() => setFilterTransactionType("both")}
+              >
+                <Text
+                  style={[
+                    styles.typeButtonText,
+                    filterTransactionType === "both" &&
+                      styles.typeButtonTextActive,
+                  ]}
+                >
+                  Both
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.typeButton,
+                  styles.rehanTypeButton,
+                  filterTransactionType === "rehan" &&
+                    styles.rehanTypeButtonActive,
+                ]}
+                onPress={() => setFilterTransactionType("rehan")}
+              >
+                <Text
+                  style={[
+                    styles.typeButtonText,
+                    filterTransactionType === "rehan" &&
+                      styles.typeButtonTextActive,
+                  ]}
+                >
+                  Rehan
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.typeButton,
+                  styles.lendenTypeButton,
+                  filterTransactionType === "lenden" &&
+                    styles.lendenTypeButtonActive,
+                ]}
+                onPress={() => setFilterTransactionType("lenden")}
+              >
+                <Text
+                  style={[
+                    styles.typeButtonText,
+                    filterTransactionType === "lenden" &&
+                      styles.typeButtonTextActive,
+                  ]}
+                >
+                  Lenden
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Date Pickers */}
+      {showDateFromPicker && (
+        <DateTimePicker
+          value={filterDateFrom || new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(event, date) => {
+            setShowDateFromPicker(false);
+            if (date) setFilterDateFrom(date);
+          }}
+          maximumDate={filterDateTo || new Date()}
+        />
+      )}
+
+      {showDateToPicker && (
+        <DateTimePicker
+          value={filterDateTo || new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(event, date) => {
+            setShowDateToPicker(false);
+            if (date) setFilterDateTo(date);
+          }}
+          minimumDate={filterDateFrom || undefined}
+          maximumDate={new Date()}
+        />
+      )}
 
       {/* User List */}
       {isLoading ? (
@@ -272,7 +597,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={
-            hasMoreUsers && !searchQuery ? (
+            hasMoreUsers && !hasActiveFilters ? (
               <TouchableOpacity
                 style={styles.viewAllButton}
                 onPress={() => setShowAll(!showAll)}
@@ -394,27 +719,187 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8F9FA",
   },
-  searchContainer: {
+  // Filter styles
+  filterHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5E5",
+    gap: 12,
+  },
+  filterToggleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F2F5",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    gap: 6,
+  },
+  filterToggleActive: {
+    backgroundColor: "#E3F2FD",
+  },
+  filterToggleText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
+  filterToggleTextActive: {
+    color: "#007AFF",
+  },
+  filterBadge: {
+    backgroundColor: "#007AFF",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  filterBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  clearAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  clearAllText: {
+    fontSize: 13,
+    color: "#FF3B30",
+    fontWeight: "500",
+  },
+  resultCount: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 13,
+    color: "#666",
+  },
+  filterPanel: {
     backgroundColor: "#fff",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5E5",
   },
-  searchInputWrapper: {
+  filterRow: {
+    marginBottom: 10,
+  },
+  filterInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0F2F5",
-    borderRadius: 12,
+    backgroundColor: "#F5F7FA",
+    borderRadius: 10,
     paddingHorizontal: 12,
     gap: 10,
   },
-  searchInput: {
+  filterInput: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingVertical: 10,
+    fontSize: 15,
     color: "#1A1A1A",
   },
+  dateFilterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  datePickerButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F7FA",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  datePickerText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#999",
+  },
+  datePickerTextActive: {
+    color: "#1A1A1A",
+  },
+  dateSeparator: {
+    color: "#999",
+    fontSize: 14,
+  },
+  transactionTypeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  transactionTypeLabel: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
+  },
+  transactionTypeSwitches: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 8,
+  },
+  typeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#F0F2F5",
+    alignItems: "center",
+  },
+  typeButtonActive: {
+    backgroundColor: "#007AFF",
+  },
+  typeButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
+  },
+  typeButtonTextActive: {
+    color: "#fff",
+  },
+  rehanTypeButton: {
+    borderWidth: 1,
+    borderColor: "#E8F5E9",
+  },
+  rehanTypeButtonActive: {
+    backgroundColor: "#4CAF50",
+    borderColor: "#4CAF50",
+  },
+  lendenTypeButton: {
+    borderWidth: 1,
+    borderColor: "#FFF3E0",
+  },
+  lendenTypeButtonActive: {
+    backgroundColor: "#FF9800",
+    borderColor: "#FF9800",
+  },
+  clearFiltersButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: "#F0F7FF",
+    borderRadius: 8,
+  },
+  clearFiltersButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+  // Loading styles
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -429,6 +914,7 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
+  // Card styles
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,

@@ -424,7 +424,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       {entryType && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Bill <Text style={styles.required}>*</Text>{" "}
+            Bill (Optional){" "}
             <Text style={styles.mediaCount}>({selectedImages.length})</Text>
           </Text>
 

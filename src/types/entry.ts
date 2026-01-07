@@ -27,7 +27,7 @@ export interface Rehan {
 
 export interface NewRehan {
   userId: number;
-  media: string[];
+  media?: string[];
   openDate?: string; // Optional - defaults to current date if not provided
   productName?: string;
   amount?: number;
@@ -49,7 +49,7 @@ export interface Lenden {
 export interface NewLenden {
   userId: number;
   date: string;
-  media: string[];
+  media?: string[];
   amount?: number;
   discount?: number;
   remaining?: number;

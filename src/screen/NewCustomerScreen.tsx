@@ -171,11 +171,6 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       return;
     }
 
-    if (selectedImages.length === 0) {
-      Alert.alert("Validation Error", "Please add at least one image.");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -472,7 +467,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
         {entryType && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              Bill <Text style={styles.required}>*</Text>{" "}
+              Bill (Optional){" "}
               <Text style={styles.mediaCount}>({selectedImages.length})</Text>
             </Text>
 
