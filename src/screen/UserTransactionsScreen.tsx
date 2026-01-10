@@ -593,9 +593,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#E8F5E9",
-    padding: 12,
-    borderRadius: 10,
     marginTop: 10,
     marginBottom: 4,
   },
@@ -607,20 +604,20 @@ const styles = StyleSheet.create({
   highlightedAmount: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#2E7D32",
+    color: "#1A1A1A",
   },
   dateHighlightBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#fff",
+    backgroundColor: "#F0F7FF",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 14,
   },
   dateHighlightText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#007AFF",
   },
   summaryRow: {
