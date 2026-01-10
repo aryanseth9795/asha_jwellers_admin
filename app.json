@@ -3,6 +3,9 @@
     "name": "AJ",
     "slug": "asha-jwellers",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -10,6 +13,12 @@
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0B1F4B"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/7245c873-a703-48d6-a61b-7742c278b73a"
     },
     "ios": {
       "supportsTablet": true
@@ -33,7 +42,8 @@
       "expo-sqlite",
       "expo-file-system",
       "expo-image-picker",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-updates"
     ],
     "extra": {
       "eas": {

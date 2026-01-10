@@ -86,7 +86,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
 
   // Minimum date - 5 years ago
   const minDate = new Date();
-  minDate.setFullYear(minDate.getFullYear() - 5);
+  minDate.setFullYear(minDate.getFullYear() - 15);
 
   const requestPermissions = async () => {
     const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();

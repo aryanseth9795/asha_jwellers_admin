@@ -52,7 +52,7 @@ const AddJamaModal: React.FC<AddJamaModalProps> = ({
   }, [visible, editMode, initialAmount, initialDate]);
 
   const minDate = new Date();
-  minDate.setFullYear(minDate.getFullYear() - 5);
+  minDate.setFullYear(minDate.getFullYear() - 15);
 
   const formatDisplayDate = (date: Date) => {
     return date.toLocaleDateString("en-IN", {

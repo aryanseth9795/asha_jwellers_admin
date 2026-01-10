@@ -9,7 +9,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   Animated,
+  Alert,
+  Text,
 } from "react-native";
+import * as Updates from "expo-updates";
 import HomeScreen from "./src/screen/homeScreen";
 import NewCustomerScreen from "./src/screen/NewCustomerScreen";
 import ExistingCustomersScreen from "./src/screen/ExistingCustomersScreen";
@@ -23,11 +26,50 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const fadeAnim = useState(new Animated.Value(1))[0];
+
+  // Check for OTA updates
+  const checkForUpdates = async () => {
+    // Skip update check in development
+    if (__DEV__) {
+      return;
+    }
+
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        setIsUpdating(true);
+        await Updates.fetchUpdateAsync();
+        Alert.alert(
+          "Update Available",
+          "A new version has been downloaded. Restart the app to apply the update.",
+          [
+            {
+              text: "Restart Now",
+              onPress: async () => {
+                await Updates.reloadAsync();
+              },
+            },
+            {
+              text: "Later",
+              style: "cancel",
+              onPress: () => setIsUpdating(false),
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.log("Error checking for updates:", error);
+    }
+  };
 
   useEffect(() => {
     // Initialize database on app start
     initDatabase();
+
+    // Check for updates
+    checkForUpdates();
 
     // Show splash screen for 1 second
     const timer = setTimeout(() => {
@@ -53,6 +95,12 @@ export default function App() {
           style={styles.splashIcon}
           resizeMode="stretch"
         />
+        {isUpdating && (
+          <View style={styles.updateContainer}>
+            <ActivityIndicator size="small" color="#fff" />
+            <Text style={styles.updateText}>Downloading update...</Text>
+          </View>
+        )}
       </Animated.View>
     );
   }
@@ -123,5 +171,21 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 30,
+  },
+  updateContainer: {
+    position: "absolute",
+    bottom: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  updateText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

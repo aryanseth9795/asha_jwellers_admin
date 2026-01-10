@@ -532,25 +532,29 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             ) : (
                 transactionType === "rehan" ? rehan?.amount : lenden?.amount
               ) ? (
-              <View style={styles.infoRow}>
-                <View
-                  style={[styles.iconContainer, { backgroundColor: "#E8F5E9" }]}
-                >
-                  <Ionicons name="cash" size={20} color="#2E7D32" />
-                </View>
-                <View style={styles.infoContent}>
-                  <Text style={styles.infoLabel}>Amount</Text>
-                  <Text
-                    style={[
-                      styles.infoValue,
-                      { color: "#2E7D32", fontWeight: "700" },
-                    ]}
-                  >
+              <View style={styles.amountDateRow}>
+                <View style={styles.amountHighlight}>
+                  <Ionicons name="cash" size={22} color="#2E7D32" />
+                  <Text style={styles.amountValue}>
                     ₹
                     {(transactionType === "rehan"
                       ? rehan?.amount
                       : lenden?.amount
                     )?.toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.dateBadge}>
+                  <Ionicons name="calendar" size={14} color="#007AFF" />
+                  <Text style={styles.dateBadgeText}>
+                    {new Date(
+                      transactionType === "rehan"
+                        ? rehan?.openDate || ""
+                        : lenden?.date || ""
+                    ).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </Text>
                 </View>
               </View>
@@ -1141,6 +1145,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     color: "#666",
+  },
+  amountDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#E8F5E9",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  amountHighlight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  amountValue: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: "#2E7D32",
+  },
+  dateBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  dateBadgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#007AFF",
   },
   section: {
     marginBottom: 20,

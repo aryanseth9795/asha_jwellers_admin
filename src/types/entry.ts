@@ -95,18 +95,3 @@ export type RootStackParamList = {
     transactionType: "rehan" | "lenden";
   };
 };
-
-// Legacy Entry types (can be removed after migration)
-export interface Entry {
-  id: number;
-  name: string;
-  address: string;
-  imagePaths: string;
-  createdAt: string;
-}
-
-export interface NewEntry {
-  name: string;
-  address: string;
-  imagePaths: string[];
-}

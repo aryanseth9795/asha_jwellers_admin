@@ -311,6 +311,25 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Name Search Bar - Always Visible */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputWrapper}>
+          <Ionicons name="search" size={20} color="#666" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name..."
+            placeholderTextColor="#999"
+            value={filterName}
+            onChangeText={setFilterName}
+          />
+          {filterName.length > 0 && (
+            <TouchableOpacity onPress={() => setFilterName("")}>
+              <Ionicons name="close-circle" size={20} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
       {/* Filter Toggle Header */}
       <View style={styles.filterHeader}>
         <TouchableOpacity
@@ -321,7 +340,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           onPress={() => setShowFilters(!showFilters)}
         >
           <Ionicons
-            name={showFilters ? "filter" : "filter-outline"}
+            name={showFilters ? "options" : "options-outline"}
             size={20}
             color={showFilters || hasActiveFilters ? "#007AFF" : "#666"}
           />
@@ -332,14 +351,13 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
                 styles.filterToggleTextActive,
             ]}
           >
-            Filters
+            More Filters
           </Text>
           {hasActiveFilters && (
             <View style={styles.filterBadge}>
               <Text style={styles.filterBadgeText}>
                 {
                   [
-                    filterName.trim(),
                     filterAddress.trim(),
                     filterMobile.trim(),
                     filterDateFrom,
@@ -377,25 +395,6 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
       {/* Collapsible Filter Panel */}
       {showFilters && (
         <View style={styles.filterPanel}>
-          {/* Name Filter */}
-          <View style={styles.filterRow}>
-            <View style={styles.filterInputContainer}>
-              <Ionicons name="person-outline" size={18} color="#666" />
-              <TextInput
-                style={styles.filterInput}
-                placeholder="Filter by name..."
-                placeholderTextColor="#999"
-                value={filterName}
-                onChangeText={setFilterName}
-              />
-              {filterName.length > 0 && (
-                <TouchableOpacity onPress={() => setFilterName("")}>
-                  <Ionicons name="close-circle" size={18} color="#999" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
           {/* Address Filter */}
           <View style={styles.filterRow}>
             <View style={styles.filterInputContainer}>
@@ -719,13 +718,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8F9FA",
   },
+  // Search styles
+  searchContainer: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  searchInputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F2F5",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#1A1A1A",
+  },
   // Filter styles
   filterHeader: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5E5",
     gap: 12,

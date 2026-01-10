@@ -67,7 +67,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // Minimum date - 5 years ago
   const minDate = new Date();
-  minDate.setFullYear(minDate.getFullYear() - 5);
+  minDate.setFullYear(minDate.getFullYear() - 15);
 
   const requestPermissions = async () => {
     const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
@@ -141,11 +141,6 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
         "Validation Error",
         "Please select an entry type (Rehan or Len-Den)."
       );
-      return;
-    }
-
-    if (selectedImages.length === 0) {
-      Alert.alert("Validation Error", "Please add at least one image.");
       return;
     }
 
