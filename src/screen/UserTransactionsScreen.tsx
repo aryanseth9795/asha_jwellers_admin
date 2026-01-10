@@ -616,8 +616,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   dateHighlightText: {
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "800",
     color: "#007AFF",
   },
   summaryRow: {
