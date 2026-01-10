@@ -232,9 +232,22 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Amount Display */}
+      {/* Amount and Date Display */}
       {item.amount && (
-        <Text style={styles.amountText}>₹{item.amount.toLocaleString()}</Text>
+        <View style={styles.amountDateRow}>
+          <View style={styles.amountHighlight}>
+            <Ionicons name="cash" size={20} color="#2E7D32" />
+            <Text style={styles.highlightedAmount}>
+              ₹{item.amount.toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.dateHighlightBadge}>
+            <Ionicons name="calendar" size={14} color="#007AFF" />
+            <Text style={styles.dateHighlightText}>
+              {formatDate(item.date)}
+            </Text>
+          </View>
+        </View>
       )}
 
       {/* Lenden Financial Summary */}
@@ -341,6 +354,14 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
       {/* Summary Header */}
       <View style={styles.summaryHeader}>
         <Text style={styles.summaryTitle}>{userName}'s Transactions</Text>
+        {user?.address && (
+          <View style={styles.addressRow}>
+            <Ionicons name="location" size={14} color="#666" />
+            <Text style={styles.addressText} numberOfLines={1}>
+              {user.address}
+            </Text>
+          </View>
+        )}
 
         {/* Transaction Counts Row */}
         <View style={styles.summaryRow}>
@@ -555,7 +576,52 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     color: "#1A1A1A",
+    marginBottom: 4,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     marginBottom: 12,
+  },
+  addressText: {
+    fontSize: 13,
+    color: "#666",
+    flex: 1,
+  },
+  amountDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#E8F5E9",
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  amountHighlight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  highlightedAmount: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#2E7D32",
+  },
+  dateHighlightBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#fff",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  dateHighlightText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#007AFF",
   },
   summaryRow: {
     flexDirection: "row",

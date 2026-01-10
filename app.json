@@ -43,7 +43,8 @@
       "expo-file-system",
       "expo-image-picker",
       "@react-native-community/datetimepicker",
-      "expo-updates"
+      "expo-updates",
+      "expo-font"
     ],
     "extra": {
       "eas": {
