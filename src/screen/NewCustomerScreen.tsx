@@ -45,6 +45,9 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
   // Entry type selection
   const [entryType, setEntryType] = useState<EntryType | null>(null);
 
+  // Track if duplicate check has been performed
+  const [hasDuplicateCheckRun, setHasDuplicateCheckRun] = useState(false);
+
   // Media
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
@@ -154,6 +157,36 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       month: "short",
       year: "numeric",
     });
+  };
+
+  // Check for duplicate name and address combination
+  const handleEntryTypeFocus = async () => {
+    // Only check if name and address are provided and check hasn't been run yet
+    if (!name.trim() || !address.trim() || hasDuplicateCheckRun) {
+      return;
+    }
+
+    try {
+      // Check if this name+address combination exists
+      const isDuplicate = await checkDuplicateUser(
+        name.trim(),
+        address.trim(),
+        undefined // Don't check mobile number for this validation
+      );
+
+      if (isDuplicate) {
+        Alert.alert(
+          "Duplicate Entry Detected",
+          `A customer with the name "${name.trim()}" and address "${address.trim()}" already exists. Please verify the details before proceeding.`,
+          [{ text: "OK" }]
+        );
+      }
+
+      // Mark that the duplicate check has been performed
+      setHasDuplicateCheckRun(true);
+    } catch (error) {
+      console.error("Error checking for duplicates:", error);
+    }
   };
 
   const handleSave = async () => {
@@ -269,7 +302,10 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
               placeholder="Enter customer name"
               placeholderTextColor="#999"
               value={name}
-              onChangeText={setName}
+              onChangeText={(text) => {
+                setName(text);
+                setHasDuplicateCheckRun(false); // Reset duplicate check when name changes
+              }}
             />
           </View>
 
@@ -280,7 +316,10 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
               placeholder="Enter address (optional)"
               placeholderTextColor="#999"
               value={address}
-              onChangeText={setAddress}
+              onChangeText={(text) => {
+                setAddress(text);
+                setHasDuplicateCheckRun(false); // Reset duplicate check when address changes
+              }}
               multiline
               numberOfLines={2}
             />
@@ -300,7 +339,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Entry Type Section */}
-        <View style={styles.section}>
+        <View style={styles.section} onTouchStart={handleEntryTypeFocus}>
           <Text style={styles.sectionTitle}>
             Entry Type <Text style={styles.required}>*</Text>
           </Text>
