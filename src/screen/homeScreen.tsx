@@ -114,6 +114,25 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             </View>
             <Ionicons name="chevron-forward" size={24} color="#007AFF" />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.card, styles.cardBhav]}
+            onPress={() => navigation.navigate("UpdateBhav")}
+            activeOpacity={0.9}
+          >
+            <View style={[styles.cardIconContainer, styles.iconContainerBhav]}>
+              <Ionicons name="trending-up" size={32} color="#D4AF37" />
+            </View>
+            <View style={styles.cardContent}>
+              <Text style={[styles.cardTitle, styles.textDark]}>
+                Update Bhav
+              </Text>
+              <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
+                Update commodity rates
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#D4AF37" />
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
@@ -221,6 +240,14 @@ const styles = StyleSheet.create({
   },
   iconContainerNew: {
     backgroundColor: "#E6F2FF",
+  },
+  cardBhav: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#EEF0F2",
+  },
+  iconContainerBhav: {
+    backgroundColor: "#FEF9E7",
   },
   cardContent: {
     flex: 1,

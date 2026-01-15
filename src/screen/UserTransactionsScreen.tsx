@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   dateHighlightText: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#007AFF",
+    color: "#0a0a0bff",
   },
   summaryRow: {
     flexDirection: "row",

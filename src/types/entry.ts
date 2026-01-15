@@ -94,4 +94,5 @@ export type RootStackParamList = {
     transactionId: number;
     transactionType: "rehan" | "lenden";
   };
+  UpdateBhav: undefined;
 };

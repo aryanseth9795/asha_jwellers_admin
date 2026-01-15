@@ -19,6 +19,7 @@ import ExistingCustomersScreen from "./src/screen/ExistingCustomersScreen";
 import UserTransactionsScreen from "./src/screen/UserTransactionsScreen";
 import AddTransactionScreen from "./src/screen/AddTransactionScreen";
 import TransactionDetailScreen from "./src/screen/TransactionDetailScreen";
+import UpdateBhavScreen from "./src/screen/UpdateBhavScreen";
 import { RootStackParamList } from "./src/types/entry";
 import { initDatabase } from "./src/database/entryDatabase";
 
@@ -150,6 +151,11 @@ export default function App() {
             name="TransactionDetail"
             component={TransactionDetailScreen}
             options={{ title: "Details" }}
+          />
+          <Stack.Screen
+            name="UpdateBhav"
+            component={UpdateBhavScreen}
+            options={{ title: "Update Bhav" }}
           />
         </Stack.Navigator>
       </NavigationContainer>
