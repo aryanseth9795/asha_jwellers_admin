@@ -1,6 +1,6 @@
 // BhavService.ts - API service for managing static bhav rates
 
-const BASE_URL = "https://ssj-server.onrender.com";
+const BASE_URL = "https://ssj-server-om8r.onrender.com";
 const ADMIN_KEY = "ayushseth958";
 
 export interface BhavValue {
@@ -39,7 +39,7 @@ export const getBhavRates = async (): Promise<GetBhavResponse> => {
   const response = await fetch(`${BASE_URL}/api/admin/static`, {
     method: "GET",
     headers: {
-    //   "x-admin-key": ADMIN_KEY,
+      "x-admin-key": ADMIN_KEY,
       "Content-Type": "application/json",
     },
   });
@@ -69,6 +69,5 @@ export const updateBhavRates = async (
   if (!response.ok) {
     throw new Error(`Failed to update bhav rates: ${response.status}`);
   }
-
   return response.json();
 };
