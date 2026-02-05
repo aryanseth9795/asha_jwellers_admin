@@ -48,10 +48,10 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // Filter state
   const [typeFilter, setTypeFilter] = useState<"all" | "rehan" | "lenden">(
-    "all"
+    "all",
   );
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">(
-    "all"
+    "all",
   );
 
   const loadTransactions = async () => {
@@ -71,7 +71,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
   useFocusEffect(
     useCallback(() => {
       loadTransactions();
-    }, [userId])
+    }, [userId]),
   );
 
   const onRefresh = () => {
@@ -129,7 +129,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -353,7 +353,11 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
     <SafeAreaView style={styles.container} edges={["bottom"]}>
       {/* Summary Header */}
       <View style={styles.summaryHeader}>
-        <Text style={styles.summaryTitle}>{userName}'s Transactions</Text>
+        <Text style={styles.summaryTitle}>
+          {user ? user.name : userName}
+          {user?.nickname ? ` (${user.nickname})` : ""}
+          's Transactions
+        </Text>
         {user?.address && (
           <View style={styles.addressRow}>
             <Ionicons name="location" size={14} color="#666" />

@@ -38,6 +38,14 @@ import { User, Rehan, Lenden } from "../types/entry";
 import { saveImages } from "../storage/fileStorage";
 import BillTable from "../components/BillTable";
 import AddJamaModal from "../components/AddJamaModal";
+import AddRehanTransactionModal from "../components/AddRehanTransactionModal";
+import RehanTransactionTable from "../components/RehanTransactionTable";
+import {
+  getRehanTransactionsByRehanId,
+  createRehanTransaction,
+  deleteRehanTransaction,
+} from "../database/entryDatabase";
+import { RehanTransaction } from "../types/entry";
 
 type TransactionDetailScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -67,7 +75,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [mediaPaths, setMediaPaths] = useState<string[]>([]);
   const [originalMediaPaths, setOriginalMediaPaths] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
-    null
+    null,
   );
   const [isEditMode, setIsEditMode] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -93,6 +101,13 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showAddJamaModal, setShowAddJamaModal] = useState(false);
   const [editingJamaIndex, setEditingJamaIndex] = useState<number | null>(null);
   const isEditingJama = editingJamaIndex !== null;
+
+  // Rehan Transactions
+  const [rehanTransactions, setRehanTransactions] = useState<
+    RehanTransaction[]
+  >([]);
+  const [showAddRehanTransactionModal, setShowAddRehanTransactionModal] =
+    useState(false);
 
   // Auto-calculate Remaining = Amount - Discount (only for lenden in edit mode)
   useEffect(() => {
@@ -136,7 +151,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         discountChanged ||
         remainingChanged ||
         jamaChanged ||
-        bakiChanged
+        bakiChanged,
     );
   }, [
     mediaPaths,
@@ -166,6 +181,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           setOriginalMediaPaths(paths);
           const userData = await getUserById(rehanData.userId);
           setUser(userData);
+          // Load transactions
+          const transactions =
+            await getRehanTransactionsByRehanId(transactionId);
+          setRehanTransactions(transactions);
         }
       } else {
         const lendenData = await getLendenById(transactionId);
@@ -180,19 +199,19 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           // Initialize Lenden edit fields
           setEditAmount(lendenData.amount ? lendenData.amount.toString() : "");
           setOriginalAmount(
-            lendenData.amount ? lendenData.amount.toString() : ""
+            lendenData.amount ? lendenData.amount.toString() : "",
           );
           setEditDiscount(
-            lendenData.discount ? lendenData.discount.toString() : ""
+            lendenData.discount ? lendenData.discount.toString() : "",
           );
           setOriginalDiscount(
-            lendenData.discount ? lendenData.discount.toString() : ""
+            lendenData.discount ? lendenData.discount.toString() : "",
           );
           setEditRemaining(
-            lendenData.remaining ? lendenData.remaining.toString() : ""
+            lendenData.remaining ? lendenData.remaining.toString() : "",
           );
           setOriginalRemaining(
-            lendenData.remaining ? lendenData.remaining.toString() : ""
+            lendenData.remaining ? lendenData.remaining.toString() : "",
           );
           setEditJama(lendenData.jama ? lendenData.jama.toString() : "");
           setOriginalJama(lendenData.jama ? lendenData.jama.toString() : "");
@@ -236,7 +255,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!hasPermission) {
       Alert.alert(
         "Permission Required",
-        "Camera and media library permissions are required."
+        "Camera and media library permissions are required.",
       );
       return;
     }
@@ -257,7 +276,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     if (!hasPermission) {
       Alert.alert(
         "Permission Required",
-        "Media library permission is required."
+        "Media library permission is required.",
       );
       return;
     }
@@ -293,7 +312,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     try {
       // Find new images (ones that are temp URIs, not saved paths)
       const newImages = mediaPaths.filter(
-        (path) => !originalMediaPaths.includes(path)
+        (path) => !originalMediaPaths.includes(path),
       );
 
       // Save new images to storage
@@ -317,7 +336,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           transactionId,
           finalPaths,
           editProductName.trim() || undefined,
-          editAmount ? parseInt(editAmount, 10) : undefined
+          editAmount ? parseInt(editAmount, 10) : undefined,
         );
       } else {
         await updateLendenDetails(
@@ -327,7 +346,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           editDiscount ? parseInt(editDiscount, 10) : undefined,
           editRemaining ? parseInt(editRemaining, 10) : undefined,
           editJama ? parseInt(editJama, 10) : undefined,
-          editBaki ? parseInt(editBaki, 10) : undefined
+          editBaki ? parseInt(editBaki, 10) : undefined,
         );
       }
 
@@ -393,7 +412,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -549,7 +568,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     {new Date(
                       transactionType === "rehan"
                         ? rehan?.openDate || ""
-                        : lenden?.date || ""
+                        : lenden?.date || "",
                     ).toLocaleDateString("en-IN", {
                       day: "2-digit",
                       month: "short",
@@ -727,9 +746,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   try {
                     await deleteJamaEntry(entry.id);
                     await updateLendenBaki(transactionId);
-                    const entries = await getJamaEntriesByLendenId(
-                      transactionId
-                    );
+                    const entries =
+                      await getJamaEntriesByLendenId(transactionId);
                     setJamaEntries(entries);
                     const lendenData = await getLendenById(transactionId);
                     if (lendenData) setLenden(lendenData);
@@ -741,6 +759,79 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             />
           </View>
         )}
+
+        {/* Rehan Transactions Table */}
+        {transactionType === "rehan" && rehan && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Transaction History</Text>
+              {rehan.status === 0 && (
+                <TouchableOpacity
+                  style={styles.addTransactionButton}
+                  onPress={() => setShowAddRehanTransactionModal(true)}
+                >
+                  <Ionicons name="add-circle" size={16} color="#007AFF" />
+                  <Text style={styles.addTransactionText}>Add Transaction</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <RehanTransactionTable
+              transactions={rehanTransactions}
+              onDeleteTransaction={async (id) => {
+                Alert.alert(
+                  "Delete Transaction",
+                  "Are you sure you want to delete this transaction?",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Delete",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await deleteRehanTransaction(id);
+                          // Refresh data
+                          const updated =
+                            await getRehanTransactionsByRehanId(transactionId);
+                          setRehanTransactions(updated);
+                          // Refresh balance
+                          const rehanData = await getRehanById(transactionId);
+                          if (rehanData) setRehan(rehanData);
+                        } catch (error) {
+                          Alert.alert("Error", "Failed to delete transaction");
+                        }
+                      },
+                    },
+                  ],
+                );
+              }}
+            />
+          </View>
+        )}
+
+        {/* Add Rehan Transaction Modal */}
+        <AddRehanTransactionModal
+          visible={showAddRehanTransactionModal}
+          onClose={() => setShowAddRehanTransactionModal(false)}
+          onAdd={async (amount, type, date) => {
+            try {
+              await createRehanTransaction({
+                rehanId: transactionId,
+                amount,
+                type,
+                date: date.toISOString(),
+              });
+              // Refresh data
+              const updated =
+                await getRehanTransactionsByRehanId(transactionId);
+              setRehanTransactions(updated);
+              // Refresh balance
+              const rehanData = await getRehanById(transactionId);
+              if (rehanData) setRehan(rehanData);
+            } catch (error) {
+              Alert.alert("Error", "Failed to add transaction");
+            }
+          }}
+        />
 
         {/* Add/Edit Jama Modal */}
         <AddJamaModal
@@ -784,7 +875,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 "Error",
                 isEditingJama
                   ? "Failed to update jama entry"
-                  : "Failed to add jama entry"
+                  : "Failed to add jama entry",
               );
             }
           }}
@@ -848,7 +939,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   {formatDate(
                     transactionType === "rehan"
                       ? rehan?.openDate || ""
-                      : lenden?.date || ""
+                      : lenden?.date || "",
                   )}
                 </Text>
               </View>
@@ -1192,6 +1283,20 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: "#1A1A1A",
+  },
+  addTransactionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+  },
+  addTransactionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#007AFF",
   },
   closedBadge: {
     backgroundColor: "#4CAF50",

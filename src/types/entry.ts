@@ -5,6 +5,7 @@ export interface User {
   name: string;
   address: string | null;
   mobileNumber: string | null;
+  nickname: string | null;
   createdAt: string;
 }
 
@@ -12,6 +13,7 @@ export interface NewUser {
   name: string;
   address?: string;
   mobileNumber?: string;
+  nickname?: string;
 }
 
 export interface Rehan {
@@ -30,7 +32,22 @@ export interface NewRehan {
   media?: string[];
   openDate?: string; // Optional - defaults to current date if not provided
   productName?: string;
-  amount?: number;
+  amount?: number; // Initial amount / Current balance
+}
+
+export interface RehanTransaction {
+  id: number;
+  rehanId: number;
+  type: "jama" | "diya";
+  amount: number;
+  date: string;
+}
+
+export interface NewRehanTransaction {
+  rehanId: number;
+  type: "jama" | "diya";
+  amount: number;
+  date: string;
 }
 
 export interface Lenden {

@@ -60,6 +60,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<UserWithCounts | null>(null);
   const [editName, setEditName] = useState("");
+  const [editNickname, setEditNickname] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [editMobile, setEditMobile] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -118,7 +119,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
       filterDateFrom,
       filterDateTo,
       filterTransactionType,
-    ])
+    ]),
   );
 
   const onRefresh = () => {
@@ -147,6 +148,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const openEditModal = (user: UserWithCounts) => {
     setEditingUser(user);
     setEditName(user.name);
+    setEditNickname(user.nickname || "");
     setEditAddress(user.address || "");
     setEditMobile(user.mobileNumber || "");
     setIsEditModalVisible(true);
@@ -156,6 +158,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
     setIsEditModalVisible(false);
     setEditingUser(null);
     setEditName("");
+    setEditNickname("");
     setEditAddress("");
     setEditMobile("");
   };
@@ -174,7 +177,8 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
         editingUser.id,
         editName.trim(),
         editAddress.trim() || undefined,
-        editMobile.trim() || undefined
+        editMobile.trim() || undefined,
+        editNickname.trim() || undefined,
       );
 
       // Refresh list
@@ -192,9 +196,9 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const handleDeleteUser = (user: UserWithCounts) => {
     Alert.alert(
       "Delete Customer",
-      `Are you sure you want to delete "${
-        user.name
-      }"? This will also delete all ${
+      `Are you sure you want to delete "${user.name}"${
+        user.nickname ? ` (${user.nickname})` : ""
+      }? This will also delete all ${
         user.rehanCount + user.lendenCount
       } associated transactions. This action cannot be undone.`,
       [
@@ -213,7 +217,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -239,7 +243,12 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </View>
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>{item.name}</Text>
+          <Text style={styles.userName}>
+            {item.name}
+            {item.nickname ? (
+              <Text style={styles.userNickname}> ({item.nickname})</Text>
+            ) : null}
+          </Text>
           {item.address && (
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={14} color="#666" />
@@ -656,6 +665,17 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
               </View>
 
               <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Nick Name</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editNickname}
+                  onChangeText={setEditNickname}
+                  placeholder="Nick name (optional)"
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Address</Text>
                 <TextInput
                   style={[styles.modalInput, styles.textArea]}
@@ -795,6 +815,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#FF3B30",
     fontWeight: "500",
+  },
+  userNickname: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "400",
   },
   resultCount: {
     flex: 1,

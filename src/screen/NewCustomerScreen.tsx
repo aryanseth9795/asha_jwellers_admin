@@ -39,6 +39,7 @@ interface Props {
 const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
   // User info
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [address, setAddress] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
 
@@ -107,7 +108,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
     if (!hasPermission) {
       Alert.alert(
         "Permission Required",
-        "Camera and media library permissions are required to take photos."
+        "Camera and media library permissions are required to take photos.",
       );
       return;
     }
@@ -128,7 +129,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
     if (!hasPermission) {
       Alert.alert(
         "Permission Required",
-        "Media library permission is required."
+        "Media library permission is required.",
       );
       return;
     }
@@ -171,14 +172,14 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       const isDuplicate = await checkDuplicateUser(
         name.trim(),
         address.trim(),
-        undefined // Don't check mobile number for this validation
+        undefined, // Don't check mobile number for this validation
       );
 
       if (isDuplicate) {
         Alert.alert(
           "Duplicate Entry Detected",
           `A customer with the name "${name.trim()}" and address "${address.trim()}" already exists. Please verify the details before proceeding.`,
-          [{ text: "OK" }]
+          [{ text: "OK" }],
         );
       }
 
@@ -199,7 +200,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
     if (!entryType) {
       Alert.alert(
         "Validation Error",
-        "Please select an entry type (Rehan or Len-Den)."
+        "Please select an entry type (Rehan or Len-Den).",
       );
       return;
     }
@@ -211,13 +212,13 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       const isDuplicate = await checkDuplicateUser(
         name.trim(),
         address.trim() || undefined,
-        mobileNumber.trim() || undefined
+        mobileNumber.trim() || undefined,
       );
 
       if (isDuplicate) {
         Alert.alert(
           "Duplicate Entry",
-          "A customer with the same name, address, and phone number already exists."
+          "A customer with the same name, address, and phone number already exists.",
         );
         setIsLoading(false);
         return;
@@ -229,6 +230,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       // Create user
       const userId = await createUser({
         name: name.trim(),
+        nickname: nickname.trim() || undefined,
         address: address.trim() || undefined,
         mobileNumber: mobileNumber.trim() || undefined,
       });
@@ -306,6 +308,17 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
                 setName(text);
                 setHasDuplicateCheckRun(false); // Reset duplicate check when name changes
               }}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nick Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter nickname (optional)"
+              placeholderTextColor="#999"
+              value={nickname}
+              onChangeText={setNickname}
             />
           </View>
 
@@ -481,7 +494,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
                   onAddJama={() => setShowAddJamaModal(true)}
                   onDeleteJama={(index) => {
                     setJamaEntries((prev) =>
-                      prev.filter((_, i) => i !== index)
+                      prev.filter((_, i) => i !== index),
                     );
                   }}
                 />

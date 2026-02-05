@@ -30,7 +30,9 @@ export const initDatabase = async () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         address TEXT,
+        address TEXT,
         mobileNumber TEXT,
+        nickname TEXT,
         createdAt TEXT NOT NULL
       );
     `);
@@ -77,17 +79,29 @@ export const initDatabase = async () => {
       );
     `);
 
+    // Create Rehan Transactions table
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS rehan_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        rehanId INTEGER NOT NULL,
+        type TEXT NOT NULL, 
+        amount INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        FOREIGN KEY (rehanId) REFERENCES rehan(id) ON DELETE CASCADE
+      );
+    `);
+
     // Migrations to add columns if they don't exist (for existing app installs)
     try {
       // Check if columns exist in rehan, if not add them
       const rehanInfo = await database.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(rehan)"
+        "PRAGMA table_info(rehan)",
       );
       const rehanColumns = rehanInfo.map((c) => c.name);
 
       if (!rehanColumns.includes("productName")) {
         await database.execAsync(
-          "ALTER TABLE rehan ADD COLUMN productName TEXT"
+          "ALTER TABLE rehan ADD COLUMN productName TEXT",
         );
         console.log("Added productName to rehan table");
       }
@@ -98,25 +112,25 @@ export const initDatabase = async () => {
 
       // Check if columns exist in lenden, if not add them
       const lendenInfo = await database.getAllAsync<{ name: string }>(
-        "PRAGMA table_info(lenden)"
+        "PRAGMA table_info(lenden)",
       );
       const lendenColumns = lendenInfo.map((c) => c.name);
 
       if (!lendenColumns.includes("amount")) {
         await database.execAsync(
-          "ALTER TABLE lenden ADD COLUMN amount INTEGER"
+          "ALTER TABLE lenden ADD COLUMN amount INTEGER",
         );
         console.log("Added amount to lenden table");
       }
       if (!lendenColumns.includes("discount")) {
         await database.execAsync(
-          "ALTER TABLE lenden ADD COLUMN discount INTEGER"
+          "ALTER TABLE lenden ADD COLUMN discount INTEGER",
         );
         console.log("Added discount to lenden table");
       }
       if (!lendenColumns.includes("remaining")) {
         await database.execAsync(
-          "ALTER TABLE lenden ADD COLUMN remaining INTEGER"
+          "ALTER TABLE lenden ADD COLUMN remaining INTEGER",
         );
         console.log("Added remaining to lenden table");
       }
@@ -130,13 +144,27 @@ export const initDatabase = async () => {
       }
       if (!lendenColumns.includes("status")) {
         await database.execAsync(
-          "ALTER TABLE lenden ADD COLUMN status INTEGER DEFAULT 0"
+          "ALTER TABLE lenden ADD COLUMN status INTEGER DEFAULT 0",
         );
         console.log("Added status to lenden table");
       }
     } catch (migrationError) {
       console.error("Migration error:", migrationError);
       // Continue anyway as tables might be fresh
+    }
+
+    // Migration for nickname in users table
+    try {
+      const userColumns = (
+        await database.getAllAsync<{ name: string }>("PRAGMA table_info(users)")
+      ).map((c) => c.name);
+
+      if (!userColumns.includes("nickname")) {
+        await database.execAsync("ALTER TABLE users ADD COLUMN nickname TEXT");
+        console.log("Added nickname to users table");
+      }
+    } catch (error) {
+      console.error("Error migrating users table:", error);
     }
 
     console.log("SQLite database initialized with User, Rehan, Lenden tables");
@@ -152,7 +180,7 @@ export const initDatabase = async () => {
 export const checkDuplicateUser = async (
   name: string,
   address?: string,
-  mobileNumber?: string
+  mobileNumber?: string,
 ): Promise<boolean> => {
   try {
     const database = await openDatabase();
@@ -165,7 +193,7 @@ export const checkDuplicateUser = async (
       address || null,
       address || null,
       mobileNumber || null,
-      mobileNumber || null
+      mobileNumber || null,
     );
     return (row?.count ?? 0) > 0;
   } catch (error) {
@@ -181,11 +209,12 @@ export const createUser = async (user: NewUser): Promise<number> => {
     const createdAt = new Date().toISOString();
 
     const result = await database.runAsync(
-      "INSERT INTO users (name, address, mobileNumber, createdAt) VALUES (?, ?, ?, ?)",
+      "INSERT INTO users (name, address, mobileNumber, nickname, createdAt) VALUES (?, ?, ?, ?, ?)",
       user.name,
       user.address || null,
       user.mobileNumber || null,
-      createdAt
+      user.nickname || null,
+      createdAt,
     );
 
     return result.lastInsertRowId;
@@ -201,7 +230,7 @@ export const getUserById = async (id: number): Promise<User | null> => {
     const database = await openDatabase();
     const row = await database.getFirstAsync<User>(
       "SELECT * FROM users WHERE id = ?",
-      id
+      id,
     );
     return row || null;
   } catch (error) {
@@ -215,7 +244,7 @@ export const getAllUsers = async (): Promise<User[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<User>(
-      "SELECT * FROM users ORDER BY createdAt DESC"
+      "SELECT * FROM users ORDER BY createdAt DESC",
     );
     return rows;
   } catch (error) {
@@ -235,7 +264,7 @@ export const searchUsers = async (query: string): Promise<User[]> => {
        ORDER BY createdAt DESC`,
       searchQuery,
       searchQuery,
-      searchQuery
+      searchQuery,
     );
     return rows;
   } catch (error) {
@@ -260,16 +289,18 @@ export const updateUser = async (
   id: number,
   name: string,
   address?: string,
-  mobileNumber?: string
+  mobileNumber?: string,
+  nickname?: string,
 ): Promise<void> => {
   try {
     const database = await openDatabase();
     await database.runAsync(
-      "UPDATE users SET name = ?, address = ?, mobileNumber = ? WHERE id = ?",
+      "UPDATE users SET name = ?, address = ?, mobileNumber = ?, nickname = ? WHERE id = ?",
       name,
       address || null,
       mobileNumber || null,
-      id
+      nickname || null,
+      id,
     );
   } catch (error) {
     console.error("Error updating user:", error);
@@ -292,7 +323,7 @@ export const createRehan = async (rehan: NewRehan): Promise<number> => {
       media,
       openDate,
       rehan.productName || null,
-      rehan.amount || null
+      rehan.amount || null,
     );
 
     return result.lastInsertRowId;
@@ -308,7 +339,7 @@ export const getRehanById = async (id: number): Promise<Rehan | null> => {
     const database = await openDatabase();
     const row = await database.getFirstAsync<Rehan>(
       "SELECT * FROM rehan WHERE id = ?",
-      id
+      id,
     );
     return row || null;
   } catch (error) {
@@ -323,7 +354,7 @@ export const getRehanByUserId = async (userId: number): Promise<Rehan[]> => {
     const database = await openDatabase();
     const rows = await database.getAllAsync<Rehan>(
       "SELECT * FROM rehan WHERE userId = ? ORDER BY openDate DESC",
-      userId
+      userId,
     );
     return rows;
   } catch (error) {
@@ -337,7 +368,7 @@ export const getAllRehan = async (): Promise<Rehan[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<Rehan>(
-      "SELECT * FROM rehan ORDER BY openDate DESC"
+      "SELECT * FROM rehan ORDER BY openDate DESC",
     );
     return rows;
   } catch (error) {
@@ -351,7 +382,7 @@ export const updateRehanDetails = async (
   id: number,
   media: string[],
   productName?: string,
-  amount?: number
+  amount?: number,
 ): Promise<void> => {
   try {
     const database = await openDatabase();
@@ -361,7 +392,7 @@ export const updateRehanDetails = async (
       mediaJson,
       productName || null,
       amount || null,
-      id
+      id,
     );
   } catch (error) {
     console.error("Error updating Rehan details:", error);
@@ -377,7 +408,7 @@ export const closeRehan = async (id: number): Promise<void> => {
     await database.runAsync(
       "UPDATE rehan SET status = 1, closedDate = ? WHERE id = ?",
       closedDate,
-      id
+      id,
     );
   } catch (error) {
     console.error("Error closing Rehan:", error);
@@ -389,9 +420,95 @@ export const closeRehan = async (id: number): Promise<void> => {
 export const deleteRehan = async (id: number): Promise<void> => {
   try {
     const database = await openDatabase();
+    await database.runAsync(
+      "DELETE FROM rehan_transactions WHERE rehanId = ?",
+      id,
+    );
     await database.runAsync("DELETE FROM rehan WHERE id = ?", id);
   } catch (error) {
     console.error("Error deleting Rehan:", error);
+    throw error;
+  }
+};
+
+// ============ REHAN TRANSACTIONS ============
+
+import { RehanTransaction, NewRehanTransaction } from "../types/entry";
+
+export const createRehanTransaction = async (
+  transaction: NewRehanTransaction,
+): Promise<number> => {
+  try {
+    const database = await openDatabase();
+
+    // 1. Insert transaction
+    const result = await database.runAsync(
+      "INSERT INTO rehan_transactions (rehanId, type, amount, date) VALUES (?, ?, ?, ?)",
+      transaction.rehanId,
+      transaction.type,
+      transaction.amount,
+      transaction.date,
+    );
+
+    // 2. Update Rehan Balance (Amount)
+    // If 'diya' (took more) -> Increase amount
+    // If 'jama' (paid) -> Decrease amount
+    const operator = transaction.type === "diya" ? "+" : "-";
+    await database.runAsync(
+      `UPDATE rehan SET amount = amount ${operator} ? WHERE id = ?`,
+      transaction.amount,
+      transaction.rehanId,
+    );
+
+    return result.lastInsertRowId;
+  } catch (error) {
+    console.error("Error creating Rehan Transaction:", error);
+    throw error;
+  }
+};
+
+export const getRehanTransactionsByRehanId = async (
+  rehanId: number,
+): Promise<RehanTransaction[]> => {
+  try {
+    const database = await openDatabase();
+    const rows = await database.getAllAsync<RehanTransaction>(
+      "SELECT * FROM rehan_transactions WHERE rehanId = ? ORDER BY date DESC",
+      rehanId,
+    );
+    return rows;
+  } catch (error) {
+    console.error("Error getting Rehan Transactions:", error);
+    return [];
+  }
+};
+
+export const deleteRehanTransaction = async (id: number): Promise<void> => {
+  try {
+    const database = await openDatabase();
+
+    // 1. Get transaction details to reverse the balance effect
+    const transaction = await database.getFirstAsync<RehanTransaction>(
+      "SELECT * FROM rehan_transactions WHERE id = ?",
+      id,
+    );
+
+    if (!transaction) return;
+
+    // 2. Delete transaction
+    await database.runAsync("DELETE FROM rehan_transactions WHERE id = ?", id);
+
+    // 3. Reverse Rehan Balance
+    // If original was 'diya' (+), now we subtract (-)
+    // If original was 'jama' (-), now we add (+)
+    const operator = transaction.type === "diya" ? "-" : "+";
+    await database.runAsync(
+      `UPDATE rehan SET amount = amount ${operator} ? WHERE id = ?`,
+      transaction.amount,
+      transaction.rehanId,
+    );
+  } catch (error) {
+    console.error("Error deleting Rehan Transaction:", error);
     throw error;
   }
 };
@@ -414,7 +531,7 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
       lenden.remaining || null,
       lenden.jama || null,
       lenden.baki || null,
-      lenden.status ?? 0
+      lenden.status ?? 0,
     );
 
     return result.lastInsertRowId;
@@ -430,7 +547,7 @@ export const getLendenById = async (id: number): Promise<Lenden | null> => {
     const database = await openDatabase();
     const row = await database.getFirstAsync<Lenden>(
       "SELECT * FROM lenden WHERE id = ?",
-      id
+      id,
     );
     return row || null;
   } catch (error) {
@@ -445,7 +562,7 @@ export const getLendenByUserId = async (userId: number): Promise<Lenden[]> => {
     const database = await openDatabase();
     const rows = await database.getAllAsync<Lenden>(
       "SELECT * FROM lenden WHERE userId = ? ORDER BY date DESC",
-      userId
+      userId,
     );
     return rows;
   } catch (error) {
@@ -459,7 +576,7 @@ export const getAllLenden = async (): Promise<Lenden[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<Lenden>(
-      "SELECT * FROM lenden ORDER BY date DESC"
+      "SELECT * FROM lenden ORDER BY date DESC",
     );
     return rows;
   } catch (error) {
@@ -476,7 +593,7 @@ export const updateLendenDetails = async (
   discount?: number,
   remaining?: number,
   jama?: number,
-  baki?: number
+  baki?: number,
 ): Promise<void> => {
   try {
     const database = await openDatabase();
@@ -489,7 +606,7 @@ export const updateLendenDetails = async (
       remaining || null,
       jama || null,
       baki || null,
-      id
+      id,
     );
   } catch (error) {
     console.error("Error updating Lenden details:", error);
@@ -518,7 +635,9 @@ export interface Transaction {
   userId: number;
   userName: string;
   userAddress: string | null;
+
   userMobileNumber: string | null;
+  userNickname: string | null;
   date: string;
   media: string;
   status?: number; // Only for Rehan
@@ -546,14 +665,15 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
       name: string;
       address: string | null;
       mobileNumber: string | null;
+      nickname: string | null;
       productName?: string;
       amount?: number;
     }>(
       `SELECT r.id, r.userId, r.media, r.status, r.openDate, r.productName, r.amount,
-              u.name, u.address, u.mobileNumber
+              u.name, u.address, u.mobileNumber, u.nickname
        FROM rehan r
        JOIN users u ON r.userId = u.id
-       ORDER BY r.openDate DESC`
+       ORDER BY r.openDate DESC`,
     );
 
     // Get Lenden entries with user info
@@ -565,6 +685,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
       name: string;
       address: string | null;
       mobileNumber: string | null;
+      nickname: string | null;
       amount?: number;
       discount?: number;
       remaining?: number;
@@ -573,10 +694,10 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
       status?: number; // Add status type
     }>(
       `SELECT l.id, l.userId, l.media, l.date, l.status, l.amount, l.discount, l.remaining, l.jama, l.baki,
-              u.name, u.address, u.mobileNumber
+              u.name, u.address, u.mobileNumber, u.nickname
        FROM lenden l
        JOIN users u ON l.userId = u.id
-       ORDER BY l.date DESC`
+       ORDER BY l.date DESC`,
     );
 
     // Combine and format
@@ -588,6 +709,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
         userName: r.name,
         userAddress: r.address,
         userMobileNumber: r.mobileNumber,
+        userNickname: r.nickname,
         date: r.openDate,
         media: r.media,
         status: r.status,
@@ -601,6 +723,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
         userName: l.name,
         userAddress: l.address,
         userMobileNumber: l.mobileNumber,
+        userNickname: l.nickname,
         date: l.date,
         media: l.media,
         status: l.status,
@@ -614,7 +737,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
 
     // Sort by date descending
     transactions.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
 
     return transactions;
@@ -626,7 +749,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
 
 // Search transactions by name, address, or mobile number
 export const searchTransactions = async (
-  query: string
+  query: string,
 ): Promise<Transaction[]> => {
   try {
     const database = await openDatabase();
@@ -642,18 +765,20 @@ export const searchTransactions = async (
       name: string;
       address: string | null;
       mobileNumber: string | null;
+      nickname: string | null; // Added nickname
       productName?: string;
       amount?: number;
     }>(
       `SELECT r.id, r.userId, r.media, r.status, r.openDate, r.productName, r.amount,
-              u.name, u.address, u.mobileNumber
+              u.name, u.address, u.mobileNumber, u.nickname
        FROM rehan r
        JOIN users u ON r.userId = u.id
-       WHERE u.name LIKE ? OR u.address LIKE ? OR u.mobileNumber LIKE ?
+       WHERE u.name LIKE ? OR u.address LIKE ? OR u.mobileNumber LIKE ? OR u.nickname LIKE ?
        ORDER BY r.openDate DESC`,
       searchPattern,
       searchPattern,
-      searchPattern
+      searchPattern,
+      searchPattern,
     );
 
     // Get matching Lenden entries
@@ -665,6 +790,7 @@ export const searchTransactions = async (
       name: string;
       address: string | null;
       mobileNumber: string | null;
+      nickname: string | null; // Added nickname
       amount?: number;
       discount?: number;
       remaining?: number;
@@ -673,14 +799,15 @@ export const searchTransactions = async (
       status?: number; // Add status type
     }>(
       `SELECT l.id, l.userId, l.media, l.date, l.status, l.amount, l.discount, l.remaining, l.jama, l.baki,
-              u.name, u.address, u.mobileNumber
+              u.name, u.address, u.mobileNumber, u.nickname
        FROM lenden l
        JOIN users u ON l.userId = u.id
-       WHERE u.name LIKE ? OR u.address LIKE ? OR u.mobileNumber LIKE ?
+       WHERE u.name LIKE ? OR u.address LIKE ? OR u.mobileNumber LIKE ? OR u.nickname LIKE ?
        ORDER BY l.date DESC`,
       searchPattern,
       searchPattern,
-      searchPattern
+      searchPattern,
+      searchPattern,
     );
 
     // Combine and format
@@ -692,6 +819,7 @@ export const searchTransactions = async (
         userName: r.name,
         userAddress: r.address,
         userMobileNumber: r.mobileNumber,
+        userNickname: r.nickname,
         date: r.openDate,
         media: r.media,
         status: r.status,
@@ -705,6 +833,7 @@ export const searchTransactions = async (
         userName: l.name,
         userAddress: l.address,
         userMobileNumber: l.mobileNumber,
+        userNickname: l.nickname,
         date: l.date,
         media: l.media,
         status: l.status,
@@ -718,7 +847,7 @@ export const searchTransactions = async (
 
     // Sort by date descending
     transactions.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
 
     return transactions;
@@ -735,6 +864,7 @@ export interface UserWithCounts {
   name: string;
   address: string | null;
   mobileNumber: string | null;
+  nickname: string | null;
   createdAt: string;
   rehanCount: number;
   lendenCount: number;
@@ -745,11 +875,11 @@ export const getUsersWithCounts = async (): Promise<UserWithCounts[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<UserWithCounts>(
-      `SELECT u.id, u.name, u.address, u.mobileNumber, u.createdAt,
+      `SELECT u.id, u.name, u.address, u.mobileNumber, u.nickname, u.createdAt,
               (SELECT COUNT(*) FROM rehan WHERE userId = u.id) as rehanCount,
               (SELECT COUNT(*) FROM lenden WHERE userId = u.id) as lendenCount
        FROM users u
-       ORDER BY u.createdAt DESC`
+       ORDER BY u.createdAt DESC`,
     );
     return rows;
   } catch (error) {
@@ -760,13 +890,13 @@ export const getUsersWithCounts = async (): Promise<UserWithCounts[]> => {
 
 // Search users with counts by name, address, or mobile
 export const searchUsersWithCounts = async (
-  query: string
+  query: string,
 ): Promise<UserWithCounts[]> => {
   try {
     const database = await openDatabase();
     const searchPattern = `%${query}%`;
     const rows = await database.getAllAsync<UserWithCounts>(
-      `SELECT u.id, u.name, u.address, u.mobileNumber, u.createdAt,
+      `SELECT u.id, u.name, u.address, u.mobileNumber, u.nickname, u.createdAt,
               (SELECT COUNT(*) FROM rehan WHERE userId = u.id) as rehanCount,
               (SELECT COUNT(*) FROM lenden WHERE userId = u.id) as lendenCount
        FROM users u
@@ -774,7 +904,7 @@ export const searchUsersWithCounts = async (
        ORDER BY u.createdAt DESC`,
       searchPattern,
       searchPattern,
-      searchPattern
+      searchPattern,
     );
     return rows;
   } catch (error) {
@@ -795,7 +925,7 @@ export interface UserFilterOptions {
 
 // Filter users with counts based on multiple criteria
 export const filterUsersWithCounts = async (
-  filters: UserFilterOptions
+  filters: UserFilterOptions,
 ): Promise<UserWithCounts[]> => {
   try {
     const database = await openDatabase();
@@ -840,7 +970,7 @@ export const filterUsersWithCounts = async (
           conditions.push(dateCondition);
         } else {
           conditions.push(
-            "(SELECT COUNT(*) FROM rehan WHERE userId = u.id) > 0"
+            "(SELECT COUNT(*) FROM rehan WHERE userId = u.id) > 0",
           );
         }
       } else if (filters.transactionType === "lenden") {
@@ -860,7 +990,7 @@ export const filterUsersWithCounts = async (
           conditions.push(dateCondition);
         } else {
           conditions.push(
-            "(SELECT COUNT(*) FROM lenden WHERE userId = u.id) > 0"
+            "(SELECT COUNT(*) FROM lenden WHERE userId = u.id) > 0",
           );
         }
       }
@@ -895,7 +1025,7 @@ export const filterUsersWithCounts = async (
     }
 
     // Build the final query
-    let query = `SELECT u.id, u.name, u.address, u.mobileNumber, u.createdAt,
+    let query = `SELECT u.id, u.name, u.address, u.mobileNumber, u.nickname, u.createdAt,
               (SELECT COUNT(*) FROM rehan WHERE userId = u.id) as rehanCount,
               (SELECT COUNT(*) FROM lenden WHERE userId = u.id) as lendenCount
        FROM users u`;
@@ -916,7 +1046,7 @@ export const filterUsersWithCounts = async (
 
 // Get all transactions for a specific user
 export const getTransactionsByUserId = async (
-  userId: number
+  userId: number,
 ): Promise<Transaction[]> => {
   try {
     const database = await openDatabase();
@@ -928,13 +1058,13 @@ export const getTransactionsByUserId = async (
     // Get Rehan entries
     const rehanRows = await database.getAllAsync<Rehan>(
       "SELECT * FROM rehan WHERE userId = ? ORDER BY openDate DESC",
-      userId
+      userId,
     );
 
     // Get Lenden entries
     const lendenRows = await database.getAllAsync<Lenden>(
       "SELECT * FROM lenden WHERE userId = ? ORDER BY date DESC",
-      userId
+      userId,
     );
 
     // Combine and format
@@ -946,6 +1076,7 @@ export const getTransactionsByUserId = async (
         userName: user.name,
         userAddress: user.address,
         userMobileNumber: user.mobileNumber,
+        userNickname: user.nickname,
         date: r.openDate,
         media: r.media,
         status: r.status,
@@ -959,6 +1090,7 @@ export const getTransactionsByUserId = async (
         userName: user.name,
         userAddress: user.address,
         userMobileNumber: user.mobileNumber,
+        userNickname: user.nickname,
         date: l.date,
         media: l.media,
         status: l.status, // Add status
@@ -972,7 +1104,7 @@ export const getTransactionsByUserId = async (
 
     // Sort by date descending
     transactions.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
 
     return transactions;
@@ -992,7 +1124,7 @@ export const createJamaEntry = async (entry: NewJamaEntry): Promise<number> => {
       "INSERT INTO jama_entries (lendenId, amount, date) VALUES (?, ?, ?)",
       entry.lendenId,
       entry.amount,
-      entry.date
+      entry.date,
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -1003,13 +1135,13 @@ export const createJamaEntry = async (entry: NewJamaEntry): Promise<number> => {
 
 // Get all Jama Entries for a Lenden
 export const getJamaEntriesByLendenId = async (
-  lendenId: number
+  lendenId: number,
 ): Promise<JamaEntry[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<JamaEntry>(
       "SELECT * FROM jama_entries WHERE lendenId = ? ORDER BY date ASC",
-      lendenId
+      lendenId,
     );
     return rows;
   } catch (error) {
@@ -1031,13 +1163,13 @@ export const deleteJamaEntry = async (id: number): Promise<void> => {
 
 // Get total Jama amount for a Lenden
 export const getTotalJamaByLendenId = async (
-  lendenId: number
+  lendenId: number,
 ): Promise<number> => {
   try {
     const database = await openDatabase();
     const row = await database.getFirstAsync<{ total: number }>(
       "SELECT COALESCE(SUM(amount), 0) as total FROM jama_entries WHERE lendenId = ?",
-      lendenId
+      lendenId,
     );
     return row?.total ?? 0;
   } catch (error) {
@@ -1065,7 +1197,7 @@ export const updateLendenBaki = async (lendenId: number): Promise<void> => {
       "UPDATE lenden SET baki = ?, status = ? WHERE id = ?",
       finalBaki,
       status,
-      lendenId
+      lendenId,
     );
   } catch (error) {
     console.error("Error updating lenden baki:", error);
@@ -1077,7 +1209,7 @@ export const updateLendenBaki = async (lendenId: number): Promise<void> => {
 export const editJamaEntry = async (
   id: number,
   amount: number,
-  date: string
+  date: string,
 ): Promise<void> => {
   try {
     const database = await openDatabase();
@@ -1085,7 +1217,7 @@ export const editJamaEntry = async (
       "UPDATE jama_entries SET amount = ?, date = ? WHERE id = ?",
       amount,
       date,
-      id
+      id,
     );
   } catch (error) {
     console.error("Error editing jama entry:", error);
