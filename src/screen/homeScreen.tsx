@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Platform,
   Dimensions,
+  ScrollView,
+  RefreshControl,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -59,82 +61,131 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <StatusBar style="dark" />
-      <View style={styles.headerSection}>
-        <View>
-          <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.userName}>Ayush</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.exportButton}
-          onPress={handleExport}
-          disabled={isExporting}
-        >
-          {isExporting ? (
-            <Ionicons name="cloud-upload" size={24} color="#999" />
-          ) : (
-            <Ionicons name="cloud-upload-outline" size={24} color="#007AFF" />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.contentSection}>
-        <Text style={styles.helpText}>What would you like to do?</Text>
-
-        <View style={styles.cardsContainer}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.headerSection}>
+          <View>
+            <Text style={styles.greeting}>Welcome back,</Text>
+            <Text style={styles.userName}>Ayush</Text>
+          </View>
           <TouchableOpacity
-            style={[styles.card, styles.cardExisting]}
-            onPress={handleExistingPress}
-            activeOpacity={0.9}
+            style={styles.exportButton}
+            onPress={handleExport}
+            disabled={isExporting}
           >
-            <View style={styles.cardIconContainer}>
-              <Ionicons name="folder-open" size={32} color="#fff" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>Existing Customer</Text>
-              <Text style={styles.cardSubtitle}>View and manage entries</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#fff" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.card, styles.cardNew]}
-            onPress={handleNewPress}
-            activeOpacity={0.9}
-          >
-            <View style={[styles.cardIconContainer, styles.iconContainerNew]}>
-              <Ionicons name="person-add" size={32} color="#007AFF" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={[styles.cardTitle, styles.textDark]}>
-                New Customer
-              </Text>
-              <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
-                Create a new entry
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#007AFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.card, styles.cardBhav]}
-            onPress={() => navigation.navigate("UpdateBhav")}
-            activeOpacity={0.9}
-          >
-            <View style={[styles.cardIconContainer, styles.iconContainerBhav]}>
-              <Ionicons name="trending-up" size={32} color="#D4AF37" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={[styles.cardTitle, styles.textDark]}>
-                Update Bhav
-              </Text>
-              <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
-                Update commodity rates
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#D4AF37" />
+            {isExporting ? (
+              <Ionicons name="cloud-upload" size={24} color="#999" />
+            ) : (
+              <Ionicons name="cloud-upload-outline" size={24} color="#007AFF" />
+            )}
           </TouchableOpacity>
         </View>
-      </View>
+
+        <View style={styles.contentSection}>
+          <Text style={styles.helpText}>What would you like to do?</Text>
+
+          <View style={styles.cardsContainer}>
+            <TouchableOpacity
+              style={[styles.card, styles.cardExisting]}
+              onPress={handleExistingPress}
+              activeOpacity={0.9}
+            >
+              <View style={styles.cardIconContainer}>
+                <Ionicons name="folder-open" size={32} color="#fff" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>Existing Customer</Text>
+                <Text style={styles.cardSubtitle}>View and manage entries</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#fff" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.card, styles.cardNew]}
+              onPress={handleNewPress}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.cardIconContainer, styles.iconContainerNew]}>
+                <Ionicons name="person-add" size={32} color="#007AFF" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={[styles.cardTitle, styles.textDark]}>
+                  New Customer
+                </Text>
+                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
+                  Create a new entry
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.card, styles.cardBhav]}
+              onPress={() => navigation.navigate("UpdateBhav")}
+              activeOpacity={0.9}
+            >
+              <View
+                style={[styles.cardIconContainer, styles.iconContainerBhav]}
+              >
+                <Ionicons name="trending-up" size={32} color="#D4AF37" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={[styles.cardTitle, styles.textDark]}>
+                  Update Bhav
+                </Text>
+                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
+                  Update commodity rates
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#D4AF37" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.card, styles.cardCategory]}
+              onPress={() => navigation.navigate("CategoryList")}
+              activeOpacity={0.9}
+            >
+              <View
+                style={[styles.cardIconContainer, styles.iconContainerCategory]}
+              >
+                <Ionicons name="folder-outline" size={32} color="#8B5CF6" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={[styles.cardTitle, styles.textDark]}>
+                  Categories
+                </Text>
+                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
+                  Manage product categories
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#8B5CF6" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.card, styles.cardProduct]}
+              onPress={() => navigation.navigate("ProductList", {})}
+              activeOpacity={0.9}
+            >
+              <View
+                style={[styles.cardIconContainer, styles.iconContainerProduct]}
+              >
+                <Ionicons name="cube-outline" size={32} color="#10B981" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={[styles.cardTitle, styles.textDark]}>
+                  Products
+                </Text>
+                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
+                  Manage products & variants
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#10B981" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -143,6 +194,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8F9FA",
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   headerSection: {
     paddingHorizontal: 24,
@@ -248,6 +302,22 @@ const styles = StyleSheet.create({
   },
   iconContainerBhav: {
     backgroundColor: "#FEF9E7",
+  },
+  cardCategory: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#EEF0F2",
+  },
+  iconContainerCategory: {
+    backgroundColor: "#F3E8FF",
+  },
+  cardProduct: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#EEF0F2",
+  },
+  iconContainerProduct: {
+    backgroundColor: "#D1FAE5",
   },
   cardContent: {
     flex: 1,

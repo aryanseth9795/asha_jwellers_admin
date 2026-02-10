@@ -112,4 +112,16 @@ export type RootStackParamList = {
     transactionType: "rehan" | "lenden";
   };
   UpdateBhav: undefined;
+  // Category management screens
+  CategoryList: undefined;
+  AddEditCategory: {
+    categoryId?: string; // If provided, edit mode; otherwise, create mode
+  };
+  // Product management screens
+  ProductList: {
+    categoryId?: string; // Optional filter by category
+  };
+  AddEditProduct: {
+    productId?: string; // If provided, edit mode; otherwise, create mode
+  };
 };

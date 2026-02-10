@@ -20,6 +20,10 @@ import UserTransactionsScreen from "./src/screen/UserTransactionsScreen";
 import AddTransactionScreen from "./src/screen/AddTransactionScreen";
 import TransactionDetailScreen from "./src/screen/TransactionDetailScreen";
 import UpdateBhavScreen from "./src/screen/UpdateBhavScreen";
+import CategoryListScreen from "./src/screen/CategoryListScreen";
+import AddEditCategoryScreen from "./src/screen/AddEditCategoryScreen";
+import ProductListScreen from "./src/screen/ProductListScreen";
+import AddEditProductScreen from "./src/screen/AddEditProductScreen";
 import { RootStackParamList } from "./src/types/entry";
 import { initDatabase } from "./src/database/entryDatabase";
 
@@ -57,7 +61,7 @@ export default function App() {
               style: "cancel",
               onPress: () => setIsUpdating(false),
             },
-          ]
+          ],
         );
       }
     } catch (error) {
@@ -156,6 +160,26 @@ export default function App() {
             name="UpdateBhav"
             component={UpdateBhavScreen}
             options={{ title: "Update Bhav" }}
+          />
+          <Stack.Screen
+            name="CategoryList"
+            component={CategoryListScreen}
+            options={{ title: "Categories" }}
+          />
+          <Stack.Screen
+            name="AddEditCategory"
+            component={AddEditCategoryScreen}
+            options={{ title: "Category" }}
+          />
+          <Stack.Screen
+            name="ProductList"
+            component={ProductListScreen}
+            options={{ title: "Products" }}
+          />
+          <Stack.Screen
+            name="AddEditProduct"
+            component={AddEditProductScreen}
+            options={{ title: "Product" }}
           />
         </Stack.Navigator>
       </NavigationContainer>
