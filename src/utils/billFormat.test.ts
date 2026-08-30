@@ -31,10 +31,22 @@ describe("formatRupees", () => {
   ])("groups %i in the Indian style", (input, expected) => {
     expect(formatRupees(input)).toBe(expected);
   });
+
+  it("handles NaN defensively", () => {
+    expect(formatRupees(NaN)).toBe("0/-");
+  });
+
+  it("handles Infinity defensively", () => {
+    expect(formatRupees(Infinity)).toBe("0/-");
+  });
 });
 
 describe("formatBillDate", () => {
   it("renders dd/mm/yyyy", () => {
     expect(formatBillDate("2026-08-27T10:30:00.000Z")).toBe("27/08/2026");
+  });
+
+  it("handles invalid dates gracefully", () => {
+    expect(formatBillDate("garbage")).toBe("");
   });
 });

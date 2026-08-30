@@ -19,7 +19,8 @@ export function formatWeight(grams: number): { main: string; sub: string } {
 
 /** Indian digit grouping: 169650 -> "1,69,650/-" */
 export function formatRupees(value: number): string {
-  const digits = Math.abs(Math.round(value)).toString();
+  const safe = Number.isFinite(value) ? value : 0;
+  const digits = Math.abs(Math.round(safe)).toString();
   if (digits.length <= 3) return `${digits}/-`;
 
   const last3 = digits.slice(-3);
@@ -32,6 +33,7 @@ export function formatRupees(value: number): string {
 /** ISO date string -> "27/08/2026" */
 export function formatBillDate(iso: string): string {
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}/${d.getFullYear()}`;
