@@ -553,7 +553,7 @@ Adds the item types, the `lenden_items` table, the two new `lenden` columns with
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: types `Purity`, `LendenItem`, `NewLendenItem`; `Lenden.billNo`, `Lenden.amountOverridden`; route `BillPreview: { lendenId: number }`; tables `lenden_items`, columns `lenden.billNo`, `lenden.amountOverridden`.
+- Produces: types `Purity`, `LendenItem`, `NewLendenItem`; `Lenden.billNo`, `Lenden.amountOverridden`; route `BillPreview: { lendenId: number }`; tables `lenden_items`, columns `lenden.billNo`, `lenden.amountOverridden`; `createLenden` now writes `amountOverridden`.
 
 - [ ] **Step 1: Add the types**
 
@@ -672,18 +672,44 @@ Inside the existing `try` block that checks `lendenColumns`, after the `status` 
       }
 ```
 
-- [ ] **Step 7: Verify TypeScript compiles**
+- [ ] **Step 7: Persist `amountOverridden` in `createLenden`**
+
+`createLenden`'s INSERT lists a fixed column set. Adding the field to
+`NewLenden` alone is not enough — TypeScript accepts the extra property and
+the value is silently dropped, so a user's typed override would be lost the
+moment the entry is reloaded. Add the column to the statement, mirroring how
+`status` is handled on the line below it.
+
+Change the INSERT from:
+
+```ts
+      "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+```
+
+to:
+
+```ts
+      "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status, amountOverridden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+```
+
+and add one argument after `lenden.status ?? 0,`:
+
+```ts
+      lenden.amountOverridden ?? 0,
+```
+
+- [ ] **Step 8: Verify TypeScript compiles**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 8: Verify the migration on device**
+- [ ] **Step 9: Verify the migration on device**
 
 Run the app on the device that already holds real data (`npx expo start --dev-client`). Watch the Metro console for `Added amountOverridden to lenden table and backfilled existing rows`, then open an existing customer with Len-Den entries.
 
 Expected: **every historical amount is unchanged.** If any entry shows ₹0, stop and fix before continuing — this is the failure mode Task 3 guards against.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add src/types/entry.ts src/database/entryDatabase.ts
@@ -2664,7 +2690,7 @@ If it fails, download a Noto Sans Devanagari `woff2` subset, base64 it, and inli
 
 - [ ] **Step 4: Work the verification checklist**
 
-From spec §8.1:
+From spec §8.1 (see also Task 5 Step 9):
 
 1. Fresh install (clear app data) — database initialises with no error.
 2. Upgrade over existing data — **historical Len-Den amounts unchanged**.
@@ -2703,5 +2729,5 @@ The feature is done when:
 ## Notes for the executor
 
 - **Task 4 is a hard gate.** It requires an EAS build and a manual APK install. Nothing from Task 8 onwards can be tested on device until that build is running.
-- **Task 5 Step 8 is the highest-risk moment in the plan.** If historical amounts show ₹0, stop. The backfill in Step 6 or the guards in Task 3 are wrong.
+- **Task 5 Step 9 is the highest-risk moment in the plan.** If historical amounts show ₹0, stop. The backfill in Step 6 or the guards in Task 3 are wrong.
 - Tasks 1, 2, 3 and 7 are pure and need no device at all — they can be completed and verified entirely from the terminal.
