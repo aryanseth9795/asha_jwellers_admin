@@ -23,9 +23,14 @@ describe("toHindiWords", () => {
     expect(toHindiWords(input)).toBe(expected);
   });
 
-  it("has an entry for every value 0-99", () => {
-    for (let i = 0; i <= 99; i++) {
-      expect(toHindiWords(i)).not.toBe("");
+  it("gives every value 0-99 a distinct, non-empty Devanagari word", () => {
+    const words = Array.from({ length: 100 }, (_, i) => toHindiWords(i));
+    // All 100 Hindi number words are distinct, so a duplicate IS a transcription bug
+    // (transposition, copy-paste, or a skipped line in the table).
+    expect(new Set(words).size).toBe(100);
+    for (const word of words) {
+      // Devanagari block only — catches mojibake, empty strings and Latin leakage.
+      expect(word).toMatch(/^[\u0900-\u097F\s]+$/);
     }
   });
 
