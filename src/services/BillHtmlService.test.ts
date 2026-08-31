@@ -142,4 +142,16 @@ describe("buildBillHtml", () => {
     expect(html).not.toContain("<script>x</script>");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  it("lets long item lists continue onto another A5 page without clipping rows", () => {
+    const many = Array.from({ length: 20 }, (_, i) =>
+      item({ id: i + 1, position: i + 1, name: `Item ${i + 1}` }),
+    );
+    const html = buildBillHtml(data({ items: many }));
+
+    expect(html).toContain("min-height: 210.00mm");
+    expect(html).toContain(".items tr { break-inside: avoid; page-break-inside: avoid; }");
+    expect(html).toContain("Item 20");
+    expect(html).not.toContain("overflow: hidden;");
+  });
 });

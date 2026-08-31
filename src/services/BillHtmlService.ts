@@ -21,7 +21,9 @@ const TEMPLATE_H = 1536;
 // The new artwork has a proprietor line below the contact details, so its
 // header needs to extend to just above the invoice frame.
 export const HEADER_CROP_PCT = 0.424;
-export const FOOTER_CROP_PCT = 0.5;
+// This is the visible height of the bottom artwork band, not its position.
+// Its CSS `bottom: 0` placement keeps it flush with the page edge.
+export const FOOTER_CROP_PCT = 0.1016;
 
 const PAGE_W_MM = 148;
 const PAGE_H_MM = 210;
@@ -30,6 +32,7 @@ const TPL_H_MM = PAGE_W_MM * (TEMPLATE_H / TEMPLATE_W);
 const HEADER_H_MM = TPL_H_MM * HEADER_CROP_PCT;
 const FOOTER_H_MM = TPL_H_MM * FOOTER_CROP_PCT;
 const FOOTER_OFFSET_MM = -(TPL_H_MM - FOOTER_H_MM);
+const MIDDLE_H_MM = PAGE_H_MM - HEADER_H_MM - FOOTER_H_MM;
 
 const GOLD = "#C08A2E";
 const GOLD_SOFT = "#E3C489";
@@ -164,7 +167,7 @@ export function buildBillHtml(data: BillData): string {
   :root { --tpl: url("${data.templateDataUri}"); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   @page { size: A5; margin: 0; }
-  html, body { width: ${mm(PAGE_W_MM)}; height: ${mm(PAGE_H_MM)}; }
+  html, body { width: ${mm(PAGE_W_MM)}; min-height: ${mm(PAGE_H_MM)}; }
   body {
     background: ${CREAM};
     color: ${INK};
@@ -172,12 +175,13 @@ export function buildBillHtml(data: BillData): string {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* Absolute bands keep the footer anchored to the physical page bottom. */
+  /* The footer reaches the page bottom when contents fit. Long tables grow
+     into the following A5 page instead of being clipped behind the footer. */
   .page {
-    position: relative;
     width: ${mm(PAGE_W_MM)};
-    height: ${mm(PAGE_H_MM)};
-    overflow: hidden;
+    min-height: ${mm(PAGE_H_MM)};
+    display: flex;
+    flex-direction: column;
   }
 
   .band {
@@ -188,32 +192,20 @@ export function buildBillHtml(data: BillData): string {
     background-repeat: no-repeat;
   }
   .band-header {
-    position: absolute;
-    z-index: 1;
-    top: 0;
-    left: 0;
     height: ${mm(HEADER_H_MM)};
     background-position: 0 0;
   }
   .band-footer {
-    position: absolute;
-    z-index: 2;
-    right: 0;
-    bottom: 0;
-    left: 0;
     height: ${mm(FOOTER_H_MM)};
     background-position: 0 ${mm(FOOTER_OFFSET_MM)};
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   /* Continues the template's gold frame down the rebuilt middle. */
   .middle {
-    position: absolute;
-    z-index: 1;
-    top: ${mm(HEADER_H_MM)};
-    right: 0;
-    bottom: ${mm(FOOTER_H_MM)};
-    left: 0;
-    overflow: hidden;
+    min-height: ${mm(MIDDLE_H_MM)};
+    flex: 1;
     border-left: 0.4mm solid ${GOLD};
     border-right: 0.4mm solid ${GOLD};
     background: ${CREAM};
@@ -233,6 +225,8 @@ export function buildBillHtml(data: BillData): string {
   .cust .v2 { width: 28mm; }
 
   .items { font-size: 8pt; border: 0.3mm solid ${GOLD}; }
+  .items thead { display: table-header-group; }
+  .items tr { break-inside: avoid; page-break-inside: avoid; }
   .items th, .items td { border: 0.2mm solid ${GOLD_SOFT}; padding: 1.2mm 1mm; }
   .items th { background: ${HEAD_BG}; font-size: 8pt; font-weight: 700; }
   .items .c { text-align: center; }
@@ -240,7 +234,12 @@ export function buildBillHtml(data: BillData): string {
   .items .desc { font-weight: 700; }
   .items .sub { font-size: 6.5pt; font-weight: 400; opacity: 0.75; }
 
-  .foot { margin-top: auto; padding-bottom: 2mm; }
+  .foot {
+    margin-top: auto;
+    padding-bottom: 2mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
   .summary-wrap { display: flex; justify-content: flex-end; }
   .summary { width: 62mm; font-size: 8.5pt; border: 0.3mm solid ${GOLD}; }
   .summary td { border: 0.2mm solid ${GOLD_SOFT}; padding: 1.1mm 2mm; }
