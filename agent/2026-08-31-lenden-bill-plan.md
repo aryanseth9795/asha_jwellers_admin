@@ -657,15 +657,24 @@ Inside the existing `try` block that checks `lendenColumns`, after the `status` 
         console.log("Added billNo to lenden table");
       }
       if (!lendenColumns.includes("amountOverridden")) {
-        await database.execAsync(
-          "ALTER TABLE lenden ADD COLUMN amountOverridden INTEGER DEFAULT 0",
-        );
         // DATA SAFETY: every row that exists at this instant predates line
         // items, so its stored amount is authoritative. Without this backfill
         // resolveEffectiveAmount would recompute historical amounts from an
-        // empty item list and rewrite them all to 0. Runs exactly once,
-        // guarded by the column-existence check above.
-        await database.execAsync("UPDATE lenden SET amountOverridden = 1");
+        // empty item list and rewrite them all to 0.
+        //
+        // The ALTER and the UPDATE MUST be atomic. If the column lands and the
+        // backfill does not, the surrounding migration block's catch swallows
+        // the error, the column-existence guard above is now satisfied, and the
+        // backfill NEVER RUNS AGAIN — leaving every historical row at
+        // amountOverridden = 0, protected only by the items.length === 0
+        // fallback, which stops protecting them the moment anyone adds a line
+        // item to an old entry.
+        await database.withTransactionAsync(async () => {
+          await database.execAsync(
+            "ALTER TABLE lenden ADD COLUMN amountOverridden INTEGER DEFAULT 0",
+          );
+          await database.execAsync("UPDATE lenden SET amountOverridden = 1");
+        });
         console.log(
           "Added amountOverridden to lenden table and backfilled existing rows",
         );
@@ -698,18 +707,30 @@ and add one argument after `lenden.status ?? 0,`:
       lenden.amountOverridden ?? 0,
 ```
 
-- [ ] **Step 8: Verify TypeScript compiles**
+- [ ] **Step 8: Delete `lenden_items` explicitly in `deleteLenden`**
+
+The `FOREIGN KEY ... ON DELETE CASCADE` clause in the new table **will not fire**. `PRAGMA foreign_keys` is never set anywhere in this codebase and SQLite defaults it off per connection, so every cascade in this schema is decorative. `deleteLenden` already deletes `jama_entries` manually for exactly this reason — follow that existing pattern.
+
+In `deleteLenden`, alongside the existing `jama_entries` delete:
+
+```ts
+    await database.runAsync("DELETE FROM lenden_items WHERE lendenId = ?", id);
+```
+
+Do **not** add `PRAGMA foreign_keys = ON` as part of this task. Enabling it on a database that already contains orphan rows makes later writes throw `FOREIGN KEY constraint failed` where they previously succeeded; that change needs a guarded orphan sweep first and is tracked separately in `agent/2026-08-31-bug-audit-and-fix-plan.md` (finding B11, Phase 4).
+
+- [ ] **Step 9: Verify TypeScript compiles**
 
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 9: Verify the migration on device**
+- [ ] **Step 10: Verify the migration on device**
 
 Run the app on the device that already holds real data (`npx expo start --dev-client`). Watch the Metro console for `Added amountOverridden to lenden table and backfilled existing rows`, then open an existing customer with Len-Den entries.
 
 Expected: **every historical amount is unchanged.** If any entry shows ₹0, stop and fix before continuing — this is the failure mode Task 3 guards against.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
 git add src/types/entry.ts src/database/entryDatabase.ts
@@ -2690,7 +2711,7 @@ If it fails, download a Noto Sans Devanagari `woff2` subset, base64 it, and inli
 
 - [ ] **Step 4: Work the verification checklist**
 
-From spec §8.1 (see also Task 5 Step 9):
+From spec §8.1 (see also Task 5 Step 10):
 
 1. Fresh install (clear app data) — database initialises with no error.
 2. Upgrade over existing data — **historical Len-Den amounts unchanged**.
@@ -2729,5 +2750,5 @@ The feature is done when:
 ## Notes for the executor
 
 - **Task 4 is a hard gate.** It requires an EAS build and a manual APK install. Nothing from Task 8 onwards can be tested on device until that build is running.
-- **Task 5 Step 9 is the highest-risk moment in the plan.** If historical amounts show ₹0, stop. The backfill in Step 6 or the guards in Task 3 are wrong.
+- **Task 5 Step 10 is the highest-risk moment in the plan.** If historical amounts show ₹0, stop. The backfill in Step 6 or the guards in Task 3 are wrong.
 - Tasks 1, 2, 3 and 7 are pure and need no device at all — they can be completed and verified entirely from the terminal.
