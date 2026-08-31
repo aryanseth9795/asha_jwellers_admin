@@ -26,6 +26,11 @@ import { saveImages } from "../storage/fileStorage";
 import CustomDatePicker from "../components/CustomDatePicker";
 import BillTable from "../components/BillTable";
 import AddJamaModal from "../components/AddJamaModal";
+import LendenItemsTable from "../components/LendenItemsTable";
+import AddLendenItemModal from "../components/AddLendenItemModal";
+import { replaceLendenItems } from "../database/lendenItems";
+import { sumItemTotals, isAmountOverridden } from "../utils/lendenAmount";
+import { NewLendenItem } from "../types/entry";
 
 type AddTransactionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -65,9 +70,24 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const [jamaEntries, setJamaEntries] = useState<LocalJamaEntry[]>([]);
   const [showAddJamaModal, setShowAddJamaModal] = useState(false);
 
+  // Jewellery line items (Lenden only)
+  const [lendenItems, setLendenItems] = useState<NewLendenItem[]>([]);
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  // Set once the user types an amount that differs from the item sum.
+  const [amountTouched, setAmountTouched] = useState(false);
+
+  const itemsTotal = sumItemTotals(lendenItems);
+
   // Minimum date - 5 years ago
   const minDate = new Date();
   minDate.setFullYear(minDate.getFullYear() - 15);
+
+  // Amount tracks the item sum until the user overrides it.
+  React.useEffect(() => {
+    if (entryType !== "lenden" || amountTouched) return;
+    setAmount(lendenItems.length > 0 ? String(itemsTotal) : "");
+  }, [itemsTotal, lendenItems.length, entryType, amountTouched]);
 
   const requestPermissions = async () => {
     const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
@@ -165,6 +185,8 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       } else {
         // Calculate fields
         const lendenAmountVal = amount ? parseInt(amount, 10) : 0;
+        const overridden =
+          lendenItems.length > 0 && lendenAmountVal !== itemsTotal ? 1 : 0;
         const discountVal = discount ? parseInt(discount, 10) : 0;
         const remainingVal = Math.max(0, lendenAmountVal - discountVal);
         const totalJama = jamaEntries.reduce(
@@ -183,6 +205,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
           jama: totalJama, // Store total jama for backward compatibility
           baki: bakiVal,
           status: bakiVal === 0 ? 1 : 0, // Auto-close if baki is 0
+          amountOverridden: overridden,
         });
 
         // Create individual jama entries
@@ -192,6 +215,10 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
             amount: entry.amount,
             date: entry.date,
           });
+        }
+
+        if (lendenItems.length > 0) {
+          await replaceLendenItems(lendenId, lendenItems);
         }
       }
 
@@ -326,16 +353,47 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={styles.amountInput}
                 placeholder="0"
                 value={amount}
-                onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ""))}
+                onChangeText={(text) => {
+                  setAmountTouched(true);
+                  setAmount(text.replace(/[^0-9]/g, ""));
+                }}
                 keyboardType="numeric"
                 placeholderTextColor="#999"
               />
             </View>
+            {entryType === "lenden" && lendenItems.length > 0 && (
+              <Text style={styles.amountHint}>
+                {isAmountOverridden({ amount: parseInt(amount, 10) || 0 }, lendenItems)
+                  ? `* Overridden — items total ₹${itemsTotal.toLocaleString()}`
+                  : "Auto-calculated from items"}
+              </Text>
+            )}
           </View>
 
           {/* Lenden-specific fields */}
           {entryType === "lenden" && (
             <>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 12 }]}>
+                  Jewellery Items
+                </Text>
+                <LendenItemsTable
+                  items={lendenItems}
+                  editable={true}
+                  onAdd={() => {
+                    setEditingItemIndex(null);
+                    setShowItemModal(true);
+                  }}
+                  onEdit={(index) => {
+                    setEditingItemIndex(index);
+                    setShowItemModal(true);
+                  }}
+                  onDelete={(index) => {
+                    setLendenItems((prev) => prev.filter((_, i) => i !== index));
+                  }}
+                />
+              </View>
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>
                   <Ionicons name="pricetag-outline" size={14} color="#666" />{" "}
@@ -478,6 +536,26 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
             ...prev,
             { amount, date: date.toISOString() },
           ]);
+        }}
+      />
+
+      <AddLendenItemModal
+        visible={showItemModal}
+        editMode={editingItemIndex !== null}
+        initialItem={
+          editingItemIndex !== null ? lendenItems[editingItemIndex] : undefined
+        }
+        onClose={() => {
+          setShowItemModal(false);
+          setEditingItemIndex(null);
+        }}
+        onSave={(item) => {
+          setLendenItems((prev) => {
+            if (editingItemIndex === null) return [...prev, item];
+            return prev.map((existing, i) =>
+              i === editingItemIndex ? item : existing,
+            );
+          });
         }}
       />
 
@@ -717,6 +795,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#666",
     marginBottom: 8,
+  },
+  amountHint: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 6,
   },
   input: {
     backgroundColor: "#F0F7FF",
