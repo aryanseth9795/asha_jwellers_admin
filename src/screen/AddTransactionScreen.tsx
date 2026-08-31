@@ -164,8 +164,8 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
-    if (!amount) {
-      Alert.alert("Validation Error", "Please enter an amount.");
+    if (!amount || parseInt(amount, 10) <= 0) {
+      Alert.alert("Validation Error", "Please enter an amount greater than zero.");
       return;
     }
 
