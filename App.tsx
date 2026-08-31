@@ -19,6 +19,7 @@ import ExistingCustomersScreen from "./src/screen/ExistingCustomersScreen";
 import UserTransactionsScreen from "./src/screen/UserTransactionsScreen";
 import AddTransactionScreen from "./src/screen/AddTransactionScreen";
 import TransactionDetailScreen from "./src/screen/TransactionDetailScreen";
+import BillPreviewScreen from "./src/screen/BillPreviewScreen";
 import UpdateBhavScreen from "./src/screen/UpdateBhavScreen";
 import CategoryListScreen from "./src/screen/CategoryListScreen";
 import AddEditCategoryScreen from "./src/screen/AddEditCategoryScreen";
@@ -155,6 +156,11 @@ export default function App() {
             name="TransactionDetail"
             component={TransactionDetailScreen}
             options={{ title: "Details" }}
+          />
+          <Stack.Screen
+            name="BillPreview"
+            component={BillPreviewScreen}
+            options={{ title: "बिल" }}
           />
           <Stack.Screen
             name="UpdateBhav"
