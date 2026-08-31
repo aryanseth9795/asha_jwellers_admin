@@ -61,6 +61,8 @@ export interface Lenden {
   jama?: number;
   baki?: number;
   status: number; // 0 = open, 1 = closed
+  billNo?: number | null;
+  amountOverridden?: number | null;
 }
 
 export interface NewLenden {
@@ -73,6 +75,32 @@ export interface NewLenden {
   jama?: number; // Legacy - now jama entries are stored in separate table
   baki?: number;
   status?: number; // 0 = open, 1 = closed
+  billNo?: number;
+  amountOverridden?: number;
+}
+
+export type Purity = "24KT" | "22KT" | "18KT" | "Silver";
+
+export const PURITY_OPTIONS: Purity[] = ["24KT", "22KT", "18KT", "Silver"];
+
+// Jewellery line item on a Len-Den entry
+export interface LendenItem {
+  id: number;
+  lendenId: number;
+  position: number; // 1-based, kept contiguous
+  name: string;
+  purity: Purity | null;
+  weight: number | null; // grams
+  rate: number | null; // rupees per gram
+  total: number; // rupees
+}
+
+export interface NewLendenItem {
+  name: string;
+  purity?: Purity | null;
+  weight?: number | null;
+  rate?: number | null;
+  total: number;
 }
 
 // Jama Entry - multiple payments per Lenden
@@ -110,6 +138,9 @@ export type RootStackParamList = {
   TransactionDetail: {
     transactionId: number;
     transactionType: "rehan" | "lenden";
+  };
+  BillPreview: {
+    lendenId: number;
   };
   UpdateBhav: undefined;
   // Category management screens

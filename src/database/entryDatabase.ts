@@ -30,7 +30,6 @@ export const initDatabase = async () => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         address TEXT,
-        address TEXT,
         mobileNumber TEXT,
         nickname TEXT,
         createdAt TEXT NOT NULL
@@ -75,6 +74,21 @@ export const initDatabase = async () => {
         lendenId INTEGER NOT NULL,
         amount INTEGER NOT NULL,
         date TEXT NOT NULL,
+        FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Create Lenden Items table (jewellery line items per lenden)
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS lenden_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lendenId INTEGER NOT NULL,
+        position INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        purity TEXT,
+        weight REAL,
+        rate INTEGER,
+        total INTEGER NOT NULL,
         FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
       );
     `);
@@ -147,6 +161,33 @@ export const initDatabase = async () => {
           "ALTER TABLE lenden ADD COLUMN status INTEGER DEFAULT 0",
         );
         console.log("Added status to lenden table");
+      }
+      if (!lendenColumns.includes("billNo")) {
+        await database.execAsync("ALTER TABLE lenden ADD COLUMN billNo INTEGER");
+        console.log("Added billNo to lenden table");
+      }
+      if (!lendenColumns.includes("amountOverridden")) {
+        // DATA SAFETY: every row that exists at this instant predates line
+        // items, so its stored amount is authoritative. Without this backfill
+        // resolveEffectiveAmount would recompute historical amounts from an
+        // empty item list and rewrite them all to 0.
+        //
+        // The ALTER and the UPDATE MUST be atomic. If the column lands and the
+        // backfill does not, the surrounding migration block's catch swallows
+        // the error, the column-existence guard above is now satisfied, and the
+        // backfill NEVER RUNS AGAIN — leaving every historical row at
+        // amountOverridden = 0, protected only by the items.length === 0
+        // fallback, which stops protecting them the moment anyone adds a line
+        // item to an old entry.
+        await database.withTransactionAsync(async () => {
+          await database.execAsync(
+            "ALTER TABLE lenden ADD COLUMN amountOverridden INTEGER DEFAULT 0",
+          );
+          await database.execAsync("UPDATE lenden SET amountOverridden = 1");
+        });
+        console.log(
+          "Added amountOverridden to lenden table and backfilled existing rows",
+        );
       }
     } catch (migrationError) {
       console.error("Migration error:", migrationError);
@@ -522,7 +563,7 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
     const media = JSON.stringify(lenden.media || []);
 
     const result = await database.runAsync(
-      "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status, amountOverridden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       lenden.userId,
       lenden.date,
       media,
@@ -532,6 +573,7 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
       lenden.jama || null,
       lenden.baki || null,
       lenden.status ?? 0,
+      lenden.amountOverridden ?? 0,
     );
 
     return result.lastInsertRowId;
@@ -620,6 +662,7 @@ export const deleteLenden = async (id: number): Promise<void> => {
     const database = await openDatabase();
     // Delete associated jama entries first
     await database.runAsync("DELETE FROM jama_entries WHERE lendenId = ?", id);
+    await database.runAsync("DELETE FROM lenden_items WHERE lendenId = ?", id);
     await database.runAsync("DELETE FROM lenden WHERE id = ?", id);
   } catch (error) {
     console.error("Error deleting Lenden:", error);
