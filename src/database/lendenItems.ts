@@ -94,7 +94,7 @@ export const getNextBillNo = async (): Promise<number> => {
     return (row?.maxBillNo ?? 0) + 1;
   } catch (error) {
     console.error("Error getting next bill number:", error);
-    return 1;
+    throw error;
   }
 };
 
