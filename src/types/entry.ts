@@ -61,6 +61,8 @@ export interface Lenden {
   jama?: number;
   baki?: number;
   status: number; // 0 = open, 1 = closed
+  billNo?: number | null;
+  amountOverridden?: number | null;
 }
 
 export interface NewLenden {
@@ -73,6 +75,43 @@ export interface NewLenden {
   jama?: number; // Legacy - now jama entries are stored in separate table
   baki?: number;
   status?: number; // 0 = open, 1 = closed
+  billNo?: number;
+  amountOverridden?: number;
+}
+
+export type JewelleryMetal = "gold" | "silver";
+
+export const JEWELLERY_METAL_OPTIONS: JewelleryMetal[] = ["gold", "silver"];
+
+// "Silver" is retained for items created before metal was tracked separately.
+export type Purity = "24KT" | "22KT" | "18KT" | "999" | "925" | "800" | "Silver";
+
+export const PURITY_OPTIONS_BY_METAL: Record<JewelleryMetal, Purity[]> = {
+  gold: ["24KT", "22KT", "18KT"],
+  silver: ["24KT", "22KT", "18KT"],
+  // silver: ["999", "925", "800"],
+};
+
+// Jewellery line item on a Len-Den entry
+export interface LendenItem {
+  id: number;
+  lendenId: number;
+  position: number; // 1-based, kept contiguous
+  name: string;
+  metal: JewelleryMetal | null;
+  purity: Purity | null;
+  weight: number | null; // grams
+  rate: number | null; // rupees per gram
+  total: number; // rupees
+}
+
+export interface NewLendenItem {
+  name: string;
+  metal?: JewelleryMetal | null;
+  purity?: Purity | null;
+  weight?: number | null;
+  rate?: number | null;
+  total: number;
 }
 
 // Jama Entry - multiple payments per Lenden
@@ -110,6 +149,9 @@ export type RootStackParamList = {
   TransactionDetail: {
     transactionId: number;
     transactionType: "rehan" | "lenden";
+  };
+  BillPreview: {
+    lendenId: number;
   };
   UpdateBhav: undefined;
   // Category management screens
