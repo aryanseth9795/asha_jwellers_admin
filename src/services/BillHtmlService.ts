@@ -21,7 +21,7 @@ const TEMPLATE_H = 1536;
 // The new artwork has a proprietor line below the contact details, so its
 // header needs to extend to just above the invoice frame.
 export const HEADER_CROP_PCT = 0.424;
-export const FOOTER_CROP_PCT = 0.1016;
+export const FOOTER_CROP_PCT = 0.5;
 
 const PAGE_W_MM = 148;
 const PAGE_H_MM = 210;
@@ -30,7 +30,6 @@ const TPL_H_MM = PAGE_W_MM * (TEMPLATE_H / TEMPLATE_W);
 const HEADER_H_MM = TPL_H_MM * HEADER_CROP_PCT;
 const FOOTER_H_MM = TPL_H_MM * FOOTER_CROP_PCT;
 const FOOTER_OFFSET_MM = -(TPL_H_MM - FOOTER_H_MM);
-const MIDDLE_H_MM = PAGE_H_MM - HEADER_H_MM - FOOTER_H_MM;
 
 const GOLD = "#C08A2E";
 const GOLD_SOFT = "#E3C489";
@@ -173,7 +172,13 @@ export function buildBillHtml(data: BillData): string {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .page { width: ${mm(PAGE_W_MM)}; height: ${mm(PAGE_H_MM)}; display: flex; flex-direction: column; }
+  /* Absolute bands keep the footer anchored to the physical page bottom. */
+  .page {
+    position: relative;
+    width: ${mm(PAGE_W_MM)};
+    height: ${mm(PAGE_H_MM)};
+    overflow: hidden;
+  }
 
   .band {
     width: 100%;
@@ -182,12 +187,33 @@ export function buildBillHtml(data: BillData): string {
     background-size: ${mm(PAGE_W_MM)} ${mm(TPL_H_MM)};
     background-repeat: no-repeat;
   }
-  .band-header { height: ${mm(HEADER_H_MM)}; background-position: 0 0; }
-  .band-footer { height: ${mm(FOOTER_H_MM)}; background-position: 0 ${mm(FOOTER_OFFSET_MM)}; }
+  .band-header {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    height: ${mm(HEADER_H_MM)};
+    background-position: 0 0;
+  }
+  .band-footer {
+    position: absolute;
+    z-index: 2;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: ${mm(FOOTER_H_MM)};
+    background-position: 0 ${mm(FOOTER_OFFSET_MM)};
+  }
 
   /* Continues the template's gold frame down the rebuilt middle. */
   .middle {
-    height: ${mm(MIDDLE_H_MM)};
+    position: absolute;
+    z-index: 1;
+    top: ${mm(HEADER_H_MM)};
+    right: 0;
+    bottom: ${mm(FOOTER_H_MM)};
+    left: 0;
+    overflow: hidden;
     border-left: 0.4mm solid ${GOLD};
     border-right: 0.4mm solid ${GOLD};
     background: ${CREAM};
