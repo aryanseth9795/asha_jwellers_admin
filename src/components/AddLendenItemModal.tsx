@@ -56,8 +56,10 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
   }, [visible, editMode, initialItem]);
 
   // Auto-fill total = weight x rate until the user overrides it.
+  // Never in edit mode: a stored total is already the user's value, and
+  // recomputing it would discard a deliberate rounding.
   useEffect(() => {
-    if (totalTouched) return;
+    if (totalTouched || editMode) return;
     const w = parseFloat(weight);
     const r = parseInt(rate, 10);
     if (w > 0 && r > 0) {
@@ -65,7 +67,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
     } else {
       setTotal("");
     }
-  }, [weight, rate, totalTouched]);
+  }, [weight, rate, totalTouched, editMode]);
 
   const totalNum = parseInt(total, 10) || 0;
   const canSave = name.trim().length > 0 && totalNum > 0;
