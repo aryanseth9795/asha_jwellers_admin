@@ -76,6 +76,16 @@ describe("buildBillHtml", () => {
       );
       expect(html).not.toContain("दर प्रति ग्राम");
     });
+
+    it("shows दर प्रति ग्राम for a single item", () => {
+      const html = buildBillHtml(data({ items: [item()] }));
+      expect(html).toContain("दर प्रति ग्राम");
+    });
+
+    it("omits दर प्रति ग्राम when the only item has no rate", () => {
+      const html = buildBillHtml(data({ items: [item({ rate: null })] }));
+      expect(html).not.toContain("दर प्रति ग्राम");
+    });
   });
 
   describe("payment details toggle", () => {
