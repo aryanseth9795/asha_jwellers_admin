@@ -85,6 +85,7 @@ export const initDatabase = async () => {
         lendenId INTEGER NOT NULL,
         position INTEGER NOT NULL,
         name TEXT NOT NULL,
+        metal TEXT,
         purity TEXT,
         weight REAL,
         rate INTEGER,
@@ -188,6 +189,25 @@ export const initDatabase = async () => {
         console.log(
           "Added amountOverridden to lenden table and backfilled existing rows",
         );
+      }
+
+      const lendenItemColumns = (
+        await database.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(lenden_items)",
+        )
+      ).map((c) => c.name);
+      if (!lendenItemColumns.includes("metal")) {
+        await database.withTransactionAsync(async () => {
+          await database.execAsync(
+            "ALTER TABLE lenden_items ADD COLUMN metal TEXT",
+          );
+          // Old items stored Silver as a purity value. All other historical
+          // purity values are gold, so existing bills stay meaningful.
+          await database.execAsync(
+            "UPDATE lenden_items SET metal = CASE WHEN purity = 'Silver' THEN 'silver' ELSE 'gold' END WHERE metal IS NULL",
+          );
+        });
+        console.log("Added metal to lenden_items table");
       }
     } catch (migrationError) {
       console.error("Migration error:", migrationError);

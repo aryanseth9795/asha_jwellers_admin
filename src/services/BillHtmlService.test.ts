@@ -5,6 +5,7 @@ const item = (over: Partial<LendenItem> = {}): LendenItem => ({
   id: 1,
   lendenId: 1,
   position: 1,
+  metal: "gold",
   name: "मांगटीका",
   purity: "22KT",
   weight: 3.5,
@@ -41,6 +42,7 @@ describe("buildBillHtml", () => {
     const html = buildBillHtml(data());
     expect(html).toContain("मांगटीका");
     expect(html).toContain("22KT");
+    expect(html).toContain("Gold / 22KT");
     expect(html).toContain("3.500 ग्राम");
     expect(html).toContain("(3 ग्राम 500 मिली)");
     expect(html).toContain("14,500/-");

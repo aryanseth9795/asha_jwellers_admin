@@ -13,12 +13,14 @@ import {
 // bands render at natural aspect ratio across the full page width and the
 // rebuilt middle absorbs the difference.
 //
-// CALIBRATION: these two fractions were read off the reference image by eye.
-// They are the only numbers to touch when the seams do not line up.
+// CALIBRATION: these fractions are aligned to the 2026-09-01 Asha Jewellers
+// artwork. They are the only numbers to touch when the seams do not line up.
 // ---------------------------------------------------------------------------
 const TEMPLATE_W = 1024;
 const TEMPLATE_H = 1536;
-export const HEADER_CROP_PCT = 0.3548;
+// The new artwork has a proprietor line below the contact details, so its
+// header needs to extend to just above the invoice frame.
+export const HEADER_CROP_PCT = 0.424;
 export const FOOTER_CROP_PCT = 0.1016;
 
 const PAGE_W_MM = 148;
@@ -103,7 +105,14 @@ export function buildBillHtml(data: BillData): string {
       return `<tr>
         <td class="c">${item.position}</td>
         <td class="desc">${esc(item.name)}</td>
-        <td class="c">${esc(item.purity ?? "")}</td>
+        <td class="c">${esc(
+          [
+            item.metal === "gold" ? "Gold" : item.metal === "silver" ? "Silver" : "",
+            item.purity ?? "",
+          ]
+            .filter(Boolean)
+            .join(" / "),
+        )}</td>
         <td class="c">${weightCell}</td>
         <td class="r">${item.rate !== null ? esc(formatRupees(item.rate)) : ""}</td>
         <td class="r">${esc(formatRupees(item.total))}</td>
@@ -236,7 +245,7 @@ export function buildBillHtml(data: BillData): string {
           <tr>
             <th style="width:8mm">क्रं.</th>
             <th>विवरण</th>
-            <th style="width:15mm">शुद्धता</th>
+            <th style="width:15mm">धातु / शुद्धता</th>
             <th style="width:22mm">वजन</th>
             <th style="width:20mm">दर</th>
             <th style="width:24mm">कुल राशि</th>

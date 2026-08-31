@@ -29,7 +29,7 @@ import AddJamaModal from "../components/AddJamaModal";
 import LendenItemsTable from "../components/LendenItemsTable";
 import AddLendenItemModal from "../components/AddLendenItemModal";
 import { replaceLendenItems } from "../database/lendenItems";
-import { sumItemTotals, isAmountOverridden } from "../utils/lendenAmount";
+import { sumItemTotals } from "../utils/lendenAmount";
 import { NewLendenItem } from "../types/entry";
 
 type AddTransactionScreenNavigationProp = NativeStackNavigationProp<
@@ -74,20 +74,12 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const [lendenItems, setLendenItems] = useState<NewLendenItem[]>([]);
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
-  // Set once the user types an amount that differs from the item sum.
-  const [amountTouched, setAmountTouched] = useState(false);
 
   const itemsTotal = sumItemTotals(lendenItems);
 
   // Minimum date - 5 years ago
   const minDate = new Date();
   minDate.setFullYear(minDate.getFullYear() - 15);
-
-  // Amount tracks the item sum until the user overrides it.
-  React.useEffect(() => {
-    if (entryType !== "lenden" || amountTouched) return;
-    setAmount(lendenItems.length > 0 ? String(itemsTotal) : "");
-  }, [itemsTotal, lendenItems.length, entryType, amountTouched]);
 
   const requestPermissions = async () => {
     const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
@@ -164,8 +156,13 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
-    if (!amount || parseInt(amount, 10) <= 0) {
+    if (entryType === "rehan" && (!amount || parseInt(amount, 10) <= 0)) {
       Alert.alert("Validation Error", "Please enter an amount greater than zero.");
+      return;
+    }
+
+    if (entryType === "lenden" && lendenItems.length === 0) {
+      Alert.alert("Validation Error", "Please add at least one jewellery item.");
       return;
     }
 
@@ -184,9 +181,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
         });
       } else {
         // Calculate fields
-        const lendenAmountVal = amount ? parseInt(amount, 10) : 0;
-        const overridden =
-          lendenItems.length > 0 && lendenAmountVal !== itemsTotal ? 1 : 0;
+        const lendenAmountVal = itemsTotal;
         const discountVal = discount ? parseInt(discount, 10) : 0;
         const remainingVal = Math.max(0, lendenAmountVal - discountVal);
         const totalJama = jamaEntries.reduce(
@@ -205,7 +200,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
           jama: totalJama, // Store total jama for backward compatibility
           baki: bakiVal,
           status: bakiVal === 0 ? 1 : 0, // Auto-close if baki is 0
-          amountOverridden: overridden,
+          amountOverridden: 0,
         });
 
         // Create individual jama entries
@@ -343,32 +338,24 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
           )}
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>
-              Amount <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.amountInputWrapper}>
-              <Text style={styles.currencySymbol}>₹</Text>
-              <TextInput
-                style={styles.amountInput}
-                placeholder="0"
-                value={amount}
-                onChangeText={(text) => {
-                  setAmountTouched(true);
-                  setAmount(text.replace(/[^0-9]/g, ""));
-                }}
-                keyboardType="numeric"
-                placeholderTextColor="#999"
-              />
-            </View>
-            {entryType === "lenden" && lendenItems.length > 0 && (
-              <Text style={styles.amountHint}>
-                {isAmountOverridden({ amount: parseInt(amount, 10) || 0 }, lendenItems)
-                  ? `* Overridden — items total ₹${itemsTotal.toLocaleString()}`
-                  : "Auto-calculated from items"}
+          {entryType === "rehan" && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>
+                Amount <Text style={styles.required}>*</Text>
               </Text>
-            )}
-          </View>
+              <View style={styles.amountInputWrapper}>
+                <Text style={styles.currencySymbol}>₹</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  placeholder="0"
+                  value={amount}
+                  onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ""))}
+                  keyboardType="numeric"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+          )}
 
           {/* Lenden-specific fields */}
           {entryType === "lenden" && (
@@ -415,7 +402,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
 
               {/* Bill Table */}
-              {(parseInt(amount, 10) > 0 || jamaEntries.length > 0) && (
+              {(itemsTotal > 0 || jamaEntries.length > 0) && (
                 <View style={{ marginTop: 16 }}>
                   <Text
                     style={[
@@ -426,7 +413,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
                     Payment Summary
                   </Text>
                   <BillTable
-                    amount={parseInt(amount, 10) || 0}
+                    amount={itemsTotal}
                     discount={parseInt(discount, 10) || 0}
                     jamaEntries={jamaEntries}
                     editable={true}

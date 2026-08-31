@@ -1,5 +1,10 @@
 import * as SQLite from "expo-sqlite";
-import { LendenItem, NewLendenItem, Purity } from "../types/entry";
+import {
+  JewelleryMetal,
+  LendenItem,
+  NewLendenItem,
+  Purity,
+} from "../types/entry";
 
 // entryDatabase.ts owns schema creation; this module only reads and writes rows.
 let db: SQLite.SQLiteDatabase | null = null;
@@ -15,6 +20,7 @@ interface LendenItemRow {
   lendenId: number;
   position: number;
   name: string;
+  metal: string | null;
   purity: string | null;
   weight: number | null;
   rate: number | null;
@@ -26,6 +32,7 @@ const toLendenItem = (row: LendenItemRow): LendenItem => ({
   lendenId: row.lendenId,
   position: row.position,
   name: row.name,
+  metal: (row.metal as JewelleryMetal | null) ?? null,
   purity: (row.purity as Purity | null) ?? null,
   weight: row.weight,
   rate: row.rate,
@@ -67,10 +74,11 @@ export const replaceLendenItems = async (
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         await database.runAsync(
-          "INSERT INTO lenden_items (lendenId, position, name, purity, weight, rate, total) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO lenden_items (lendenId, position, name, metal, purity, weight, rate, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
           lendenId,
           i + 1,
           item.name,
+          item.metal ?? null,
           item.purity ?? null,
           item.weight ?? null,
           item.rate ?? null,

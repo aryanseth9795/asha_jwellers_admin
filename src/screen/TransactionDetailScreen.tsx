@@ -113,10 +113,11 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   // Jewellery line items (Lenden only)
   const [lendenItems, setLendenItems] = useState<NewLendenItem[]>([]);
+  const [originalLendenItems, setOriginalLendenItems] = useState<
+    NewLendenItem[]
+  >([]);
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
-  // Mirrors amountOverridden: true once the stored amount diverges from the item sum.
-  const [amountTouched, setAmountTouched] = useState(false);
 
   const itemsTotal = sumItemTotals(lendenItems);
 
@@ -127,13 +128,12 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showAddRehanTransactionModal, setShowAddRehanTransactionModal] =
     useState(false);
 
-  // Amount tracks the item sum in edit mode until the user overrides it.
+  // A Len-Den total is always the sum of its jewellery items.
   useEffect(() => {
     if (transactionType !== "lenden" || !isEditMode) return;
-    if (amountTouched) return;
     if (lendenItems.length === 0) return;
     setEditAmount(String(itemsTotal));
-  }, [itemsTotal, lendenItems.length, transactionType, isEditMode, amountTouched]);
+  }, [itemsTotal, lendenItems.length, transactionType, isEditMode]);
 
   // Auto-calculate Remaining = Amount - Discount (only for lenden in edit mode)
   useEffect(() => {
@@ -169,6 +169,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const remainingChanged = editRemaining !== originalRemaining;
     const jamaChanged = editJama !== originalJama;
     const bakiChanged = editBaki !== originalBaki;
+    const lendenItemsChanged =
+      JSON.stringify(lendenItems) !== JSON.stringify(originalLendenItems);
 
     setHasChanges(
       mediaChanged ||
@@ -177,7 +179,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         discountChanged ||
         remainingChanged ||
         jamaChanged ||
-        bakiChanged,
+        bakiChanged ||
+        lendenItemsChanged,
     );
   }, [
     mediaPaths,
@@ -194,6 +197,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     originalJama,
     editBaki,
     originalBaki,
+    lendenItems,
+    originalLendenItems,
   ]);
 
   const loadData = async () => {
@@ -249,16 +254,16 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           setJamaEntries(entries);
 
           const storedItems = await getLendenItems(transactionId);
-          setLendenItems(
-            storedItems.map((i) => ({
-              name: i.name,
-              purity: i.purity,
-              weight: i.weight,
-              rate: i.rate,
-              total: i.total,
-            })),
-          );
-          setAmountTouched(lendenData.amountOverridden === 1);
+          const mappedItems = storedItems.map((i) => ({
+            name: i.name,
+            metal: i.metal,
+            purity: i.purity,
+            weight: i.weight,
+            rate: i.rate,
+            total: i.total,
+          }));
+          setLendenItems(mappedItems);
+          setOriginalLendenItems(mappedItems);
         }
       }
     } catch (error) {
@@ -367,7 +372,11 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         });
       }
 
-      // Update database
+      const lendenAmount =
+        transactionType === "lenden" && lendenItems.length > 0
+          ? itemsTotal
+          : parseInt(editAmount, 10) || 0;
+
       // Update database
       if (transactionType === "rehan") {
         await updateRehanDetails(
@@ -380,7 +389,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         await updateLendenDetails(
           transactionId,
           finalPaths,
-          editAmount ? parseInt(editAmount, 10) : undefined,
+          lendenAmount || undefined,
           editDiscount ? parseInt(editDiscount, 10) : undefined,
           editRemaining ? parseInt(editRemaining, 10) : undefined,
           editJama ? parseInt(editJama, 10) : undefined,
@@ -390,17 +399,18 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
       if (transactionType === "lenden") {
         await replaceLendenItems(transactionId, lendenItems);
-        const typedAmount = parseInt(editAmount, 10) || 0;
-        await setLendenAmountOverridden(
-          transactionId,
-          lendenItems.length > 0 && typedAmount !== itemsTotal ? 1 : 0,
-        );
+        if (lendenItems.length > 0) {
+          await setLendenAmountOverridden(transactionId, 0);
+        }
       }
 
       setMediaPaths(finalPaths);
       setOriginalMediaPaths(finalPaths);
       setOriginalProductName(editProductName);
       setOriginalAmount(editAmount);
+      if (transactionType === "lenden") {
+        setOriginalLendenItems(lendenItems);
+      }
 
       // Refresh local data to show updated values in UI immediately
       if (transactionType === "rehan" && rehan) {
@@ -414,7 +424,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         setLenden({
           ...lenden,
           media: JSON.stringify(finalPaths),
-          amount: editAmount ? parseInt(editAmount, 10) : undefined,
+          amount: lendenAmount || undefined,
           discount: editDiscount ? parseInt(editDiscount, 10) : undefined,
           remaining: editRemaining ? parseInt(editRemaining, 10) : undefined,
           jama: editJama ? parseInt(editJama, 10) : undefined,
@@ -425,6 +435,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         setOriginalRemaining(editRemaining);
         setOriginalJama(editJama);
         setOriginalBaki(editBaki);
+        setEditAmount(lendenAmount ? String(lendenAmount) : "");
+        setOriginalAmount(lendenAmount ? String(lendenAmount) : "");
       }
 
       setIsEditMode(false);
@@ -471,6 +483,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setEditRemaining(originalRemaining);
     setEditJama(originalJama);
     setEditBaki(originalBaki);
+    setLendenItems(originalLendenItems);
     setIsEditMode(false);
   };
 
@@ -582,21 +595,18 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             ) : null}
 
             {/* Amount Input or Display */}
-            {isEditMode ? (
+            {isEditMode && transactionType === "rehan" ? (
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Amount (₹)</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="0"
                   value={editAmount}
-                  onChangeText={(text) => {
-                    setAmountTouched(true);
-                    setEditAmount(text.replace(/[^0-9]/g, ""));
-                  }}
+                  onChangeText={(text) => setEditAmount(text.replace(/[^0-9]/g, ""))}
                   keyboardType="numeric"
                 />
               </View>
-            ) : (
+            ) : !isEditMode && (
                 transactionType === "rehan" ? rehan?.amount : lenden?.amount
               ) ? (
               <View style={styles.amountDateRow}>

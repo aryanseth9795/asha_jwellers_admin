@@ -6,6 +6,12 @@ import { sumItemTotals } from "../utils/lendenAmount";
 import { formatRupees, formatWeight } from "../utils/billFormat";
 import { COMPACT_ITEM_THRESHOLD } from "../services/BillHtmlService";
 
+const metalLabel = (metal: NewLendenItem["metal"]): string | null => {
+  if (metal === "gold") return "Gold";
+  if (metal === "silver") return "Silver";
+  return null;
+};
+
 interface LendenItemsTableProps {
   items: NewLendenItem[];
   editable?: boolean;
@@ -50,6 +56,7 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
             </Text>
             <Text style={styles.itemMeta}>
               {[
+                metalLabel(item.metal),
                 item.purity ?? null,
                 item.weight != null ? formatWeight(item.weight).main : null,
                 item.rate != null ? `@ ${formatRupees(item.rate)}` : null,
@@ -77,7 +84,7 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
       {items.length > 0 && (
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>
-            TOTAL {totalWeight > 0 ? `· ${formatWeight(totalWeight).main}` : ""}
+            TOTAL AMOUNT {totalWeight > 0 ? `· ${formatWeight(totalWeight).main}` : ""}
           </Text>
           <Text style={styles.totalValue}>{formatRupees(total)}</Text>
         </View>

@@ -11,7 +11,13 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { NewLendenItem, Purity, PURITY_OPTIONS } from "../types/entry";
+import {
+  JewelleryMetal,
+  JEWELLERY_METAL_OPTIONS,
+  NewLendenItem,
+  Purity,
+  PURITY_OPTIONS_BY_METAL,
+} from "../types/entry";
 
 interface AddLendenItemModalProps {
   visible: boolean;
@@ -29,6 +35,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
   initialItem,
 }) => {
   const [name, setName] = useState("");
+  const [metal, setMetal] = useState<JewelleryMetal>("gold");
   const [purity, setPurity] = useState<Purity>("22KT");
   const [weight, setWeight] = useState("");
   const [rate, setRate] = useState("");
@@ -39,14 +46,24 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
   useEffect(() => {
     if (!visible) return;
     if (editMode && initialItem) {
+      const initialMetal: JewelleryMetal =
+        initialItem.metal ??
+        (initialItem.purity === "Silver" ? "silver" : "gold");
       setName(initialItem.name);
-      setPurity((initialItem.purity as Purity) ?? "22KT");
+      setMetal(initialMetal);
+      setPurity(
+        initialItem.purity &&
+          PURITY_OPTIONS_BY_METAL[initialMetal].includes(initialItem.purity)
+          ? initialItem.purity
+          : PURITY_OPTIONS_BY_METAL[initialMetal][0],
+      );
       setWeight(initialItem.weight != null ? String(initialItem.weight) : "");
       setRate(initialItem.rate != null ? String(initialItem.rate) : "");
       setTotal(String(initialItem.total));
       setTotalTouched(true);
     } else {
       setName("");
+      setMetal("gold");
       setPurity("22KT");
       setWeight("");
       setRate("");
@@ -71,6 +88,10 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
 
   const totalNum = parseInt(total, 10) || 0;
   const canSave = name.trim().length > 0 && totalNum > 0;
+  const purityOptions: Purity[] =
+    metal === "silver" && purity === "Silver"
+      ? [...PURITY_OPTIONS_BY_METAL.silver, "Silver"]
+      : PURITY_OPTIONS_BY_METAL[metal];
 
   const handleSave = () => {
     if (!canSave) return;
@@ -78,6 +99,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
     const r = parseInt(rate, 10);
     onSave({
       name: name.trim(),
+      metal,
       purity,
       weight: Number.isFinite(w) ? w : null,
       rate: Number.isFinite(r) ? r : null,
@@ -127,9 +149,37 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
             </View>
 
             <View style={styles.inputGroup}>
+              <Text style={styles.label}>Metal</Text>
+              <View style={styles.metalRow}>
+                {JEWELLERY_METAL_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.metalChip,
+                      metal === option && styles.metalChipActive,
+                    ]}
+                    onPress={() => {
+                      setMetal(option);
+                      setPurity(PURITY_OPTIONS_BY_METAL[option][0]);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.metalText,
+                        metal === option && styles.metalTextActive,
+                      ]}
+                    >
+                      {option === "gold" ? "Gold" : "Silver"}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>शुद्धता / Purity</Text>
               <View style={styles.purityRow}>
-                {PURITY_OPTIONS.map((option) => (
+                {purityOptions.map((option) => (
                   <TouchableOpacity
                     key={option}
                     style={[
@@ -249,7 +299,20 @@ const styles = StyleSheet.create({
   },
   totalInput: { fontWeight: "700", fontSize: 18 },
   hint: { fontSize: 12, color: "#999", marginTop: 6 },
-  purityRow: { flexDirection: "row", gap: 8 },
+  metalRow: { flexDirection: "row", gap: 8 },
+  metalChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: "#D0E4FF",
+    backgroundColor: "#fff",
+    alignItems: "center",
+  },
+  metalChipActive: { backgroundColor: "#B8860B", borderColor: "#B8860B" },
+  metalText: { fontSize: 13, fontWeight: "700", color: "#8A6500" },
+  metalTextActive: { color: "#fff" },
+  purityRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   purityChip: {
     flex: 1,
     paddingVertical: 10,
