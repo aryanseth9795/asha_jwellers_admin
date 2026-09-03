@@ -38,7 +38,7 @@ describe("buildBillHtml", () => {
     expect(html).toContain("27/08/2026");
   });
 
-  it("renders the item row with all six columns", () => {
+  it("hides the rate column from the item table", () => {
     const html = buildBillHtml(data());
     expect(html).toContain("मांगटीका");
     expect(html).toContain("22KT");
@@ -47,6 +47,9 @@ describe("buildBillHtml", () => {
     expect(html).toContain("(3 ग्राम 500 मिली)");
     expect(html).toContain("14,500/-");
     expect(html).toContain("50,750/-");
+    expect(html).toContain(
+      ".items th:nth-child(5), .items td:nth-child(5) { display: none; }",
+    );
   });
 
   it("embeds the template exactly once and bands it", () => {

@@ -23,7 +23,7 @@ const TEMPLATE_H = 1536;
 export const HEADER_CROP_PCT = 0.424;
 // This is the visible height of the bottom artwork band, not its position.
 // Its CSS `bottom: 0` placement keeps it flush with the page edge.
-export const FOOTER_CROP_PCT = 0.1016;
+export const FOOTER_CROP_PCT = 0.129;
 
 const PAGE_W_MM = 148;
 const PAGE_H_MM = 210;
@@ -216,12 +216,13 @@ export function buildBillHtml(data: BillData): string {
 
   table { width: 100%; border-collapse: collapse; }
 
-  .cust { font-size: 8.5pt; margin-bottom: 2mm; }
-  .cust td { padding: 0.8mm 1mm; vertical-align: top; }
+  /* Keep the artwork crop unchanged; compact only the customer-details header. */
+  .cust { font-size: 7.5pt; line-height: 1.15; margin-bottom: 1mm; }
+  .cust td { padding: 0.45mm 0.75mm; vertical-align: top; }
   .cust .k, .cust .k2 { width: 14mm; color: ${INK}; white-space: nowrap; }
   .cust .k::after, .cust .k2::after { content: " :"; }
   .cust .v, .cust .v2 { font-weight: 700; border-bottom: 0.2mm dotted ${GOLD_SOFT}; }
-  .cust .k2 { width: 16mm; padding-left: 3mm; }
+  .cust .k2 { width: 16mm; padding-left: 2mm; }
   .cust .v2 { width: 28mm; }
 
   .items { font-size: 8pt; border: 0.3mm solid ${GOLD}; }
@@ -229,6 +230,8 @@ export function buildBillHtml(data: BillData): string {
   .items tr { break-inside: avoid; page-break-inside: avoid; }
   .items th, .items td { border: 0.2mm solid ${GOLD_SOFT}; padding: 1.2mm 1mm; }
   .items th { background: ${HEAD_BG}; font-size: 8pt; font-weight: 700; }
+  /* The rate is retained in the generated data, but is not shown on the bill. */
+  .items th:nth-child(5), .items td:nth-child(5) { display: none; }
   .items .c { text-align: center; }
   .items .r { text-align: right; }
   .items .desc { font-weight: 700; }
