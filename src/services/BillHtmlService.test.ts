@@ -221,9 +221,28 @@ describe("buildBillHtml", () => {
 
   it("words the baki, not the gross, when payment details are shown", () => {
     const html = buildBillHtml(
-      data({ showPaymentDetails: true, baki: 100, discount: 650 }),
+      data({
+        showPaymentDetails: true,
+        discount: 650,
+        jamaEntries: [{ amount: 50000, date: "2026-08-27T00:00:00.000Z" }],
+      }),
     );
     expect(html).toContain("एक सौ रुपये मात्र");
+    expect(html).not.toContain("पचास हजार सात सौ पचास रुपये मात्र");
+  });
+
+  it("words the कुल बाकी figure when the total baki row is shown", () => {
+    const html = buildBillHtml(
+      data({
+        showPaymentDetails: true,
+        showTotalBaki: true,
+        discount: 650,
+        pichlaBaki: 25000,
+        jamaEntries: [{ amount: 50000, date: "2026-08-27T00:00:00.000Z" }],
+      }),
+    );
+    expect(html).toContain("25,100/-");
+    expect(html).toContain("पच्चीस हजार एक सौ रुपये मात्र");
   });
 
   it("drops the milligram sub-line once the table gets crowded", () => {

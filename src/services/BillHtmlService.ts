@@ -153,6 +153,13 @@ export function buildBillHtml(data: BillData): string {
     })
     .join("");
 
+  // The last bold summary figure; the words line speaks the same value.
+  const finalFigure = data.showPaymentDetails
+    ? data.showTotalBaki
+      ? data.pichlaBaki + settlement.baki
+      : settlement.baki
+    : settlement.netPayable;
+
   const summary: string[] = [
     // summaryRow("कुल वजन", formatWeight(totalWeight).main),
   ];
@@ -181,19 +188,11 @@ export function buildBillHtml(data: BillData): string {
         ),
       );
     }
-    const payable = data.showPaymentDetails
-      ? settlement.baki
-      : settlement.netPayable;
-    // const payable = data.amount - data?.discount - totalJama;
-
-    summary.push(summaryRow("बाकी", formatRupees(payable), "final"));
+    summary.push(summaryRow("बाकी", formatRupees(settlement.baki), "final"));
     // Optional extra "कुल बाकी" row — only visible when the nested toggle is on
     if (data.showTotalBaki) {
-      const grandTotalBaki = data.pichlaBaki + payable;
-      summary.push(summaryRow("कुल बाकी", formatRupees(grandTotalBaki), "final"));
+      summary.push(summaryRow("कुल बाकी", formatRupees(finalFigure), "final"));
     }
-    // const payable = data.baki;
-    // summary.push(summaryRow("बाकी", formatRupees(payable), "final"));
   } else {
     if (oldJewelleryCredit > 0) {
       summary.push(summaryRow("New Jewellery Total", formatRupees(data.amount)));
@@ -225,10 +224,6 @@ export function buildBillHtml(data: BillData): string {
       );
     }
   }
-
-  const payable = data.showPaymentDetails
-    ? data.baki
-    : settlement.netPayable;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -505,7 +500,7 @@ export function buildBillHtml(data: BillData): string {
         }
         <div class="words-line">
           <span class="words-lbl">Rupees in words :</span>
-          <span class="words-val">${esc(toHindiRupeesWords(payable))}</span>
+          <span class="words-val">${esc(toHindiRupeesWords(finalFigure))}</span>
         </div>
       </div>
     </div>
