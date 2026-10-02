@@ -2,6 +2,7 @@ import { LendenItem, OldJewelleryItem } from "../types/entry";
 import { toHindiRupeesWords } from "../utils/hindiNumberWords";
 import {
   formatBillDate,
+  formatMetalPurity,
   formatRupees,
   formatWeight,
 } from "../utils/billFormat";
@@ -125,16 +126,7 @@ export function buildBillHtml(data: BillData): string {
             ? esc(w.main)
             : `${esc(w.main)}<div class="sub">${esc(w.sub)}</div>`;
       }
-      const metalPurity = [
-        item.metal === "gold"
-          ? "Gold"
-          : item.metal === "silver"
-            ? "Silver"
-            : "",
-        item.purity ?? "",
-      ]
-        .filter(Boolean)
-        .join(" / ");
+      const metalPurity = formatMetalPurity(item.metal, item.purity);
 
       return `<tr>
         <td class="c">${item.position}</td>
@@ -154,6 +146,7 @@ export function buildBillHtml(data: BillData): string {
       return `<tr>
         <td class="c">${item.position}</td>
         <td class="old-desc">${esc(item.description)}</td>
+        <td class="c">${esc(formatMetalPurity(item.metal, item.purity))}</td>
         <td class="c">${weight}</td>
         <td class="r">${esc(formatRupees(item.value))}</td>
       </tr>`;
@@ -479,18 +472,19 @@ export function buildBillHtml(data: BillData): string {
         oldJewelleryRows
           ? `<table class="old-jewellery">
         <thead>
-          <tr><th colspan="4" class="old-title">Old Jewellery Exchange</th></tr>
+          <tr><th colspan="5" class="old-title">Old Jewellery Exchange</th></tr>
           <tr>
             <th style="width:9mm">Sl.No.</th>
             <th>Description</th>
-            <th style="width:30mm">Weight</th>
+            <th style="width:23mm">Metal/Purity</th>
+            <th style="width:22mm">Weight</th>
             <th style="width:25mm">Value</th>
           </tr>
         </thead>
         <tbody>${oldJewelleryRows}</tbody>
         <tfoot>
           <tr class="table-total-row">
-            <td colspan="3" class="r-total">Old Jewellery Credit</td>
+            <td colspan="4" class="r-total">Old Jewellery Credit</td>
             <td class="r">${esc(formatRupees(oldJewelleryCredit))}</td>
           </tr>
         </tfoot>
@@ -509,7 +503,10 @@ export function buildBillHtml(data: BillData): string {
         </div>`
             : ""
         }
-       
+        <div class="words-line">
+          <span class="words-lbl">Rupees in words :</span>
+          <span class="words-val">${esc(toHindiRupeesWords(payable))}</span>
+        </div>
       </div>
     </div>
 

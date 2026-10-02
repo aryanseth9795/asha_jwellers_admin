@@ -40,6 +40,8 @@ const oldJewelleryItem = (
   lendenId: 1,
   position: 1,
   description: "Old gold ring",
+  metal: "gold",
+  purity: "22KT",
   weight: 4.2,
   value: 18000,
   ...over,
@@ -184,6 +186,31 @@ describe("buildBillHtml", () => {
     expect(html).toContain("Old silver anklet");
     expect(html).toContain("22,500/-");
     expect(html).toContain("28,250/-");
+  });
+
+  it("shows each old-jewellery item's metal and purity, blank when untracked", () => {
+    const html = buildBillHtml(
+      data({
+        items: [item({ metal: "silver", purity: "Desi" })],
+        oldJewelleryItems: [
+          oldJewelleryItem({ metal: "gold", purity: "18KT" }),
+          oldJewelleryItem({
+            id: 2,
+            position: 2,
+            description: "Legacy item",
+            metal: null,
+            purity: null,
+            value: 1000,
+          }),
+        ],
+      }),
+    );
+    const oldTable = html.slice(html.indexOf('<table class="old-jewellery">'));
+    expect(oldTable).toContain("Metal/Purity");
+    expect(oldTable).toContain("Gold / 18KT");
+    expect(oldTable).toContain("Legacy item");
+    expect(oldTable).not.toContain("undefined");
+    expect(oldTable).not.toContain("null");
   });
 
   it("puts the payable amount into words with Rupees in words prefix", () => {

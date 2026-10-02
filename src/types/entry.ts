@@ -123,12 +123,16 @@ export interface OldJewelleryItem {
   lendenId: number;
   position: number;
   description: string;
+  metal: JewelleryMetal | null; // null for items saved before metal was tracked
+  purity: Purity | null;
   weight: number | null; // grams
   value: number; // rupees credited to the customer
 }
 
 export interface NewOldJewelleryItem {
   description: string;
+  metal?: JewelleryMetal | null;
+  purity?: Purity | null;
   weight?: number | null;
   value: number;
 }

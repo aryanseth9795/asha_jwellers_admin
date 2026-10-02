@@ -1,4 +1,9 @@
-import { formatWeight, formatRupees, formatBillDate } from "./billFormat";
+import {
+  formatWeight,
+  formatRupees,
+  formatBillDate,
+  formatMetalPurity,
+} from "./billFormat";
 
 describe("formatWeight", () => {
   it("formats grams with three decimals and a milligram sub-line", () => {
@@ -48,5 +53,22 @@ describe("formatBillDate", () => {
 
   it("handles invalid dates gracefully", () => {
     expect(formatBillDate("garbage")).toBe("");
+  });
+});
+
+describe("formatMetalPurity", () => {
+  it("joins metal and purity", () => {
+    expect(formatMetalPurity("gold", "22KT")).toBe("Gold / 22KT");
+    expect(formatMetalPurity("silver", "Desi")).toBe("Silver / Desi");
+  });
+
+  it("shows whichever part is known", () => {
+    expect(formatMetalPurity("silver", null)).toBe("Silver");
+    expect(formatMetalPurity(null, "22KT")).toBe("22KT");
+  });
+
+  it("is empty when neither is known", () => {
+    expect(formatMetalPurity(null, null)).toBe("");
+    expect(formatMetalPurity(undefined, undefined)).toBe("");
   });
 });

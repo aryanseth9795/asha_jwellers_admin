@@ -102,6 +102,8 @@ export const initDatabase = async () => {
         lendenId INTEGER NOT NULL,
         position INTEGER NOT NULL,
         description TEXT NOT NULL,
+        metal TEXT,
+        purity TEXT,
         weight REAL,
         value INTEGER NOT NULL,
         FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
@@ -222,6 +224,26 @@ export const initDatabase = async () => {
           );
         });
         console.log("Added metal to lenden_items table");
+      }
+
+      const oldJewelleryColumns = (
+        await database.getAllAsync<{ name: string }>(
+          "PRAGMA table_info(lenden_old_jewellery_items)",
+        )
+      ).map((c) => c.name);
+      // Existing rows keep metal NULL: guessing from the description could
+      // push silver into gold totals, so they surface as "Unknown" instead.
+      if (!oldJewelleryColumns.includes("metal")) {
+        await database.execAsync(
+          "ALTER TABLE lenden_old_jewellery_items ADD COLUMN metal TEXT",
+        );
+        console.log("Added metal to lenden_old_jewellery_items table");
+      }
+      if (!oldJewelleryColumns.includes("purity")) {
+        await database.execAsync(
+          "ALTER TABLE lenden_old_jewellery_items ADD COLUMN purity TEXT",
+        );
+        console.log("Added purity to lenden_old_jewellery_items table");
       }
 
       if (!lendenItemColumns.includes("qty")) {

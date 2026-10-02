@@ -1,5 +1,7 @@
 // Formatting helpers for the printed bill. Pure — safe to unit test.
 
+import { JewelleryMetal, Purity } from "../types/entry";
+
 /**
  * 3.5 -> { main: "3.500 ग्राम", sub: "(3 ग्राम 500 मिली)" }
  * Whole gram values get an empty sub-line.
@@ -37,4 +39,14 @@ export function formatBillDate(iso: string): string {
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+/** "gold", "22KT" -> "Gold / 22KT"; missing parts are left out. */
+export function formatMetalPurity(
+  metal: JewelleryMetal | null | undefined,
+  purity: Purity | null | undefined,
+): string {
+  const metalLabel =
+    metal === "gold" ? "Gold" : metal === "silver" ? "Silver" : "";
+  return [metalLabel, purity ?? ""].filter(Boolean).join(" / ");
 }

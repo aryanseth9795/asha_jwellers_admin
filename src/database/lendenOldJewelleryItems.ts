@@ -1,8 +1,11 @@
 import * as SQLite from "expo-sqlite";
 import {
+  JewelleryMetal,
   NewOldJewelleryItem,
   OldJewelleryItem,
+  Purity,
 } from "../types/entry";
+import { OldJewelleryRegisterRow } from "../utils/oldJewelleryRegister";
 
 // entryDatabase.ts owns schema creation; this module only reads and writes rows.
 let db: SQLite.SQLiteDatabase | null = null;
@@ -18,15 +21,23 @@ interface OldJewelleryItemRow {
   lendenId: number;
   position: number;
   description: string;
+  metal: string | null;
+  purity: string | null;
   weight: number | null;
   value: number;
 }
+
+// Anything other than a known metal is treated as untracked, never guessed.
+const toMetal = (value: string | null): JewelleryMetal | null =>
+  value === "gold" || value === "silver" ? value : null;
 
 const toOldJewelleryItem = (row: OldJewelleryItemRow): OldJewelleryItem => ({
   id: row.id,
   lendenId: row.lendenId,
   position: row.position,
   description: row.description,
+  metal: toMetal(row.metal),
+  purity: (row.purity as Purity | null) ?? null,
   weight: row.weight,
   value: row.value,
 });
@@ -63,10 +74,12 @@ export const replaceLendenOldJewelleryItems = async (
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         await database.runAsync(
-          "INSERT INTO lenden_old_jewellery_items (lendenId, position, description, weight, value) VALUES (?, ?, ?, ?, ?)",
+          "INSERT INTO lenden_old_jewellery_items (lendenId, position, description, metal, purity, weight, value) VALUES (?, ?, ?, ?, ?, ?, ?)",
           lendenId,
           i + 1,
           item.description.trim(),
+          item.metal ?? null,
+          item.purity ?? null,
           item.weight ?? null,
           item.value,
         );
@@ -75,5 +88,39 @@ export const replaceLendenOldJewelleryItems = async (
   } catch (error) {
     console.error("Error replacing old jewellery items:", error);
     throw error;
+  }
+};
+
+interface RegisterQueryRow extends OldJewelleryItemRow {
+  date: string;
+  billNo: number | null;
+  userId: number;
+  userName: string;
+}
+
+/** Every old jewellery item received across all Len-Den entries, newest first. */
+export const getOldJewelleryRegister = async (): Promise<
+  OldJewelleryRegisterRow[]
+> => {
+  try {
+    const database = await openDatabase();
+    const rows = await database.getAllAsync<RegisterQueryRow>(
+      `SELECT o.id, o.lendenId, o.position, o.description, o.metal, o.purity,
+              o.weight, o.value, l.date, l.billNo, l.userId, u.name AS userName
+       FROM lenden_old_jewellery_items o
+       JOIN lenden l ON o.lendenId = l.id
+       JOIN users u ON l.userId = u.id
+       ORDER BY l.date DESC, o.lendenId DESC, o.position ASC`,
+    );
+    return rows.map((row) => ({
+      ...toOldJewelleryItem(row),
+      date: row.date,
+      billNo: row.billNo,
+      userId: row.userId,
+      userName: row.userName,
+    }));
+  } catch (error) {
+    console.error("Error getting old jewellery register:", error);
+    return [];
   }
 };
