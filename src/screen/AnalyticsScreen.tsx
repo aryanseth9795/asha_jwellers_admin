@@ -10,6 +10,7 @@ import {
   Period,
   allPeriod,
   customPeriod,
+  inPeriod,
   periodFor,
   previousPeriod,
   samePeriodLastYear,
@@ -17,14 +18,22 @@ import {
 } from "../utils/analytics/periods";
 import { buildSalesView } from "../utils/analytics/sales";
 import { buildCustomersView } from "../utils/analytics/customers";
-import { buildRehanView } from "../utils/analytics/rehan";
 import { buildMetalView } from "../utils/analytics/metal";
 import { buildOverview } from "../utils/analytics/overview";
 import { baakiAging } from "../utils/analytics/baki";
 import { buildCategoryView } from "../utils/analytics/categories";
-import { buildVillageView } from "../utils/analytics/villages";
+import { buildVillageView, groupVillages } from "../utils/analytics/villages";
 import { buildImportanceView } from "../utils/analytics/importance";
 import { TrendGrain, buildTrends } from "../utils/analytics/trends";
+import {
+  ALL_PLEDGES,
+  PledgeFilters,
+  buildPledgeRows,
+  filterOptions,
+  filterPledges,
+} from "../utils/analytics/report/pledges";
+import { buildBillRows } from "../utils/analytics/report/billing";
+import { dataQuality } from "../utils/analytics/report/quality";
 import PeriodPicker from "../components/analytics/PeriodPicker";
 import OverviewSection from "../components/analytics/OverviewSection";
 import SalesSection from "../components/analytics/SalesSection";
@@ -32,17 +41,29 @@ import BaakiAgingCard from "../components/analytics/BaakiAgingCard";
 import CustomersSection from "../components/analytics/CustomersSection";
 import KeyCustomersCard from "../components/analytics/KeyCustomersCard";
 import VillagesSection from "../components/analytics/VillagesSection";
-import RehanSection from "../components/analytics/RehanSection";
 import MetalSection from "../components/analytics/MetalSection";
 import CategoriesCard from "../components/analytics/CategoriesCard";
 import TrendsSection from "../components/analytics/TrendsSection";
+import OverviewTab from "../components/analytics/report/OverviewTab";
+import RehanBookTab from "../components/analytics/report/RehanBookTab";
+import ItemsTab from "../components/analytics/report/ItemsTab";
+import CustomersVillagesTab from "../components/analytics/report/CustomersVillagesTab";
+import BillingSummaryTab from "../components/analytics/report/BillingSummaryTab";
+import TogetherTab from "../components/analytics/report/TogetherTab";
+import DataQualityTab from "../components/analytics/report/DataQualityTab";
+import PledgeFilterBar from "../components/analytics/report/PledgeFilterBar";
+import Segmented from "../components/analytics/report/Segmented";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Analytics">;
 };
 
-const TABS = ["Overview", "Sales", "Customers", "Villages", "Rehan", "Metal", "Trends"] as const;
+const TABS = ["Overview", "Rehan book", "Items", "Customers & Villages", "Billing", "Together", "Data quality"] as const;
 type Tab = (typeof TABS)[number];
+const BILLING_TABS = ["Summary", "Sales", "Metal", "Trends", "Customers"] as const;
+type BillingTab = (typeof BILLING_TABS)[number];
+
+const FILTERED_TABS: Tab[] = ["Overview", "Rehan book", "Items", "Customers & Villages", "Together"];
 
 const startOfMonth = () => {
   const now = new Date();
@@ -54,6 +75,8 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
   const [failed, setFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<Tab>("Overview");
+  const [billingTab, setBillingTab] = useState<BillingTab>("Summary");
+  const [filters, setFilters] = useState<PledgeFilters>(ALL_PLEDGES);
   const [grain, setGrain] = useState<Grain>("month");
   const [anchor, setAnchor] = useState(() => new Date());
   const [customFrom, setCustomFrom] = useState(startOfMonth);
@@ -118,49 +141,98 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const content = useMemo(() => {
+  const report = useMemo(() => {
     if (!data) return null;
+    const now = new Date();
+    const groups = groupVillages(data.users);
+    const pledges = buildPledgeRows(data, now, groups);
+    return {
+      now,
+      groups,
+      pledges,
+      bills: buildBillRows(data, groups, now),
+      names: new Map(data.users.map((u) => [u.id, u.name])),
+      options: filterOptions(pledges, groups),
+      quality: dataQuality(data, now),
+    };
+  }, [data]);
+
+  const view = useMemo(() => {
+    if (!report) return null;
+    const villageBills =
+      filters.village === "all" ? report.bills : report.bills.filter((b) => b.village === filters.village);
+    return {
+      pledges: filterPledges(report.pledges, filters),
+      byItemRank: filterPledges(report.pledges, filters, "item"),
+      byVillageRank: filterPledges(report.pledges, filters, "village"),
+      villageBills,
+    };
+  }, [report, filters]);
+
+  const content = useMemo(() => {
+    if (!data || !report || !view) return null;
     const now = new Date();
     const openCustomer = (userId: number, userName: string) =>
       navigation.navigate("UserTransactions", { userId, userName });
     switch (tab) {
       case "Overview":
+        return <OverviewTab pledges={view.pledges} bills={view.villageBills} names={report.names} customersOnFile={data.users.length} />;
+      case "Rehan book":
+        return <RehanBookTab pledges={view.pledges} now={report.now} />;
+      case "Items":
+        return <ItemsTab pledges={view.pledges} rankingPledges={view.byItemRank} selectedItem={filters.item} now={report.now} />;
+      case "Customers & Villages":
         return (
-          <OverviewSection
-            view={buildOverview(data, period, previous, lastYear, now)}
-            previousLabel={previous?.label ?? null}
-            lastYearLabel={lastYear?.label ?? null}
+          <CustomersVillagesTab
+            pledges={view.pledges}
+            rankingPledges={view.byVillageRank}
+            allPledges={report.pledges}
+            data={data}
+            groups={report.groups}
+            village={filters.village}
+            onCustomerPress={openCustomer}
           />
         );
-      case "Sales":
-        return (
-          <>
-            <SalesSection view={buildSalesView(data, period)} onCustomerPress={openCustomer} />
-            <BaakiAgingCard aging={baakiAging(data, now)} />
-          </>
-        );
-      case "Customers":
-        return (
-          <>
-            <KeyCustomersCard view={buildImportanceView(data, period)} onCustomerPress={openCustomer} />
-            <CustomersSection view={buildCustomersView(data, period, now)} onCustomerPress={openCustomer} />
-          </>
-        );
-      case "Villages":
-        return <VillagesSection villages={buildVillageView(data, period, previous)} />;
-      case "Rehan":
-        return <RehanSection view={buildRehanView(data, period)} />;
-      case "Metal":
-        return (
-          <>
-            <MetalSection view={buildMetalView(data, period)} />
-            <CategoriesCard categories={buildCategoryView(data, period, previous)} />
-          </>
-        );
-      case "Trends":
-        return <TrendsSection rows={buildTrends(data, trendGrain, now)} />;
+      case "Together":
+        return <TogetherTab pledges={view.pledges} bills={view.villageBills} order={report.groups.order} />;
+      case "Data quality":
+        return <DataQualityTab report={report.quality} />;
+      case "Billing":
+        switch (billingTab) {
+          case "Summary":
+            return <BillingSummaryTab bills={view.villageBills.filter((b) => inPeriod(b.date, period))} />;
+          case "Sales":
+            return (
+              <>
+                <OverviewSection
+                  view={buildOverview(data, period, previous, lastYear, now)}
+                  previousLabel={previous?.label ?? null}
+                  lastYearLabel={lastYear?.label ?? null}
+                />
+                <SalesSection view={buildSalesView(data, period)} onCustomerPress={openCustomer} />
+                <BaakiAgingCard aging={baakiAging(data, now)} />
+              </>
+            );
+          case "Metal":
+            return (
+              <>
+                <MetalSection view={buildMetalView(data, period)} />
+                <CategoriesCard categories={buildCategoryView(data, period, previous)} />
+              </>
+            );
+          case "Trends":
+            return <TrendsSection rows={buildTrends(data, trendGrain, now)} />;
+          case "Customers":
+            return (
+              <>
+                <KeyCustomersCard view={buildImportanceView(data, period)} onCustomerPress={openCustomer} />
+                <CustomersSection view={buildCustomersView(data, period, now)} onCustomerPress={openCustomer} />
+                <VillagesSection villages={buildVillageView(data, period, previous)} />
+              </>
+            );
+        }
     }
-  }, [data, tab, period, previous, lastYear, trendGrain, navigation]);
+  }, [data, report, view, tab, billingTab, filters.item, filters.village, period, previous, lastYear, trendGrain, navigation]);
 
   return (
     <View style={styles.container}>
@@ -172,30 +244,43 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        {tab !== "Trends" && (
-          <PeriodPicker
-            grain={grain}
-            period={period}
-            canGoForward={canGoForward}
-            customFrom={customFrom}
-            customTo={customTo}
-            onGrainChange={(g) => {
-              setGrain(g);
-              setAnchor(new Date());
-            }}
-            onStep={onStep}
-            onCustomChange={(from, to) => {
-              // a backwards pick is stored the right way round
-              setCustomFrom(to < from ? to : from);
-              setCustomTo(to < from ? from : to);
-            }}
+        {report && view && FILTERED_TABS.includes(tab) && (
+          <PledgeFilterBar
+            filters={filters}
+            options={report.options}
+            showing={view.pledges.length}
+            total={report.pledges.length}
+            onChange={setFilters}
           />
         )}
-        {tab === "Trends" && (
-          <Text style={styles.trendNote}>
-            Showing the last periods by {trendGrain === "fy" ? "financial year" : trendGrain}. Change the
-            time frame on any other tab.
-          </Text>
+        {tab === "Billing" && (
+          <>
+            <PeriodPicker
+              grain={grain}
+              period={period}
+              canGoForward={canGoForward}
+              customFrom={customFrom}
+              customTo={customTo}
+              onGrainChange={(g) => {
+                setGrain(g);
+                setAnchor(new Date());
+              }}
+              onStep={onStep}
+              onCustomChange={(from, to) => {
+                // a backwards pick is stored the right way round
+                setCustomFrom(to < from ? to : from);
+                setCustomTo(to < from ? from : to);
+              }}
+            />
+            <Segmented
+              options={BILLING_TABS.map((t) => ({ key: t, label: t }))}
+              value={billingTab}
+              onChange={setBillingTab}
+            />
+            {filters.village !== "all" && (
+              <Text style={styles.trendNote}>Village: {filters.village} (Summary only)</Text>
+            )}
+          </>
         )}
       </View>
 
