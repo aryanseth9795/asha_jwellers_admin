@@ -14,6 +14,7 @@ interface BarChartProps {
   stacked?: boolean;
   formatValue: (value: number) => string;
   height?: number;
+  labelEvery?: number;
 }
 
 const BarChart: React.FC<BarChartProps> = ({
@@ -22,6 +23,7 @@ const BarChart: React.FC<BarChartProps> = ({
   stacked = false,
   formatValue,
   height = 140,
+  labelEvery = 1,
 }) => {
   const columnTotals = buckets.map((_, i) =>
     stacked
@@ -61,9 +63,9 @@ const BarChart: React.FC<BarChartProps> = ({
         ))}
       </View>
       <View style={styles.labels}>
-        {buckets.map((bucket) => (
+        {buckets.map((bucket, i) => (
           <Text key={bucket.key} style={styles.label} numberOfLines={1}>
-            {bucket.label}
+            {i % labelEvery === 0 ? bucket.label : ""}
           </Text>
         ))}
       </View>
