@@ -1,3 +1,5 @@
+import { fyStartYear } from "./analytics/periods";
+import { roundGrams } from "./analytics/format";
 import { OldJewelleryItem } from "../types/entry";
 
 /** One old jewellery item with the Len-Den entry and customer it came from. */
@@ -31,9 +33,6 @@ export interface RegisterSummary {
   total: RegisterTotals;
 }
 
-// Weights are entered to the milligram; rounding there keeps float sums like
-// 0.1 + 0.2 from showing up as 0.30000000000000004 g.
-const roundGrams = (grams: number): number => Math.round(grams * 1000) / 1000;
 
 const addItem = (
   totals: RegisterTotals,
@@ -61,11 +60,12 @@ export const summarizeRegister = (
   );
 };
 
+// "year" is the Indian financial year, matching Analytics.
 const inPeriod = (dateString: string, period: RegisterPeriod, now: Date) => {
   if (period === "all") return true;
   const date = new Date(dateString);
-  if (date.getFullYear() !== now.getFullYear()) return false;
-  return period === "year" || date.getMonth() === now.getMonth();
+  if (period === "year") return fyStartYear(date) === fyStartYear(now);
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
 };
 
 export const filterRegister = (

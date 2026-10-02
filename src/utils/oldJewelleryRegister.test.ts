@@ -93,9 +93,9 @@ describe("filterRegister", () => {
     );
   });
 
-  it("limits to the current calendar year", () => {
+  it("limits to the current financial year (Apr–Mar)", () => {
     expect(ids(filterRegister(rows, { metal: "all", period: "year" }, NOW))).toEqual([
-      1, 2, 3,
+      1, 2,
     ]);
   });
 });

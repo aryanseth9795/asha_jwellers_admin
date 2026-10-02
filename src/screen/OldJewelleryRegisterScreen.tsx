@@ -43,7 +43,7 @@ const METAL_FILTERS: { key: RegisterMetalFilter; label: string }[] = [
 
 const PERIOD_FILTERS: { key: RegisterPeriod; label: string }[] = [
   { key: "month", label: "This Month" },
-  { key: "year", label: "This Year" },
+  { key: "year", label: "This FY" },
   { key: "all", label: "All Time" },
 ];
 
