@@ -2,7 +2,11 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { NewOldJewelleryItem } from "../types/entry";
-import { formatRupees, formatWeight } from "../utils/billFormat";
+import {
+  formatMetalPurity,
+  formatRupees,
+  formatWeight,
+} from "../utils/billFormat";
 
 interface OldJewelleryItemsTableProps {
   items: NewOldJewelleryItem[];
@@ -42,11 +46,34 @@ const OldJewelleryItemsTable: React.FC<OldJewelleryItemsTableProps> = ({
           </View>
           <View style={styles.itemContent}>
             <Text style={styles.description}>{item.description}</Text>
-            {item.weight != null && (
-              <Text style={styles.weight}>
-                {formatWeight(item.weight).main}
-              </Text>
-            )}
+            <View style={styles.metaRow}>
+              {item.metal ? (
+                <View
+                  style={[
+                    styles.metalBadge,
+                    item.metal === "silver" && styles.silverBadge,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.metalBadgeText,
+                      item.metal === "silver" && styles.silverBadgeText,
+                    ]}
+                  >
+                    {formatMetalPurity(item.metal, item.purity)}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.unknownBadge}>
+                  <Text style={styles.unknownBadgeText}>Metal not set</Text>
+                </View>
+              )}
+              {item.weight != null && (
+                <Text style={styles.weight}>
+                  {formatWeight(item.weight).main}
+                </Text>
+              )}
+            </View>
           </View>
           <Text style={styles.value}>{formatRupees(item.value)}</Text>
           {editable && (
@@ -122,7 +149,31 @@ const styles = StyleSheet.create({
   positionText: { fontWeight: "700", fontSize: 12, color: "#8C5B14" },
   itemContent: { flex: 1 },
   description: { color: "#332719", fontSize: 15, fontWeight: "600" },
-  weight: { color: "#7A6B58", fontSize: 12, marginTop: 2 },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 3,
+  },
+  metalBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "#FBEFD5",
+  },
+  metalBadgeText: { color: "#8A6500", fontSize: 11, fontWeight: "700" },
+  silverBadge: { backgroundColor: "#ECEFF3" },
+  silverBadgeText: { color: "#4A5562" },
+  unknownBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#E0C9C9",
+  },
+  unknownBadgeText: { color: "#A15C5C", fontSize: 11, fontWeight: "600" },
+  weight: { color: "#7A6B58", fontSize: 12 },
   value: { color: "#7C4A08", fontSize: 14, fontWeight: "800" },
   actions: { flexDirection: "row", marginLeft: 2 },
   actionButton: { padding: 6 },

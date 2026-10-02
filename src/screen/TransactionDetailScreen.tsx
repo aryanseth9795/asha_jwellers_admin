@@ -308,6 +308,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             await getLendenOldJewelleryItems(transactionId);
           const mappedOldJewelleryItems = storedOldJewelleryItems.map((item) => ({
             description: item.description,
+            metal: item.metal,
+            purity: item.purity,
             weight: item.weight,
             value: item.value,
           }));

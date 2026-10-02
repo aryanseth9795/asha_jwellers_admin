@@ -177,6 +177,7 @@ export type RootStackParamList = {
     lendenId: number;
   };
   UpdateBhav: undefined;
+  OldJewelleryRegister: undefined;
   // Category management screens
   CategoryList: undefined;
   AddEditCategory: {
