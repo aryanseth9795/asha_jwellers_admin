@@ -16,7 +16,8 @@ const CustomersSection: React.FC<{
 }> = ({ view, onCustomerPress }) => {
   const [tier, setTier] = useState<Tier>("good");
   const maxGap = Math.max(1, ...view.gapBins.map((b) => b.count));
-  const listed = view.customers.filter((c) => c.tier === tier).slice(0, 25);
+  const inTier = view.customers.filter((c) => c.tier === tier);
+  const listed = inTier.slice(0, 25);
 
   return (
     <View>
@@ -88,6 +89,9 @@ const CustomersSection: React.FC<{
               <Text style={styles.sales}>{formatRupees(c.sales)}</Text>
             </TouchableOpacity>
           ))
+        )}
+        {inTier.length > listed.length && (
+          <Text style={styles.muted}>Showing {listed.length} of {inTier.length}</Text>
         )}
         <Text style={styles.footnote}>
           Score = recent visit + how often + how much, compared with your other customers.

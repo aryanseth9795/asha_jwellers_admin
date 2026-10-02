@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-02
 **Branch:** `feat/old-jewellery-adjustments`
-**Status:** Implemented. Typecheck clean, 73/73 Jest tests pass. Not yet verified on a device.
+**Status:** Implemented. Typecheck clean, 115/115 Jest tests pass. Not yet verified on a device.
 
 | Commit | Summary |
 |---|---|
@@ -96,7 +96,7 @@ string inline; both bill tables, the records table and the register now share it
     `0.3 g`, not `0.30000000000000004 g`.
 - `filterRegister(rows, { metal, period }, now)`:
   - `metal: "all" | "gold" | "silver"`. Gold/silver filters **exclude** unknown items.
-  - `period: "month" | "year" | "all"` — **calendar** month/year in the device's local time.
+  - `period: "month" | "year" | "all"` — month = calendar month; year = Indian financial year (Apr–Mar), matching Analytics.
   - `now` is injectable so tests are deterministic.
 
 ### 3.6 Bill — `src/services/BillHtmlService.ts`
@@ -174,6 +174,5 @@ logic that matters was kept in pure `.ts` modules.
 
 ## 7. Known limitations
 
-- Register "This Year" is the calendar year. Analytics (next) proposes the Indian financial
-  year; if adopted, the register should switch for consistency.
+- Register "This Year" now uses the Indian financial year (Apr–Mar), matching Analytics (done).
 - Legacy items stay "unknown" until edited one by one; there's no bulk "set metal" action.

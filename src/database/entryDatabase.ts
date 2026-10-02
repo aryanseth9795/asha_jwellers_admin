@@ -226,6 +226,19 @@ export const initDatabase = async () => {
         console.log("Added metal to lenden_items table");
       }
 
+      if (!lendenItemColumns.includes("qty")) {
+        await database.execAsync(
+          "ALTER TABLE lenden_items ADD COLUMN qty INTEGER DEFAULT 1",
+        );
+        console.log("Added qty to lenden_items table");
+      }
+    } catch (migrationError) {
+      console.error("Migration error:", migrationError);
+      // Continue anyway as tables might be fresh
+    }
+
+    // Migration for metal/purity in old jewellery items
+    try {
       const oldJewelleryColumns = (
         await database.getAllAsync<{ name: string }>(
           "PRAGMA table_info(lenden_old_jewellery_items)",
@@ -245,16 +258,8 @@ export const initDatabase = async () => {
         );
         console.log("Added purity to lenden_old_jewellery_items table");
       }
-
-      if (!lendenItemColumns.includes("qty")) {
-        await database.execAsync(
-          "ALTER TABLE lenden_items ADD COLUMN qty INTEGER DEFAULT 1",
-        );
-        console.log("Added qty to lenden_items table");
-      }
-    } catch (migrationError) {
-      console.error("Migration error:", migrationError);
-      // Continue anyway as tables might be fresh
+    } catch (error) {
+      console.error("Error migrating old jewellery items table:", error);
     }
 
     // Migration for nickname in users table
