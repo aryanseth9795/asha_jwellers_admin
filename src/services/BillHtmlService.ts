@@ -139,20 +139,6 @@ export function buildBillHtml(data: BillData): string {
     })
     .join("");
 
-  const oldJewelleryRows = data.oldJewelleryItems
-    .map((item) => {
-      const weight =
-        item.weight != null ? esc(formatWeight(item.weight).main) : "";
-      return `<tr>
-        <td class="c">${item.position}</td>
-        <td class="old-desc">${esc(item.description)}</td>
-        <td class="c">${esc(formatMetalPurity(item.metal, item.purity))}</td>
-        <td class="c">${weight}</td>
-        <td class="r">${esc(formatRupees(item.value))}</td>
-      </tr>`;
-    })
-    .join("");
-
   // The last bold summary figure; the words line speaks the same value.
   const finalFigure = data.showPaymentDetails
     ? data.showTotalBaki
@@ -165,18 +151,13 @@ export function buildBillHtml(data: BillData): string {
   ];
 
   if (data.showPaymentDetails) {
+    // Order: कुल राशि − पुराना दाम − छूट − जमा = बाकी, then पिछला बाकी → कुल बाकी
+    summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
     if (oldJewelleryCredit > 0) {
       summary.push(
-        summaryRow(
-          "Old Jewellery Credit",
-          `-${formatRupees(oldJewelleryCredit)}`,
-        ),
+        summaryRow("पुराना दाम", `-${formatRupees(oldJewelleryCredit)}`),
       );
     }
-    if (data.showTotalBaki) {
-      summary.push(summaryRow("पिछला बाकी", formatRupees(data.pichlaBaki)));
-    }
-    summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
     if (data.discount > 0) {
       summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
     }
@@ -189,24 +170,26 @@ export function buildBillHtml(data: BillData): string {
       );
     }
     summary.push(summaryRow("बाकी", formatRupees(settlement.baki), "final"));
-    // Optional extra "कुल बाकी" row — only visible when the nested toggle is on
+    // Optional पिछला बाकी + कुल बाकी rows — only visible when the nested toggle is on
     if (data.showTotalBaki) {
+      summary.push(summaryRow("पिछला बाकी", formatRupees(data.pichlaBaki)));
       summary.push(summaryRow("कुल बाकी", formatRupees(finalFigure), "final"));
     }
   } else {
     if (oldJewelleryCredit > 0) {
-      summary.push(summaryRow("New Jewellery Total", formatRupees(data.amount)));
+      summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
       summary.push(
-        summaryRow(
-          "Old Jewellery Credit",
-          `-${formatRupees(oldJewelleryCredit)}`,
-        ),
+        summaryRow("पुराना दाम", `-${formatRupees(oldJewelleryCredit)}`),
       );
       if (data.discount > 0) {
-        summary.push(summaryRow("Discount", `-${formatRupees(data.discount)}`));
+        summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
       }
       summary.push(
-        summaryRow("Net Payable", formatRupees(settlement.netPayable), "final"),
+        summaryRow(
+          "कुल देय राशि",
+          formatRupees(settlement.netPayable),
+          "final",
+        ),
       );
     }
     if (uniformRate !== null) {
@@ -354,23 +337,6 @@ export function buildBillHtml(data: BillData): string {
     letter-spacing: 0.5px;
   }
 
-  .old-jewellery {
-    margin-top: 2mm;
-    font-size: 7.25pt;
-    border: 0.35mm solid ${GOLD};
-  }
-  .old-jewellery th, .old-jewellery td {
-    border: 0.2mm solid ${GOLD_SOFT};
-    padding: 1mm;
-  }
-  .old-jewellery th {
-    background: ${HEAD_BG};
-    color: #8C5B14;
-    font-weight: 700;
-  }
-  .old-jewellery .old-title { text-align: left; }
-  .old-jewellery .old-desc { font-weight: 600; }
-
   .foot {
     margin-top: auto;
     padding-top: 1.5mm;
@@ -463,30 +429,6 @@ export function buildBillHtml(data: BillData): string {
           </tr>
         </tfoot>
       </table>
-
-      ${
-        oldJewelleryRows
-          ? `<table class="old-jewellery">
-        <thead>
-          <tr><th colspan="5" class="old-title">Old Jewellery Exchange</th></tr>
-          <tr>
-            <th style="width:9mm">Sl.No.</th>
-            <th>Description</th>
-            <th style="width:23mm">Metal/Purity</th>
-            <th style="width:22mm">Weight</th>
-            <th style="width:25mm">Value</th>
-          </tr>
-        </thead>
-        <tbody>${oldJewelleryRows}</tbody>
-        <tfoot>
-          <tr class="table-total-row">
-            <td colspan="4" class="r-total">Old Jewellery Credit</td>
-            <td class="r">${esc(formatRupees(oldJewelleryCredit))}</td>
-          </tr>
-        </tfoot>
-      </table>`
-          : ""
-      }
 
       <div class="foot">
         ${

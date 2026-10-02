@@ -147,7 +147,7 @@ describe("buildBillHtml", () => {
       expect(html).toContain("50,000/-");
     });
 
-    it("renders पिछला बाकी on top and कुल बाकी at bottom when showTotalBaki is enabled", () => {
+    it("renders पिछला बाकी after बाकी and कुल बाकी at bottom when showTotalBaki is enabled", () => {
       const html = buildBillHtml(
         data({
           showPaymentDetails: true,
@@ -165,16 +165,20 @@ describe("buildBillHtml", () => {
       expect(html).toContain("कुल बाकी");
       expect(html).toContain("60,000/-");
 
-      // Verify that "पिछला बाकी" appears before "कुल राशि" in the HTML
-      const pichlaIndex = html.indexOf("पिछला बाकी");
+      // Order: कुल राशि → जमा → बाकी → पिछला बाकी → कुल बाकी
       const kulRashiIndex = html.indexOf("कुल राशि");
+      const jamaIndex = html.indexOf("जमा (");
+      const bakiIndex = html.indexOf(">बाकी<");
+      const pichlaIndex = html.indexOf("पिछला बाकी");
       const kulBakiIndex = html.indexOf("कुल बाकी");
-      expect(pichlaIndex).toBeLessThan(kulRashiIndex);
-      expect(kulRashiIndex).toBeLessThan(kulBakiIndex);
+      expect(kulRashiIndex).toBeLessThan(jamaIndex);
+      expect(jamaIndex).toBeLessThan(bakiIndex);
+      expect(bakiIndex).toBeLessThan(pichlaIndex);
+      expect(pichlaIndex).toBeLessThan(kulBakiIndex);
     });
   });
 
-  it("prints every old-jewellery item and subtracts their credit", () => {
+  it("shows old jewellery only as a summary credit, not as an itemised table", () => {
     const html = buildBillHtml(
       data({
         amount: 50750,
@@ -191,36 +195,14 @@ describe("buildBillHtml", () => {
       }),
     );
 
-    expect(html).toContain("Old Jewellery Exchange");
-    expect(html).toContain("Old gold ring");
-    expect(html).toContain("Old silver anklet");
-    expect(html).toContain("22,500/-");
+    expect(html).not.toContain("old-jewellery");
+    expect(html).not.toContain("Old gold ring");
+    expect(html).not.toContain("Old silver anklet");
+    expect(html).toContain("कुल राशि");
+    expect(html).toContain("पुराना दाम");
+    expect(html).toContain("-22,500/-");
+    expect(html).toContain("कुल देय राशि");
     expect(html).toContain("28,250/-");
-  });
-
-  it("shows each old-jewellery item's metal and purity, blank when untracked", () => {
-    const html = buildBillHtml(
-      data({
-        items: [item({ metal: "silver", purity: "Desi" })],
-        oldJewelleryItems: [
-          oldJewelleryItem({ metal: "gold", purity: "18KT" }),
-          oldJewelleryItem({
-            id: 2,
-            position: 2,
-            description: "Legacy item",
-            metal: null,
-            purity: null,
-            value: 1000,
-          }),
-        ],
-      }),
-    );
-    const oldTable = html.slice(html.indexOf('<table class="old-jewellery">'));
-    expect(oldTable).toContain("Metal/Purity");
-    expect(oldTable).toContain("Gold / 18KT");
-    expect(oldTable).toContain("Legacy item");
-    expect(oldTable).not.toContain("undefined");
-    expect(oldTable).not.toContain("null");
   });
 
   it("puts the payable amount into words with Rupees in words prefix", () => {
