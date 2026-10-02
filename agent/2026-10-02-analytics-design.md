@@ -213,3 +213,14 @@ category falling > 10 % · top village share · top-20 % concentration (≥ 5 bu
 Nothing is precomputed or stored. Every screen focus (and pull-to-refresh) re-reads the ledger and recomputes; villages,
 categories and periods are discovered from the data, so new transactions, customers, villages and purities appear
 without changing the app.
+
+## 11. Dashboard v2 implementation notes (2026-10-02)
+
+Built on `feat/old-jewellery-adjustments` per `agent/2026-10-02-dashboard-v2-plan.md`.
+
+- **Trends compare five figures row to row** — sales, collected, baaki at end, gold g, silver g carry ▲/▼ vs the row before; bills, collection rate and old returned are shown as values only.
+- **Trends ignore Custom and All** — they use months for Custom and financial years for All; the other tabs use the exact selected range.
+- **Customers tab follows the selected time frame**, including its good / medium / low tiers (a single week makes tiers less meaningful).
+- **Baaki at period end is reconstructed** from bill and payment dates; it can differ slightly from the stored baki if entries were hand-edited. "Baaki older than 6 months" and the aging card always use today's date.
+- **Trends chart labels** are short forms of the period (FY "25-26", quarter "Q1 26", month "Aug", week "5 Oct"); the table shows full labels.
+- **Printed bill** (owner change in 77b0ea8): the itemised old-jewellery table is no longer printed; the credit shows only in the Hindi payment summary. Old items, their metal and purity are still stored and feed Analytics.
