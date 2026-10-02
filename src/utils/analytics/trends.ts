@@ -1,5 +1,5 @@
 import { AnalyticsData } from "./types";
-import { Period, periodFor, shiftPeriod } from "./periods";
+import { Period, periodFor, shiftPeriod, toDateEquivalent } from "./periods";
 import { Change, change } from "./compare";
 import { buildSalesView } from "./sales";
 import { buildMetalView } from "./metal";
@@ -30,6 +30,14 @@ export interface TrendRow {
 }
 
 /** The last `count` periods of a grain, oldest first, ending with the one containing `now`. */
+interface Figures {
+  sales: number;
+  collected: number;
+  baakiAtEnd: number;
+  goldGrams: number;
+  silverGrams: number;
+}
+
 export const buildTrends = (
   data: AnalyticsData,
   grain: TrendGrain,
@@ -44,9 +52,10 @@ export const buildTrends = (
     const metal = buildMetalView(data, period);
     const at = new Date(Math.min(period.end.getTime(), now.getTime()));
     const prev = rows[rows.length - 1];
+    const inProgress = now.getTime() >= period.start.getTime() && now.getTime() < period.end.getTime();
     const row: TrendRow = {
       period,
-      label: period.label,
+      label: inProgress ? `${period.label} (so far)` : period.label,
       bills: sales.bills,
       sales: sales.sales,
       collected: sales.collected,
@@ -58,12 +67,26 @@ export const buildTrends = (
       change: { sales: null, collected: null, baakiAtEnd: null, goldGrams: null, silverGrams: null },
     };
     if (prev) {
+      // The newest row is partial, so it is compared with the same days of the one before.
+      const cut = toDateEquivalent(prev.period, period, now);
+      let base: Figures = prev;
+      if (cut !== prev.period) {
+        const cutSales = buildSalesView(data, cut);
+        const cutMetal = buildMetalView(data, cut);
+        base = {
+          sales: cutSales.sales,
+          collected: cutSales.collected,
+          baakiAtEnd: baakiAt(data, cut.end),
+          goldGrams: cutMetal.sold.gold.weight,
+          silverGrams: cutMetal.sold.silver.weight,
+        };
+      }
       row.change = {
-        sales: change(row.sales, prev.sales),
-        collected: change(row.collected, prev.collected),
-        baakiAtEnd: change(row.baakiAtEnd, prev.baakiAtEnd),
-        goldGrams: change(row.goldGrams, prev.goldGrams),
-        silverGrams: change(row.silverGrams, prev.silverGrams),
+        sales: change(row.sales, base.sales),
+        collected: change(row.collected, base.collected),
+        baakiAtEnd: change(row.baakiAtEnd, base.baakiAtEnd),
+        goldGrams: change(row.goldGrams, base.goldGrams),
+        silverGrams: change(row.silverGrams, base.silverGrams),
       };
     }
     rows.push(row);

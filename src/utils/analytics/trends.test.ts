@@ -32,7 +32,7 @@ describe("buildTrends", () => {
   const rows = buildTrends(data, "month", NOW, 3);
 
   it("lists the last N periods oldest first, ending with the current one", () => {
-    expect(rows.map((r) => r.label)).toEqual(["Aug 2026", "Sep 2026", "Oct 2026"]);
+    expect(rows.map((r) => r.label)).toEqual(["Aug 2026", "Sep 2026", "Oct 2026 (so far)"]);
   });
 
   it("fills each period's figures", () => {
@@ -48,7 +48,7 @@ describe("buildTrends", () => {
   it("compares each row with the one before", () => {
     expect(rows[0].change.sales).toBeNull();
     expect(rows[1].change.baakiAtEnd?.pct).toBe(0);
-    expect(rows[2].change.sales?.pct).toBeCloseTo(-0.4);
+    expect(rows[2].change.sales?.pct).toBeNull(); // Sep 1-2 had no sales
     expect(rows[2].change.baakiAtEnd?.pct).toBeCloseTo(0.5);
     expect(rows[2].change.goldGrams?.pct).toBeNull(); // nothing in Sep
   });
@@ -57,7 +57,7 @@ describe("buildTrends", () => {
     expect(buildTrends(data, "week", NOW)).toHaveLength(8);
     const fys = buildTrends(empty, "fy", NOW);
     expect(fys).toHaveLength(5);
-    expect(fys[4].label).toBe("FY 2026-27");
+    expect(fys[4].label).toBe("FY 2026-27 (so far)");
     expect(fys[4]).toMatchObject({ sales: 0, collectionRate: null, baakiAtEnd: 0 });
   });
 });

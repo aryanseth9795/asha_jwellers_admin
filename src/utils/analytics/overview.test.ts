@@ -70,7 +70,7 @@ describe("buildOverview KPIs", () => {
 describe("buildOverview insights", () => {
   it("writes the insights the data supports, in order", () => {
     expect(view.insights).toEqual([
-      { tone: "good", text: "Sales up 100% vs Sep 2026 (₹1,00,000 → ₹2,00,000)" },
+      { tone: "good", text: "Sales up 100% vs 1 Sep 2026 – 20 Sep 2026 (₹1,00,000 → ₹2,00,000)" },
       { tone: "info", text: "Best week: 5 Oct with ₹1,50,000" },
       { tone: "info", text: "Gold 22KT is the top seller: 75% of sales" },
       { tone: "good", text: "Gold 22KT grew fastest: +50%" },
@@ -86,5 +86,27 @@ describe("buildOverview insights", () => {
     expect(blank.kpis.find((k) => k.key === "collectionRate")!.value).toBeNull();
     expect(blank.kpis.find((k) => k.key === "collectionRate")!.change).toBeNull();
     expect(blank.kpis.every((k) => k.yoy === null)).toBe(true);
+  });
+});
+
+describe("buildOverview early in a period", () => {
+  it("compares with the same days of the previous period", () => {
+    const early: AnalyticsData = {
+      ...empty,
+      lenden: [
+        bill({ id: 1, date: iso(2026, 9, 1), amount: 10000, baki: 0, status: 1 }),
+        bill({ id: 2, date: iso(2026, 9, 25), amount: 90000, baki: 0, status: 1 }),
+        bill({ id: 3, date: iso(2026, 10, 1), amount: 10000, baki: 0, status: 1 }),
+      ],
+    };
+    const now = new Date(2026, 9, 2, 12);
+    const v = buildOverview(early, oct, previousPeriod(oct), null, now);
+    expect(v.kpis.find((k) => k.key === "sales")!.change?.pct).toBe(0);
+    expect(v.insights[0]).toEqual({
+      tone: "info",
+      text: "Sales flat vs 1 Sep 2026 – 2 Sep 2026 (₹10,000 → ₹10,000)",
+    });
+    // the chart overlay still shows the whole previous month
+    expect(v.previousSalesSeries).toEqual([10000, 0, 0, 90000, 0]);
   });
 });

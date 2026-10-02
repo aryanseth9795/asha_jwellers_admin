@@ -1,10 +1,10 @@
 import { AnalyticsData } from "./types";
-import { Bucket, Period, Unit } from "./periods";
+import { Bucket, Period, Unit, toDateEquivalent } from "./periods";
 import { Change, change } from "./compare";
 import { formatInr, formatPct } from "./format";
-import { buildSalesView } from "./sales";
+import { SalesView, buildSalesView } from "./sales";
 import { buildMetalView } from "./metal";
-import { buildCustomersView } from "./customers";
+import { countNewCustomers } from "./customers";
 import { buildRehanView } from "./rehan";
 import { baakiAging, baakiAt } from "./baki";
 import { buildCategoryView } from "./categories";
@@ -78,11 +78,11 @@ export const buildOverview = (
   lastYear: Period | null,
   now: Date = new Date(),
 ): OverviewView => {
-  const figures = (p: Period): Figures => {
-    const sales = buildSalesView(data, p);
+  // `p` is the range measured; `baakiPeriod` supplies the end date for baaki.
+  const figures = (p: Period, sales: SalesView, baakiPeriod: Period = p): Figures => {
     const metal = buildMetalView(data, p);
     // The current period is measured up to now, not to its future end.
-    const at = new Date(Math.min(p.end.getTime(), now.getTime()));
+    const at = new Date(Math.min(baakiPeriod.end.getTime(), now.getTime()));
     return {
       sales: sales.sales,
       collected: sales.collected,
@@ -93,14 +93,27 @@ export const buildOverview = (
       goldSold: metal.sold.gold.weight,
       silverSold: metal.sold.silver.weight,
       oldReturnPct: sales.sales > 0 ? sales.oldCredit / sales.sales : null,
-      newCustomers: buildCustomersView(data, p, now).newInPeriod,
+      newCustomers: countNewCustomers(data, p),
       rehanGiven: buildRehanView(data, p).given,
     };
   };
 
-  const cur = figures(period);
-  const prev = previous ? figures(previous) : null;
-  const ly = lastYear ? figures(lastYear) : null;
+  // Each period's sales view is built once and shared by KPIs, chart and insights.
+  const salesView = buildSalesView(data, period);
+  const previousView = previous ? buildSalesView(data, previous) : null;
+
+  // A period still in progress is compared with the same days of the others.
+  const comparable = (other: Period | null, full: SalesView | null) => {
+    if (!other) return null;
+    const cut = toDateEquivalent(other, period, now);
+    const view = cut === other ? (full ?? buildSalesView(data, other)) : buildSalesView(data, cut);
+    return { cut, figures: figures(cut, view, other) };
+  };
+
+  const cur = figures(period, salesView);
+  const prevCompare = comparable(previous, previousView);
+  const prev = prevCompare ? prevCompare.figures : null;
+  const ly = comparable(lastYear, null)?.figures ?? null;
   const compareWith = (other: Figures | null, key: keyof Figures): Change | null => {
     if (!other) return null;
     const a = cur[key];
@@ -114,24 +127,24 @@ export const buildOverview = (
     yoy: compareWith(ly, def.key),
   }));
 
-  const salesView = buildSalesView(data, period);
   const bucketList = salesView.buckets;
   const salesSeries = salesView.salesSeries;
   const previousSalesSeries = previous
-    ? fit(buildSalesView(data, previous).salesSeries, bucketList.length)
+    ? fit(previousView!.salesSeries, bucketList.length)
     : null;
 
   const insights: Insight[] = [];
 
-  if (previous && prev && prev.sales > 0) {
+  if (prevCompare && prev && prev.sales > 0) {
+    const label = prevCompare.cut.label;
     const pct = change(cur.sales, prev.sales).pct!;
     const span = `${formatInr(prev.sales)} → ${formatInr(cur.sales)}`;
     if (Math.abs(pct) < 0.02) {
-      insights.push({ tone: "info", text: `Sales flat vs ${previous.label} (${span})` });
+      insights.push({ tone: "info", text: `Sales flat vs ${label} (${span})` });
     } else {
       insights.push({
         tone: pct > 0 ? "good" : "bad",
-        text: `Sales ${pct > 0 ? "up" : "down"} ${formatPct(Math.abs(pct))} vs ${previous.label} (${span})`,
+        text: `Sales ${pct > 0 ? "up" : "down"} ${formatPct(Math.abs(pct))} vs ${label} (${span})`,
       });
     }
   }

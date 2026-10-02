@@ -27,6 +27,17 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const APRIL = 3;
 
+// ISO strings are parsed thousands of times per render; parse each once.
+const timeCache = new Map<string, number>();
+const toTime = (iso: string): number => {
+  let t = timeCache.get(iso);
+  if (t === undefined) {
+    t = new Date(iso).getTime();
+    timeCache.set(iso, t);
+  }
+  return t;
+};
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
 export const sum = (values: number[]): number =>
@@ -120,7 +131,7 @@ export const allPeriod = (isos: string[]): Period => {
     const today = startOfDay(new Date());
     return { grain: "all", start: today, end: today, unit: "year", label: "All time" };
   }
-  const times = isos.map((iso) => new Date(iso).getTime());
+  const times = isos.map(toTime);
   const first = times.reduce((a, b) => Math.min(a, b));
   const last = times.reduce((a, b) => Math.max(a, b));
   return {
@@ -192,8 +203,18 @@ export const samePeriodLastYear = (period: Period): Period | null => {
   }
 };
 
+/** `other` cut to as many calendar days as have elapsed of `current` by `now` (today included). Unchanged when `current` is not in progress. */
+export const toDateEquivalent = (other: Period, current: Period, now: Date): Period => {
+  if (now.getTime() < current.start.getTime() || now.getTime() >= current.end.getTime()) return other;
+  const elapsed = spanDays(current.start, startOfDay(now)) + 1;
+  const cutEnd = addDays(other.start, elapsed);
+  const end = cutEnd < other.end ? cutEnd : other.end;
+  const range = customPeriod(other.start, addDays(end, -1));
+  return { ...range, grain: other.grain, unit: other.unit };
+};
+
 export const inPeriod = (iso: string, period: Period): boolean => {
-  const t = new Date(iso).getTime();
+  const t = toTime(iso);
   return t >= period.start.getTime() && t < period.end.getTime();
 };
 
@@ -211,7 +232,7 @@ const keyOf = (date: Date, unit: Unit): string => {
 };
 
 export const bucketKey = (iso: string, period: Period): string =>
-  keyOf(new Date(iso), period.unit);
+  keyOf(new Date(toTime(iso)), period.unit);
 
 /** Every bucket from start to end; the first may begin before start (e.g. a week). */
 export const buckets = (period: Period): Bucket[] => {
@@ -262,7 +283,7 @@ export const series = (bucketList: Bucket[], period: Period, points: Point[]): n
 
 // Day index from local calendar fields, so DST and time-of-day can't shift it.
 export const dayNumber = (iso: string): number => {
-  const d = new Date(iso);
+  const d = new Date(toTime(iso));
   return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
 };
 

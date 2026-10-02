@@ -17,6 +17,7 @@ import {
   series,
   shiftPeriod,
   sum,
+  toDateEquivalent,
   weekPeriod,
 } from "./periods";
 
@@ -171,5 +172,36 @@ describe("day maths", () => {
     expect(median([5, 1, 3])).toBe(3);
     expect(median([4, 1, 3, 2])).toBe(2.5);
     expect(median([])).toBeNull();
+  });
+});
+
+describe("toDateEquivalent", () => {
+  const now = d(2026, 10, 2, 12);
+
+  it("cuts the previous period to the days elapsed in the current one", () => {
+    const oct = monthPeriod(d(2026, 10, 7));
+    const cut = toDateEquivalent(previousPeriod(oct)!, oct, now);
+    expect(cut.start).toEqual(d(2026, 9, 1, 0));
+    expect(cut.end).toEqual(d(2026, 9, 3, 0));
+    expect(cut.label).toBe("1 Sep 2026 – 2 Sep 2026");
+    expect(cut.grain).toBe("month");
+    expect(cut.unit).toBe("week");
+  });
+
+  it("leaves the period alone when the current one is not in progress", () => {
+    const sep = monthPeriod(d(2026, 9, 7));
+    const aug = previousPeriod(sep)!;
+    expect(toDateEquivalent(aug, sep, now)).toBe(aug);
+    const nov = monthPeriod(d(2026, 11, 7));
+    const oct = previousPeriod(nov)!;
+    expect(toDateEquivalent(oct, nov, now)).toBe(oct);
+  });
+
+  it("never runs past the end of the other period", () => {
+    const mar = monthPeriod(d(2027, 3, 1));
+    const feb = previousPeriod(mar)!;
+    const cut = toDateEquivalent(feb, mar, d(2027, 3, 31, 12));
+    expect(cut.start).toEqual(feb.start);
+    expect(cut.end).toEqual(feb.end);
   });
 });
