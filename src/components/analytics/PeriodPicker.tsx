@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 10,
     borderRadius: 10,
     backgroundColor: colors.goldSoft,
