@@ -188,9 +188,12 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
       </View>
 
       {failed ? (
-        <View style={styles.centered}>
+        <ScrollView
+          contentContainerStyle={styles.centered}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
           <Text style={styles.error}>Could not load analytics. Pull down to try again.</Text>
-        </View>
+        </ScrollView>
       ) : !data ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#8C5B14" />

@@ -1,12 +1,34 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Period } from "../../utils/analytics/periods";
 import { TrendRow } from "../../utils/analytics/trends";
 import { formatCompactRupees, formatGrams, formatInr, formatPct } from "../../utils/analytics/format";
 import { Change } from "../../utils/analytics/compare";
 import BarChart from "./BarChart";
 import { AnalyticsCard } from "./StatTile";
 
-const pctText = (c: Change | null, upIsGood: boolean) => {
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Short, unique-per-bucket axis label (the full label stays in the table). */
+const axisLabel = (period: Period, fullLabel: string): string => {
+  const s = period.start;
+  const fyStart = s.getMonth() >= 3 ? s.getFullYear() : s.getFullYear() - 1;
+  const yy = (n: number) => String(n % 100).padStart(2, "0");
+  switch (period.grain) {
+    case "fy":
+      return `${yy(fyStart)}-${yy(fyStart + 1)}`;
+    case "quarter":
+      return `${fullLabel.split(" ")[0]} ${yy(fyStart)}`;
+    case "month":
+      return MONTHS[s.getMonth()];
+    case "week":
+      return `${s.getDate()} ${MONTHS[s.getMonth()]}`;
+    default:
+      return fullLabel;
+  }
+};
+
+const pctText =(c: Change | null, upIsGood: boolean) => {
   if (!c || c.pct === null || c.delta === 0) return { text: "", color: "#888" };
   const up = c.delta > 0;
   return { text: `${up ? "▲" : "▼"}${formatPct(Math.abs(c.pct))}`, color: up === upIsGood ? "#2E7D32" : "#C62828" };
@@ -39,7 +61,7 @@ const TrendsSection: React.FC<{ rows: TrendRow[] }> = ({ rows }) => {
     <View>
       <AnalyticsCard title="Sales and collections">
         <BarChart
-          buckets={rows.map((r) => ({ key: r.label, label: r.label.split(" ")[0] }))}
+          buckets={rows.map((r) => ({ key: r.label, label: axisLabel(r.period, r.label) }))}
           series={[
             { label: "Sales", color: "#B8860B", values: rows.map((r) => r.sales) },
             { label: "Collected", color: "#2E7D32", values: rows.map((r) => r.collected) },
