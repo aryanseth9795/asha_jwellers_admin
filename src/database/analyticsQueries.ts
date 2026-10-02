@@ -23,7 +23,7 @@ const openDatabase = async () => {
 export const getAnalyticsData = async (): Promise<AnalyticsData> => {
   const database = await openDatabase();
   return {
-    users: await database.getAllAsync<UserRow>("SELECT id, name FROM users"),
+    users: await database.getAllAsync<UserRow>("SELECT id, name, address FROM users"),
     lenden: await database.getAllAsync<LendenRow>(
       "SELECT id, userId, date, amount, discount, jama, baki, status FROM lenden",
     ),
@@ -35,7 +35,7 @@ export const getAnalyticsData = async (): Promise<AnalyticsData> => {
       "SELECT rehanId, type, amount, date FROM rehan_transactions",
     ),
     soldItems: await database.getAllAsync<SoldItemRow>(
-      "SELECT lendenId, metal, weight, total FROM lenden_items",
+      "SELECT lendenId, metal, purity, weight, total FROM lenden_items",
     ),
     oldItems: await database.getAllAsync<OldItemRow>(
       "SELECT lendenId, metal, weight, value FROM lenden_old_jewellery_items",
