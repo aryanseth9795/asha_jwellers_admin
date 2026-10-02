@@ -85,14 +85,25 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
   const period: Period = useMemo(() => {
     if (grain === "all") {
       return allPeriod(
-        data ? [...data.lenden.map((l) => l.date), ...data.rehan.map((r) => r.openDate)] : [],
+        data
+          ? [
+              ...data.lenden.map((l) => l.date),
+              ...data.jama.map((j) => j.date),
+              ...data.rehan.map((r) => r.openDate),
+              ...data.rehan.flatMap((r) => (r.closedDate ? [r.closedDate] : [])),
+              ...data.rehanTx.map((t) => t.date),
+            ]
+          : [],
       );
     }
     if (grain === "custom") return customPeriod(customFrom, customTo);
     return periodFor(grain, anchor);
   }, [grain, anchor, customFrom, customTo, data]);
   const previous = useMemo(() => previousPeriod(period), [period]);
-  const lastYear = grain === "month" || grain === "quarter" ? samePeriodLastYear(period) : null;
+  const lastYear = useMemo(
+    () => (grain === "month" || grain === "quarter" ? samePeriodLastYear(period) : null),
+    [grain, period],
+  );
   const canGoForward = grain !== "all" && period.end.getTime() <= Date.now();
   const trendGrain: TrendGrain =
     grain === "custom" ? "month" : grain === "all" ? "fy" : grain;
@@ -174,8 +185,9 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
             }}
             onStep={onStep}
             onCustomChange={(from, to) => {
-              setCustomFrom(from);
-              setCustomTo(to);
+              // a backwards pick is stored the right way round
+              setCustomFrom(to < from ? to : from);
+              setCustomTo(to < from ? from : to);
             }}
           />
         )}

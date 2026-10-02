@@ -35,7 +35,7 @@ const pctText =(c: Change | null, upIsGood: boolean) => {
 };
 
 const COLUMNS = [
-  { title: "Period", width: 120 },
+  { title: "Period", width: 170 },
   { title: "Bills", width: 50 },
   { title: "Sales", width: 110 },
   { title: "Collected", width: 110 },
@@ -80,7 +80,7 @@ const TrendsSection: React.FC<{ rows: TrendRow[] }> = ({ rows }) => {
             </View>
             {newestFirst.map((r) => (
               <View key={r.label} style={styles.row}>
-                <Cell width={120} text={r.label} bold />
+                <Cell width={170} text={r.label} bold />
                 <Cell width={50} text={String(r.bills)} />
                 <Cell width={110} text={formatInr(r.sales)} change={pctText(r.change.sales, true)} />
                 <Cell width={110} text={formatInr(r.collected)} change={pctText(r.change.collected, true)} />
