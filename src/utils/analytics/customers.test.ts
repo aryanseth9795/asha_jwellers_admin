@@ -16,11 +16,11 @@ const empty: AnalyticsData = {
 };
 
 describe("scoring helpers", () => {
-  it("gives thirds by rank with ties going up", () => {
+  it("gives thirds by rank with ties going down", () => {
     expect(thirdPoints(1, [1, 2, 3])).toBe(1);
     expect(thirdPoints(2, [1, 2, 3])).toBe(2);
     expect(thirdPoints(3, [1, 2, 3])).toBe(3);
-    expect(thirdPoints(5, [5, 5, 5])).toBe(3);
+    expect(thirdPoints(5, [5, 5, 5])).toBe(1);
   });
 
   it("scores recency on fixed day limits", () => {
@@ -83,6 +83,29 @@ describe("buildCustomersView", () => {
     expect(byName.C1.highBaaki).toBe(false);
     expect(view.customers[0].name).toBe("C1"); // sorted by sales
     expect(view.tierCounts.good + view.tierCounts.medium + view.tierCounts.low).toBe(3);
+  });
+
+  it("keeps one-visit buyers out of the top frequency third", () => {
+    const crowd = buildCustomersView(
+      {
+        ...empty,
+        users: [1, 2, 3, 4, 5].map((id) => ({ id, name: `B${id}` })),
+        lenden: [
+          bill(1, iso(2026, 4, 5), 5000),
+          bill(2, iso(2026, 4, 6), 5000),
+          bill(3, iso(2026, 4, 7), 5000),
+          bill(4, iso(2026, 4, 8), 5000),
+          bill(5, iso(2026, 8, 1), 90000),
+          bill(5, iso(2026, 9, 1), 90000),
+          bill(5, iso(2026, 9, 25), 90000),
+        ],
+      },
+      FY26,
+      NOW,
+    );
+    const byName = Object.fromEntries(crowd.customers.map((c) => [c.name, c]));
+    expect(crowd.tierCounts.low).toBeGreaterThanOrEqual(1);
+    expect(byName.B5.tier).toBe("good");
   });
 
   it("makes everyone medium with fewer than three buyers", () => {

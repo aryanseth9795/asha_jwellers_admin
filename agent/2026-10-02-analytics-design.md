@@ -134,7 +134,7 @@ Scored among **buyers** over the selected period (all-time if "All time"):
 
 **Good** = 8–9, **Medium** = 6–7, **Low** = 3–5. Recency uses fixed day thresholds (meaningful on its own);
 frequency and monetary use thirds, so tiers adapt to this shop's scale without hand-tuned rupee amounts.
-Ties at a boundary go to the higher third. With fewer than 3 buyers, everyone is Medium (thirds are
+Ties share the lower rank (a value scores by how many peers are strictly below it), so a crowd of one-visit buyers doesn't all land in the top third. With fewer than 3 buyers, everyone is Medium (thirds are
 meaningless).
 
 A separate **"High baaki"** flag (baaki > 50 % of that customer's net purchases) is shown as a badge, not
@@ -167,5 +167,6 @@ Built on `feat/old-jewellery-adjustments` per `agent/2026-10-02-analytics-plan.m
 - **Customer activity** (§4.2) counts Len-Den and Rehan *entries* only. Jama payments and rehan transactions are not visits, so a customer who only came in to pay keeps an older "last visit".
 - **Re-purchase gaps** are measured between purchase days inside the selected period; a gap spanning an FY boundary is not counted in that FY.
 - **Baaki outstanding** sums only positive `baki` on open entries; a negative stored baki (data error) is ignored rather than reducing the total.
+- **Net metal flow** (§4.4) is not shown as its own figure; the Metal tab shows sold and received side by side, from which the net is read directly.
 - **Old Jewellery register** "This Year" became "This FY" (Apr–Mar) to agree with Analytics.
 - Known cosmetic edges, deferred: compact axis labels near unit boundaries (e.g. 99,999 shows "100K"); FY back-arrow has no lower bound (earlier years show the empty state); turning "All time" off returns to the current FY.

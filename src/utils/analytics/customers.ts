@@ -40,10 +40,10 @@ const GAP_BINS = [
   { label: "> 12 mo", maxDays: Infinity },
 ];
 
-/** 1–3 points by rank among peers; ties share the higher third. */
+/** 1–3 points by rank among peers; ties share the lower rank. */
 export const thirdPoints = (value: number, peers: number[]): 1 | 2 | 3 => {
-  const share = peers.filter((p) => p <= value).length / peers.length;
-  return share > 2 / 3 ? 3 : share > 1 / 3 ? 2 : 1;
+  const share = peers.filter((p) => p < value).length / peers.length;
+  return share >= 2 / 3 ? 3 : share >= 1 / 3 ? 2 : 1;
 };
 
 export const recencyPoints = (days: number): 1 | 2 | 3 =>
@@ -103,7 +103,7 @@ export const buildCustomersView = (
   for (const entry of data.lenden) {
     const value = (entry.amount ?? 0) - (entry.discount ?? 0) - (credit.get(entry.id) ?? 0);
     net.set(entry.userId, (net.get(entry.userId) ?? 0) + value);
-    if ((entry.status ?? 0) === 0) {
+    if ((entry.status ?? 0) === 0 && (entry.baki ?? 0) > 0) {
       owed.set(entry.userId, (owed.get(entry.userId) ?? 0) + (entry.baki ?? 0));
     }
   }

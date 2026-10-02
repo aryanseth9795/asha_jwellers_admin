@@ -18,7 +18,7 @@
 - Dates are bucketed in **device local time**, never by slicing the UTC ISO string.
 - Money is integer rupees. Grams are rounded to 3 decimals after summing.
 - `metal` other than exactly `"gold"`/`"silver"` → **unknown** bucket; never merged into gold or silver.
-- Tiers: recency (≤90 d = 3, ≤365 d = 2, else 1) + frequency thirds + monetary thirds; Good 8–9, Medium 6–7, Low 3–5; < 3 buyers → all Medium; ties go to the higher third.
+- Tiers: recency (≤90 d = 3, ≤365 d = 2, else 1) + frequency thirds + monetary thirds; Good 8–9, Medium 6–7, Low 3–5; < 3 buyers → all Medium; ties share the lower rank.
 - "High baaki" = open baki > 50 % of the customer's all-time net purchases; a badge, not a tier input.
 - Commits: plain messages, **no co-author / attribution lines** (owner's instruction).
 
@@ -759,10 +759,10 @@ const GAP_BINS = [
   { label: "> 12 mo", maxDays: Infinity },
 ];
 
-/** 1–3 points by rank among peers; ties share the higher third. */
+/** 1–3 points by rank among peers; ties share the lower rank. */
 export const thirdPoints = (value: number, peers: number[]): 1 | 2 | 3 => {
-  const share = peers.filter((p) => p <= value).length / peers.length;
-  return share > 2 / 3 ? 3 : share > 1 / 3 ? 2 : 1;
+  const share = peers.filter((p) => p < value).length / peers.length;
+  return share >= 2 / 3 ? 3 : share >= 1 / 3 ? 2 : 1;
 };
 
 export const recencyPoints = (days: number): 1 | 2 | 3 =>
