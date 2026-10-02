@@ -90,6 +90,23 @@ const summaryRow = (label: string, value: string, cls = ""): string =>
     value,
   )}</td></tr>`;
 
+// Old jewellery is credited per metal: every old gold item adds to one line,
+// every old silver item to another. Items saved before metal was tracked get
+// their own line so they are never counted as gold or silver.
+const OLD_JEWELLERY_LINES: { metal: OldJewelleryItem["metal"]; label: string }[] = [
+  { metal: "gold", label: "पुराना सोना" },
+  { metal: "silver", label: "पुरानी चाँदी" },
+  { metal: null, label: "पुराना (अन्य)" },
+];
+
+const oldJewelleryRows = (items: OldJewelleryItem[]): string[] =>
+  OLD_JEWELLERY_LINES.map(({ metal, label }) => ({
+    label,
+    value: sumOldJewelleryValues(items.filter((item) => (item.metal ?? null) === metal)),
+  }))
+    .filter((line) => line.value > 0)
+    .map((line) => summaryRow(line.label, `-${formatRupees(line.value)}`));
+
 export function buildBillHtml(data: BillData): string {
   const { items, customer } = data;
   const compact = items.length > COMPACT_ITEM_THRESHOLD;
@@ -151,13 +168,9 @@ export function buildBillHtml(data: BillData): string {
   ];
 
   if (data.showPaymentDetails) {
-    // Order: कुल राशि − पुराना दाम − छूट − जमा = बाकी, then पिछला बाकी → कुल बाकी
+    // Order: कुल राशि − पुराना सोना − पुरानी चाँदी − छूट − जमा = बाकी, then पिछला बाकी → कुल बाकी
     summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
-    if (oldJewelleryCredit > 0) {
-      summary.push(
-        summaryRow("पुराना दाम", `-${formatRupees(oldJewelleryCredit)}`),
-      );
-    }
+    summary.push(...oldJewelleryRows(data.oldJewelleryItems));
     if (data.discount > 0) {
       summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
     }
@@ -178,9 +191,7 @@ export function buildBillHtml(data: BillData): string {
   } else {
     if (oldJewelleryCredit > 0) {
       summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
-      summary.push(
-        summaryRow("पुराना दाम", `-${formatRupees(oldJewelleryCredit)}`),
-      );
+      summary.push(...oldJewelleryRows(data.oldJewelleryItems));
       if (data.discount > 0) {
         summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
       }
