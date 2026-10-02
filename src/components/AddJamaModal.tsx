@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
-import { Text, TextInput } from "../ui";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { BottomSheet, Text, TextInput } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomDatePicker from "./CustomDatePicker";
 
 interface AddJamaModalProps {
@@ -29,7 +21,6 @@ const AddJamaModal: React.FC<AddJamaModalProps> = ({
   initialAmount,
   initialDate,
 }) => {
-  const insets = useSafeAreaInsets();
   const [amount, setAmount] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -78,83 +69,60 @@ const AddJamaModal: React.FC<AddJamaModalProps> = ({
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={handleClose}
-    >
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              {editMode ? "Edit Jama Payment" : "Add Jama Payment"}
-            </Text>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.body}>
-            {/* Amount Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Amount (₹) <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter jama amount"
-                placeholderTextColor="#999"
-                value={amount}
-                onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ""))}
-                keyboardType="numeric"
-                autoFocus
-              />
-            </View>
-
-            {/* Date Selection */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Date <Text style={styles.required}>*</Text>
-              </Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Ionicons name="calendar" size={20} color="#007AFF" />
-                <Text style={styles.dateButtonText}>
-                  {formatDisplayDate(selectedDate)}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#999" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View
-            style={[
-              styles.footer,
-              { paddingBottom: Math.max(insets.bottom, 20) },
-            ]}
+      onClose={handleClose}
+      title={editMode ? "Edit Jama Payment" : "Add Jama Payment"}
+      footer={
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, !amount && styles.addButtonDisabled]}
+            onPress={handleAdd}
+            disabled={!amount}
           >
-            <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.addButton, !amount && styles.addButtonDisabled]}
-              onPress={handleAdd}
-              disabled={!amount}
-            >
-              <Ionicons name="checkmark" size={20} color="#fff" />
-              <Text style={styles.addButtonText}>
-                {editMode ? "Save" : "Add"}
-              </Text>
-            </TouchableOpacity>
-          </View>
+            <Ionicons name="checkmark" size={20} color="#fff" />
+            <Text style={styles.addButtonText}>
+              {editMode ? "Save" : "Add"}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      }
+    >
+      {/* Amount Input */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>
+          Amount (₹) <Text style={styles.required}>*</Text>
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter jama amount"
+          placeholderTextColor="#999"
+          value={amount}
+          onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ""))}
+          keyboardType="numeric"
+          autoFocus
+        />
+      </View>
+
+      {/* Date Selection */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>
+          Date <Text style={styles.required}>*</Text>
+        </Text>
+        <TouchableOpacity
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Ionicons name="calendar" size={20} color="#007AFF" />
+          <Text style={styles.dateButtonText}>
+            {formatDisplayDate(selectedDate)}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#999" />
+        </TouchableOpacity>
+      </View>
 
       <CustomDatePicker
         visible={showDatePicker}
@@ -167,37 +135,11 @@ const AddJamaModal: React.FC<AddJamaModalProps> = ({
         minimumDate={minDate}
         maximumDate={new Date()}
       />
-    </Modal>
+    </BottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  content: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F2F5",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1A1A1A",
-  },
-  body: {
-    padding: 20,
-  },
   inputGroup: {
     marginBottom: 20,
   },
@@ -238,10 +180,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: "row",
-    padding: 20,
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F2F5",
   },
   cancelButton: {
     flex: 1,

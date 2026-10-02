@@ -1,12 +1,6 @@
 import React, { useState } from "react";
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  ScrollView,
-} from "react-native";
-import { Text } from "../ui";
+import { View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { BottomSheet, Text } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 
 interface DatePickerProps {
@@ -174,159 +168,122 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      onClose={onClose}
+      title="Select Date"
+      scroll={false}
+      footer={
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={styles.quickButton}
+            onPress={() => onDateSelect(new Date())}
+          >
+            <Text style={styles.quickButtonText}>Today</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickButton}
+            onPress={() => {
+              const yesterday = new Date();
+              yesterday.setDate(yesterday.getDate() - 1);
+              onDateSelect(yesterday);
+            }}
+          >
+            <Text style={styles.quickButtonText}>Yesterday</Text>
+          </TouchableOpacity>
+        </View>
+      }
     >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Select Date</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
+      {/* Month/Year Navigation */}
+      <View style={styles.monthYearRow}>
+        <TouchableOpacity
+          onPress={goToPrevMonth}
+          disabled={!canGoPrev()}
+          style={styles.navButton}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={24}
+            color={canGoPrev() ? "#007AFF" : "#CCC"}
+          />
+        </TouchableOpacity>
 
-          {/* Month/Year Navigation */}
-          <View style={styles.monthYearRow}>
+        <TouchableOpacity
+          style={styles.monthYearButton}
+          onPress={() => setShowYearPicker(!showYearPicker)}
+        >
+          <Text style={styles.monthYearText}>
+            {monthNames[currentMonth]} {currentYear}
+          </Text>
+          <Ionicons
+            name={showYearPicker ? "chevron-up" : "chevron-down"}
+            size={18}
+            color="#007AFF"
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={goToNextMonth}
+          disabled={!canGoNext()}
+          style={styles.navButton}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={24}
+            color={canGoNext() ? "#007AFF" : "#CCC"}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {showYearPicker ? (
+        <ScrollView style={styles.yearPicker} nestedScrollEnabled>
+          {getYears().map((year) => (
             <TouchableOpacity
-              onPress={goToPrevMonth}
-              disabled={!canGoPrev()}
-              style={styles.navButton}
-            >
-              <Ionicons
-                name="chevron-back"
-                size={24}
-                color={canGoPrev() ? "#007AFF" : "#CCC"}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.monthYearButton}
-              onPress={() => setShowYearPicker(!showYearPicker)}
-            >
-              <Text style={styles.monthYearText}>
-                {monthNames[currentMonth]} {currentYear}
-              </Text>
-              <Ionicons
-                name={showYearPicker ? "chevron-up" : "chevron-down"}
-                size={18}
-                color="#007AFF"
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={goToNextMonth}
-              disabled={!canGoNext()}
-              style={styles.navButton}
-            >
-              <Ionicons
-                name="chevron-forward"
-                size={24}
-                color={canGoNext() ? "#007AFF" : "#CCC"}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {showYearPicker ? (
-            <ScrollView style={styles.yearPicker}>
-              {getYears().map((year) => (
-                <TouchableOpacity
-                  key={year}
-                  style={[
-                    styles.yearItem,
-                    year === currentYear && styles.yearItemSelected,
-                  ]}
-                  onPress={() => {
-                    setCurrentYear(year);
-                    setShowYearPicker(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.yearItemText,
-                      year === currentYear && styles.yearItemTextSelected,
-                    ]}
-                  >
-                    {year}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          ) : (
-            <>
-              {/* Day Names */}
-              <View style={styles.dayNamesRow}>
-                {dayNames.map((day) => (
-                  <View key={day} style={styles.dayNameCell}>
-                    <Text style={styles.dayName}>{day}</Text>
-                  </View>
-                ))}
-              </View>
-
-              {/* Calendar Grid */}
-              <View style={styles.calendarGrid}>{renderCalendarDays()}</View>
-            </>
-          )}
-
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity
-              style={styles.quickButton}
-              onPress={() => onDateSelect(new Date())}
-            >
-              <Text style={styles.quickButtonText}>Today</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickButton}
+              key={year}
+              style={[
+                styles.yearItem,
+                year === currentYear && styles.yearItemSelected,
+              ]}
               onPress={() => {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                onDateSelect(yesterday);
+                setCurrentYear(year);
+                setShowYearPicker(false);
               }}
             >
-              <Text style={styles.quickButtonText}>Yesterday</Text>
+              <Text
+                style={[
+                  styles.yearItemText,
+                  year === currentYear && styles.yearItemTextSelected,
+                ]}
+              >
+                {year}
+              </Text>
             </TouchableOpacity>
+          ))}
+        </ScrollView>
+      ) : (
+        <>
+          {/* Day Names */}
+          <View style={styles.dayNamesRow}>
+            {dayNames.map((day) => (
+              <View key={day} style={styles.dayNameCell}>
+                <Text style={styles.dayName}>{day}</Text>
+              </View>
+            ))}
           </View>
-        </View>
-      </View>
-    </Modal>
+
+          {/* Calendar Grid */}
+          <View style={styles.calendarGrid}>{renderCalendarDays()}</View>
+        </>
+      )}
+    </BottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  container: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 30,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1A1A1A",
-  },
   monthYearRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 10,
     paddingVertical: 15,
   },
   navButton: {
@@ -348,7 +305,6 @@ const styles = StyleSheet.create({
   },
   dayNamesRow: {
     flexDirection: "row",
-    paddingHorizontal: 10,
     marginBottom: 5,
   },
   dayNameCell: {
@@ -364,7 +320,6 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    paddingHorizontal: 10,
   },
   dayCell: {
     width: "14.28%",
@@ -398,7 +353,6 @@ const styles = StyleSheet.create({
   },
   yearPicker: {
     maxHeight: 250,
-    paddingHorizontal: 20,
   },
   yearItem: {
     paddingVertical: 14,
@@ -422,8 +376,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     gap: 12,
-    marginTop: 15,
-    paddingHorizontal: 20,
   },
   quickButton: {
     paddingVertical: 10,

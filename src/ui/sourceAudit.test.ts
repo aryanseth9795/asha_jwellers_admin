@@ -23,4 +23,16 @@ describe("source audit (UI revamp spec §6)", () => {
     const offenders = appFiles.filter((f) => rnImports(read(f)).some((s) => s === "Text" || s === "TextInput"));
     expect(offenders).toEqual([]);
   });
+
+  it("builds every input pop-up on BottomSheet, never a bare Modal (spec §6)", () => {
+    const sheets = [
+      "src/components/AddJamaModal.tsx",
+      "src/components/AddLendenItemModal.tsx",
+      "src/components/AddOldJewelleryItemModal.tsx",
+      "src/components/AddRehanTransactionModal.tsx",
+      "src/components/CustomDatePicker.tsx",
+    ];
+    const state = sheets.map((f) => ({ f, sheet: read(f).includes("<BottomSheet"), modal: /<Modal\b/.test(read(f)) }));
+    expect(state).toEqual(sheets.map((f) => ({ f, sheet: true, modal: false })));
+  });
 });

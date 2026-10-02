@@ -1,14 +1,6 @@
 import React, { useEffect, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Text, TextInput } from "../ui";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { BottomSheet, Text, TextInput } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 import {
   JEWELLERY_METAL_OPTIONS,
@@ -86,160 +78,119 @@ const AddOldJewelleryItemModal: React.FC<AddOldJewelleryItemModalProps> = ({
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
+      onClose={onClose}
+      title={editMode ? "Edit Old Jewellery" : "Old Jewellery"}
+      subtitle="Credit against this Len-Den sale"
+      footer={
+        <TouchableOpacity
+          style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+          disabled={!canSave}
+          onPress={handleSave}
+        >
+          <Ionicons name="checkmark-circle" size={20} color="#fff" />
+          <Text style={styles.saveText}>
+            {editMode ? "Save Changes" : "Add Old Jewellery"}
+          </Text>
+        </TouchableOpacity>
+      }
     >
-      <KeyboardAvoidingView
-        style={styles.backdrop}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={styles.sheet}>
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.title}>
-                {editMode ? "Edit Old Jewellery" : "Old Jewellery"}
-              </Text>
-              <Text style={styles.subtitle}>Credit against this Len-Den sale</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={22} color="#555" />
-            </TouchableOpacity>
-          </View>
+      <Text style={styles.label}>
+        Description <Text style={styles.required}>*</Text>
+      </Text>
+      <TextInput
+        style={styles.input}
+        value={description}
+        onChangeText={setDescription}
+        placeholder="e.g. old gold chain"
+        placeholderTextColor="#999"
+        autoFocus
+      />
 
-          <ScrollView keyboardShouldPersistTaps="handled">
-            <Text style={styles.label}>
-              Description <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="e.g. old gold chain"
-              placeholderTextColor="#999"
-              autoFocus
-            />
-
-            <Text style={styles.label}>
-              Metal <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.chipRow}>
-              {JEWELLERY_METAL_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option}
-                  style={[styles.chip, metal === option && styles.metalChipActive]}
-                  onPress={() => {
-                    if (option !== metal) setPurity(null);
-                    setMetal(option);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.metalText,
-                      metal === option && styles.chipTextActive,
-                    ]}
-                  >
-                    {option === "gold" ? "Gold" : "Silver"}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {metal && (
-              <>
-                <Text style={styles.label}>शुद्धता / Purity (optional)</Text>
-                <View style={styles.chipRow}>
-                  {PURITY_OPTIONS_BY_METAL[metal].map((option) => (
-                    <TouchableOpacity
-                      key={option}
-                      style={[
-                        styles.chip,
-                        purity === option && styles.purityChipActive,
-                      ]}
-                      onPress={() =>
-                        setPurity((current) => (current === option ? null : option))
-                      }
-                    >
-                      <Text
-                        style={[
-                          styles.purityText,
-                          purity === option && styles.chipTextActive,
-                        ]}
-                      >
-                        {option}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </>
-            )}
-
-            <Text style={styles.label}>Weight (grams, optional)</Text>
-            <TextInput
-              style={styles.input}
-              value={weight}
-              onChangeText={(text) => setWeight(numericDecimal(text))}
-              placeholder="e.g. 12.500"
-              placeholderTextColor="#999"
-              keyboardType="decimal-pad"
-            />
-
-            <Text style={styles.label}>
-              Value (₹) <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.valueInputWrap}>
-              <Text style={styles.rupee}>₹</Text>
-              <TextInput
-                style={styles.valueInput}
-                value={value}
-                onChangeText={(text) => setValue(text.replace(/[^0-9]/g, ""))}
-                placeholder="0"
-                placeholderTextColor="#999"
-                keyboardType="numeric"
-              />
-            </View>
-          </ScrollView>
-
+      <Text style={styles.label}>
+        Metal <Text style={styles.required}>*</Text>
+      </Text>
+      <View style={styles.chipRow}>
+        {JEWELLERY_METAL_OPTIONS.map((option) => (
           <TouchableOpacity
-            style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
-            disabled={!canSave}
-            onPress={handleSave}
+            key={option}
+            style={[styles.chip, metal === option && styles.metalChipActive]}
+            onPress={() => {
+              if (option !== metal) setPurity(null);
+              setMetal(option);
+            }}
           >
-            <Ionicons name="checkmark-circle" size={20} color="#fff" />
-            <Text style={styles.saveText}>
-              {editMode ? "Save Changes" : "Add Old Jewellery"}
+            <Text
+              style={[
+                styles.metalText,
+                metal === option && styles.chipTextActive,
+              ]}
+            >
+              {option === "gold" ? "Gold" : "Silver"}
             </Text>
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        ))}
+      </View>
+
+      {metal && (
+        <>
+          <Text style={styles.label}>शुद्धता / Purity (optional)</Text>
+          <View style={styles.chipRow}>
+            {PURITY_OPTIONS_BY_METAL[metal].map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.chip,
+                  purity === option && styles.purityChipActive,
+                ]}
+                onPress={() =>
+                  setPurity((current) => (current === option ? null : option))
+                }
+              >
+                <Text
+                  style={[
+                    styles.purityText,
+                    purity === option && styles.chipTextActive,
+                  ]}
+                >
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
+      <Text style={styles.label}>Weight (grams, optional)</Text>
+      <TextInput
+        style={styles.input}
+        value={weight}
+        onChangeText={(text) => setWeight(numericDecimal(text))}
+        placeholder="e.g. 12.500"
+        placeholderTextColor="#999"
+        keyboardType="decimal-pad"
+      />
+
+      <Text style={styles.label}>
+        Value (₹) <Text style={styles.required}>*</Text>
+      </Text>
+      <View style={styles.valueInputWrap}>
+        <Text style={styles.rupee}>₹</Text>
+        <TextInput
+          style={styles.valueInput}
+          value={value}
+          onChangeText={(text) => setValue(text.replace(/[^0-9]/g, ""))}
+          placeholder="0"
+          placeholderTextColor="#999"
+          keyboardType="numeric"
+        />
+      </View>
+    </BottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-  },
-  sheet: {
-    maxHeight: "82%",
-    padding: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: "#fff",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  title: { color: "#1A1A1A", fontSize: 21, fontWeight: "800" },
-  subtitle: { color: "#777", fontSize: 13, marginTop: 3 },
-  closeButton: { padding: 5 },
   label: { color: "#333", fontSize: 14, fontWeight: "700", marginBottom: 7 },
   required: { color: "#D32F2F" },
   input: {
@@ -279,7 +230,6 @@ const styles = StyleSheet.create({
   rupee: { color: "#8C5B14", fontSize: 19, fontWeight: "800", marginRight: 6 },
   valueInput: { flex: 1, paddingVertical: 11, color: "#1A1A1A", fontSize: 16 },
   saveButton: {
-    marginTop: 4,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

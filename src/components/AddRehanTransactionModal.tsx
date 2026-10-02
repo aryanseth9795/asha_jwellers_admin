@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-} from "react-native";
-import { Text, TextInput } from "../ui";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { BottomSheet, Text, TextInput } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomDatePicker from "./CustomDatePicker";
 
 interface AddRehanTransactionModalProps {
@@ -23,7 +15,6 @@ const AddRehanTransactionModal: React.FC<AddRehanTransactionModalProps> = ({
   onClose,
   onAdd,
 }) => {
-  const insets = useSafeAreaInsets();
   const [amount, setAmount] = useState("");
   const [type, setType] = useState<"jama" | "diya">("diya"); // Default to diya (taking money)
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -58,128 +49,107 @@ const AddRehanTransactionModal: React.FC<AddRehanTransactionModalProps> = ({
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
+      onClose={onClose}
+      title="Add Transaction"
+      footer={
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, !amount && styles.addButtonDisabled]}
+            onPress={handleAdd}
+            disabled={!amount}
+          >
+            <Ionicons name="checkmark" size={20} color="#fff" />
+            <Text style={styles.addButtonText}>Add Transaction</Text>
+          </TouchableOpacity>
+        </View>
+      }
     >
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Add Transaction</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.body}>
-            {/* Type Selector */}
-            <View style={styles.typeSelector}>
-              <TouchableOpacity
-                style={[
-                  styles.typeButton,
-                  type === "diya" && styles.typeButtonDiya,
-                ]}
-                onPress={() => setType("diya")}
-              >
-                <Ionicons
-                  name="arrow-up-circle"
-                  size={20}
-                  color={type === "diya" ? "#fff" : "#C62828"}
-                />
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    type === "diya" && styles.typeButtonTextActive,
-                    { color: type === "diya" ? "#fff" : "#C62828" },
-                  ]}
-                >
-                  Diya (Debit)
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.typeButton,
-                  type === "jama" && styles.typeButtonJama,
-                ]}
-                onPress={() => setType("jama")}
-              >
-                <Ionicons
-                  name="arrow-down-circle"
-                  size={20}
-                  color={type === "jama" ? "#fff" : "#2E7D32"}
-                />
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    type === "jama" && styles.typeButtonTextActive,
-                    { color: type === "jama" ? "#fff" : "#2E7D32" },
-                  ]}
-                >
-                  Jama (Credit)
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Amount Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Amount (₹) <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter amount"
-                placeholderTextColor="#999"
-                value={amount}
-                onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ""))}
-                keyboardType="numeric"
-                autoFocus
-              />
-            </View>
-
-            {/* Date Selection */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                Date <Text style={styles.required}>*</Text>
-              </Text>
-              <TouchableOpacity
-                style={styles.dateButton}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Ionicons name="calendar" size={20} color="#007AFF" />
-                <Text style={styles.dateButtonText}>
-                  {formatDisplayDate(selectedDate)}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#999" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View
+      {/* Type Selector */}
+      <View style={styles.typeSelector}>
+        <TouchableOpacity
+          style={[
+            styles.typeButton,
+            type === "diya" && styles.typeButtonDiya,
+          ]}
+          onPress={() => setType("diya")}
+        >
+          <Ionicons
+            name="arrow-up-circle"
+            size={20}
+            color={type === "diya" ? "#fff" : "#C62828"}
+          />
+          <Text
             style={[
-              styles.footer,
-              { paddingBottom: Math.max(insets.bottom, 20) },
+              styles.typeButtonText,
+              type === "diya" && styles.typeButtonTextActive,
+              { color: type === "diya" ? "#fff" : "#C62828" },
             ]}
           >
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.addButton, !amount && styles.addButtonDisabled]}
-              onPress={handleAdd}
-              disabled={!amount}
-            >
-              <Ionicons name="checkmark" size={20} color="#fff" />
-              <Text style={styles.addButtonText}>Add Transaction</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
+            Diya (Debit)
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.typeButton,
+            type === "jama" && styles.typeButtonJama,
+          ]}
+          onPress={() => setType("jama")}
+        >
+          <Ionicons
+            name="arrow-down-circle"
+            size={20}
+            color={type === "jama" ? "#fff" : "#2E7D32"}
+          />
+          <Text
+            style={[
+              styles.typeButtonText,
+              type === "jama" && styles.typeButtonTextActive,
+              { color: type === "jama" ? "#fff" : "#2E7D32" },
+            ]}
+          >
+            Jama (Credit)
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Amount Input */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>
+          Amount (₹) <Text style={styles.required}>*</Text>
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter amount"
+          placeholderTextColor="#999"
+          value={amount}
+          onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ""))}
+          keyboardType="numeric"
+          autoFocus
+        />
+      </View>
+
+      {/* Date Selection */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>
+          Date <Text style={styles.required}>*</Text>
+        </Text>
+        <TouchableOpacity
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Ionicons name="calendar" size={20} color="#007AFF" />
+          <Text style={styles.dateButtonText}>
+            {formatDisplayDate(selectedDate)}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#999" />
+        </TouchableOpacity>
+      </View>
 
       <CustomDatePicker
         visible={showDatePicker}
@@ -192,37 +162,11 @@ const AddRehanTransactionModal: React.FC<AddRehanTransactionModalProps> = ({
         minimumDate={minDate}
         maximumDate={new Date()}
       />
-    </Modal>
+    </BottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  content: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F2F5",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1A1A1A",
-  },
-  body: {
-    padding: 20,
-  },
   typeSelector: {
     flexDirection: "row",
     gap: 12,
@@ -295,10 +239,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: "row",
-    padding: 20,
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F2F5",
   },
   cancelButton: {
     flex: 1,

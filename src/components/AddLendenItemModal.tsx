@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from "react-native";
-import { Text, TextInput } from "../ui";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { BottomSheet, Text, TextInput } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 import {
   JewelleryMetal,
@@ -110,192 +102,152 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
   };
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
+      onClose={onClose}
+      title={editMode ? "Edit Item" : "Add Item"}
+      footer={
+        <TouchableOpacity
+          style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+          onPress={handleSave}
+          disabled={!canSave}
+        >
+          <Ionicons name="checkmark-circle" size={20} color="#fff" />
+          <Text style={styles.saveButtonText}>
+            {editMode ? "Update Item" : "Add Item"}
+          </Text>
+        </TouchableOpacity>
+      }
     >
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              {editMode ? "Edit Item" : "Add Item"}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#666" />
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>
+          विवरण / Description <Text style={styles.required}>*</Text>
+        </Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. मांगटीका"
+          placeholderTextColor="#999"
+          value={name}
+          onChangeText={setName}
+          autoFocus
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Metal</Text>
+        <View style={styles.metalRow}>
+          {JEWELLERY_METAL_OPTIONS.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.metalChip,
+                metal === option && styles.metalChipActive,
+              ]}
+              onPress={() => {
+                setMetal(option);
+                setPurity(PURITY_OPTIONS_BY_METAL[option][0]);
+              }}
+            >
+              <Text
+                style={[
+                  styles.metalText,
+                  metal === option && styles.metalTextActive,
+                ]}
+              >
+                {option === "gold" ? "Gold" : "Silver"}
+              </Text>
             </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            style={styles.body}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                विवरण / Description <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. मांगटीका"
-                placeholderTextColor="#999"
-                value={name}
-                onChangeText={setName}
-                autoFocus
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Metal</Text>
-              <View style={styles.metalRow}>
-                {JEWELLERY_METAL_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[
-                      styles.metalChip,
-                      metal === option && styles.metalChipActive,
-                    ]}
-                    onPress={() => {
-                      setMetal(option);
-                      setPurity(PURITY_OPTIONS_BY_METAL[option][0]);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.metalText,
-                        metal === option && styles.metalTextActive,
-                      ]}
-                    >
-                      {option === "gold" ? "Gold" : "Silver"}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>शुद्धता / Purity</Text>
-              <View style={styles.purityRow}>
-                {purityOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[
-                      styles.purityChip,
-                      purity === option && styles.purityChipActive,
-                    ]}
-                    onPress={() => setPurity(option)}
-                  >
-                    <Text
-                      style={[
-                        styles.purityText,
-                        purity === option && styles.purityTextActive,
-                      ]}
-                    >
-                      {option}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.inputGroup, styles.flex1]}>
-                <Text style={styles.label}>वजन / Weight (g)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="3.500"
-                  placeholderTextColor="#999"
-                  value={weight}
-                  onChangeText={(t) => setWeight(t.replace(/[^0-9.]/g, ""))}
-                  keyboardType="decimal-pad"
-                />
-              </View>
-
-              <View style={[styles.inputGroup, { width: 75, marginHorizontal: 8 }]}>
-                <Text style={styles.label}>मात्रा / Qty</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="1"
-                  placeholderTextColor="#999"
-                  value={qty}
-                  onChangeText={(t) => setQty(t.replace(/[^0-9]/g, ""))}
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={[styles.inputGroup, styles.flex1]}>
-                <Text style={styles.label}>दर / Rate (₹/g)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="14500"
-                  placeholderTextColor="#999"
-                  value={rate}
-                  onChangeText={(t) => setRate(t.replace(/[^0-9]/g, ""))}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                कुल राशि / Total (₹) <Text style={styles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={[styles.input, styles.totalInput]}
-                placeholder="0"
-                placeholderTextColor="#999"
-                value={total}
-                onChangeText={(t) => {
-                  setTotalTouched(true);
-                  setTotal(t.replace(/[^0-9]/g, ""));
-                }}
-                keyboardType="numeric"
-              />
-              {!totalTouched && (
-                <Text style={styles.hint}>Auto-calculated from weight × rate</Text>
-              )}
-            </View>
-          </ScrollView>
-
-          <TouchableOpacity
-            style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={!canSave}
-          >
-            <Ionicons name="checkmark-circle" size={20} color="#fff" />
-            <Text style={styles.saveButtonText}>
-              {editMode ? "Update Item" : "Add Item"}
-            </Text>
-          </TouchableOpacity>
+          ))}
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>शुद्धता / Purity</Text>
+        <View style={styles.purityRow}>
+          {purityOptions.map((option) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.purityChip,
+                purity === option && styles.purityChipActive,
+              ]}
+              onPress={() => setPurity(option)}
+            >
+              <Text
+                style={[
+                  styles.purityText,
+                  purity === option && styles.purityTextActive,
+                ]}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.row}>
+        <View style={[styles.inputGroup, styles.flex1]}>
+          <Text style={styles.label}>वजन / Weight (g)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="3.500"
+            placeholderTextColor="#999"
+            value={weight}
+            onChangeText={(t) => setWeight(t.replace(/[^0-9.]/g, ""))}
+            keyboardType="decimal-pad"
+          />
+        </View>
+
+        <View style={[styles.inputGroup, { width: 75, marginHorizontal: 8 }]}>
+          <Text style={styles.label}>मात्रा / Qty</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="1"
+            placeholderTextColor="#999"
+            value={qty}
+            onChangeText={(t) => setQty(t.replace(/[^0-9]/g, ""))}
+            keyboardType="numeric"
+          />
+        </View>
+
+        <View style={[styles.inputGroup, styles.flex1]}>
+          <Text style={styles.label}>दर / Rate (₹/g)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="14500"
+            placeholderTextColor="#999"
+            value={rate}
+            onChangeText={(t) => setRate(t.replace(/[^0-9]/g, ""))}
+            keyboardType="numeric"
+          />
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>
+          कुल राशि / Total (₹) <Text style={styles.required}>*</Text>
+        </Text>
+        <TextInput
+          style={[styles.input, styles.totalInput]}
+          placeholder="0"
+          placeholderTextColor="#999"
+          value={total}
+          onChangeText={(t) => {
+            setTotalTouched(true);
+            setTotal(t.replace(/[^0-9]/g, ""));
+          }}
+          keyboardType="numeric"
+        />
+        {!totalTouched && (
+          <Text style={styles.hint}>Auto-calculated from weight × rate</Text>
+        )}
+      </View>
+    </BottomSheet>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  content: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingBottom: 30,
-    maxHeight: "88%",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F2F5",
-  },
-  title: { fontSize: 18, fontWeight: "700", color: "#1A1A1A" },
-  body: { paddingHorizontal: 20, paddingTop: 16 },
   inputGroup: { marginBottom: 16 },
   row: { flexDirection: "row", gap: 12 },
   flex1: { flex: 1 },
@@ -344,8 +296,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     backgroundColor: "#007AFF",
-    marginHorizontal: 20,
-    marginTop: 8,
     paddingVertical: 16,
     borderRadius: 14,
   },
