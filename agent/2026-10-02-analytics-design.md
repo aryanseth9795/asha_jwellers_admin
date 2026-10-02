@@ -170,3 +170,46 @@ Built on `feat/old-jewellery-adjustments` per `agent/2026-10-02-analytics-plan.m
 - **Net metal flow** (§4.4) is not shown as its own figure; the Metal tab shows sold and received side by side, from which the net is read directly.
 - **Old Jewellery register** "This Year" became "This FY" (Apr–Mar) to agree with Analytics.
 - Known cosmetic edges, deferred: compact axis labels near unit boundaries (e.g. 99,999 shows "100K"); FY back-arrow has no lower bound (earlier years show the empty state); turning "All time" off returns to the current FY.
+
+## 10. Dynamic dashboard (v2, approved 2026-10-02)
+
+Owner request: "in-depth insight for each and every parameter, comparisons, enriched dashboard … dynamic, covers all future
+transactions." Approved time-frame design plus these additions. All numbers keep their §4 definitions.
+
+### 10.1 Time frames
+Chips **Week · Month · Quarter · FY · Custom · All**, ◀ ▶ to step. Week = Mon–Sun (day bars); Month = calendar month
+(week bars); Quarter = FY quarter Q1 Apr–Jun … Q4 Jan–Mar (week bars); FY = Apr–Mar (month bars); Custom = From–To
+inclusive (bars: ≤ 31 days day, ≤ 184 week, ≤ 1100 month, else year); All = first to last FY in the data (year bars).
+▶ stops at the period containing today.
+
+### 10.2 Comparison
+Every Overview KPI shows change vs the **previous equal period** (week, month, quarter, FY; Custom = same number of days
+immediately before). Month and Quarter also show **vs same period last year**. Change = delta and % (no % when the
+previous value is 0). Colour by meaning: up is good for sales, collected, collection rate, grams, customers; up is bad
+for baaki and old-return %.
+
+### 10.3 Tabs
+**Overview** (KPIs + auto insights + sales chart with previous period overlaid) · **Sales** (+ baaki aging) ·
+**Customers** (+ key customers) · **Villages** (new) · **Rehan** · **Metal** (+ categories) · **Trends** (new).
+
+### 10.4 New metrics
+| Metric | Definition |
+|---|---|
+| Collection rate | Collected ÷ net sales in the period; none when net sales is 0 |
+| Old-return % | old jewellery value ÷ sales in the period |
+| Baaki at period end | Σ over bills dated before the instant of max(0, net − payments dated before it); instant = period end, capped at now. Reconstructed from payment dates (legacy `lenden.jama` at bill date), so it can differ slightly from the stored `baki` if entries were hand-edited |
+| Baaki aging | open entries (status 0, baki > 0) by bill age: 0–30, 31–90, 91–180, 181–365 days, > 1 year |
+| Category | metal + purity of sold items: Gold 24KT/22KT/18KT, Silver Desi/Fancy, "(no purity)" when blank or legacy "Silver"; metal not gold/silver → "Unknown metal". Value, grams, item count, share, growth vs previous period; categories present only in the previous period are kept (shown as a fall) |
+| Village | text before the first comma of `users.address`, whitespace collapsed, case-insensitive; blank → "No address". Display name = most common spelling. Customers (all-time), buyers and sales in the period, share, growth vs previous, open baaki |
+| Key customers | top 10 buyers by period sales with share, lifetime sales, open baaki, visits; plus "top 20 % of buyers bring X % of sales" |
+| Trends | last 8 weeks / 6 months / 4 quarters / 5 FYs (Custom → months, All → FYs): bills, sales, collected, collection rate, old returned, baaki at end, gold g, silver g, each with change vs the row before |
+
+### 10.5 Insights (generated, shown only when the data supports them)
+Sales up/down/flat vs previous · best day/week/month/year · top-selling category share · fastest-growing category ·
+category falling > 10 % · top village share · top-20 % concentration (≥ 5 buyers) · baaki rose/fell · baaki older than
+6 months · collection rate < 60 % · old jewellery ≥ 15 % of sales.
+
+### 10.6 Dynamic by construction
+Nothing is precomputed or stored. Every screen focus (and pull-to-refresh) re-reads the ledger and recomputes; villages,
+categories and periods are discovered from the data, so new transactions, customers, villages and purities appear
+without changing the app.
