@@ -178,6 +178,7 @@ export type RootStackParamList = {
   };
   UpdateBhav: undefined;
   OldJewelleryRegister: undefined;
+  Analytics: undefined;
   // Category management screens
   CategoryList: undefined;
   AddEditCategory: {

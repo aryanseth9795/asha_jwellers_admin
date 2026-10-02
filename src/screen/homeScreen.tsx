@@ -164,6 +164,23 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={[styles.card, styles.cardBhav]}
+              onPress={() => navigation.navigate("Analytics")}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.cardIconContainer, styles.iconContainerAnalytics]}>
+                <Ionicons name="bar-chart" size={32} color="#2E7D32" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={[styles.cardTitle, styles.textDark]}>Analytics</Text>
+                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
+                  Sales, customers, rehan & metal
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#2E7D32" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.card, styles.cardCategory]}
               onPress={() => navigation.navigate("CategoryList")}
               activeOpacity={0.9}
@@ -326,6 +343,9 @@ const styles = StyleSheet.create({
   },
   iconContainerOld: {
     backgroundColor: "#F5E8CF",
+  },
+  iconContainerAnalytics: {
+    backgroundColor: "#EEF8EF",
   },
   cardCategory: {
     backgroundColor: "#fff",

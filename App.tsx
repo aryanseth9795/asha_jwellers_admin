@@ -22,6 +22,7 @@ import TransactionDetailScreen from "./src/screen/TransactionDetailScreen";
 import BillPreviewScreen from "./src/screen/BillPreviewScreen";
 import UpdateBhavScreen from "./src/screen/UpdateBhavScreen";
 import OldJewelleryRegisterScreen from "./src/screen/OldJewelleryRegisterScreen";
+import AnalyticsScreen from "./src/screen/AnalyticsScreen";
 import CategoryListScreen from "./src/screen/CategoryListScreen";
 import AddEditCategoryScreen from "./src/screen/AddEditCategoryScreen";
 import ProductListScreen from "./src/screen/ProductListScreen";
@@ -172,6 +173,11 @@ export default function App() {
             name="OldJewelleryRegister"
             component={OldJewelleryRegisterScreen}
             options={{ title: "Old Jewellery" }}
+          />
+          <Stack.Screen
+            name="Analytics"
+            component={AnalyticsScreen}
+            options={{ title: "Analytics" }}
           />
           <Stack.Screen
             name="CategoryList"
