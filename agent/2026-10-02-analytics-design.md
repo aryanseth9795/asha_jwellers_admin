@@ -225,3 +225,91 @@ Built on `feat/old-jewellery-adjustments` per `agent/2026-10-02-dashboard-v2-pla
 - **Trends chart labels** are short forms of the period (FY "25-26", quarter "Q1 26", month "Aug", week "5 Oct"); the table shows full labels.
 - **Printed bill** (owner change in 77b0ea8): the itemised old-jewellery table is no longer printed; the credit shows only in the Hindi payment summary. Old items, their metal and purity are still stored and feed Analytics.
 - **In-progress periods are compared with the same number of days** of the previous / last-year period (e.g. 1–2 Oct vs 1–2 Sep); the chart overlay still shows the whole previous period; the newest Trends row is marked "(so far)".
+
+## 12. Insights report layout (v3, approved 2026-10-02)
+
+Source: owner-supplied `Rehan & Lenden Insights.html`, a static report built from an export of this ledger (549 pledges,
+12 bills, 291 customers). v3 rebuilds that report inside the app on live data. Owner decisions: **follow the report's
+layout**, **report filters for pledge charts + time frame for billing**, **Data quality tab**, **item types by keyword
+rules** (no data-entry change).
+
+### 12.1 Tabs
+| Tab | Filters | Content |
+|---|---|---|
+| Overview | pledge filters | Key findings (Risk / Watch / Upside / Data) + headline numbers |
+| Rehan book | pledge filters | opened vs redeemed per month · open principal at month-end · age of open pledges · time to redeem · pledge size · cohorts by year · day of week opened · interest what-if |
+| Items | pledge filters (rankings ignore the item filter) | items ranked · item mix by quarter · single items vs bundles · item scorecard |
+| Customers & Villages | pledge filters (rankings ignore the village filter) | villages ranked · concentration · village scorecard · largest open exposures · repeat customers · customers added per month · customers by activity · watchlist |
+| Billing | time frame + village | sub-tabs: **Summary** (billing summary, gross → cash, collected vs pending per bill, discount per bill, numbered vs earlier bills, all bills with flags) · **Sales** (v2 KPIs with ▲▼, insights, sales chart, baaki aging) · **Metal** (v2 metal + categories) · **Trends** (v2) · **Customers** (v2 key customers, tiers, villages by sales) |
+| Together | pledge filters (village also applies to bills) | scale of the two ledgers · village share in each ledger |
+| Data quality | none (always the whole ledger) | checks tagged Fix / Check / Note / Good · field coverage |
+
+Pledge filters: **Village** (grouped villages), **Item** (item types), **Opened in** (years present), **Status** (All /
+Open / Redeemed), **Reset**, and "Showing N of M pledges".
+
+### 12.2 Pledge definitions (rehan)
+| Field | Definition |
+|---|---|
+| Principal | amount lent = `principalOf` (§4.3: current balance − Σdiya + Σjama, ≥ 0). The report used the stored amount because its export had no transactions; in the app the stored amount is a running balance |
+| Open / redeemed | status 0 / status 1 |
+| Open book | Σ principal of open pledges |
+| Days open | today − opened (open pledges); days to redeem = closed − opened |
+| Photo | `rehan.media` holds at least one image |
+| Item type | first recognised item word in `productName` (§12.4); none → **Other**; blank or numbers only → **Unspecified** |
+| Bundle | product name naming two or more different item types |
+| Village | customer's village (§12.5) |
+
+Buckets: age and time-to-redeem `≤3 mo, 3–6 mo, 6–12 mo, 1–2 yr, 2 yr +` (months = days ÷ 30.44); pledge size `<1K, 1–2.5K,
+2.5–5K, 5–10K, 10–20K, 20–40K, 40K+`; pledges per customer `1, 2, 3, 4–6, 7+`. Concentration: customers ranked by
+principal; share held by the top 10 %, 20 %, 50 % (counts rounded up) and the ten largest. Interest what-if: rate per
+month (default 2 %, 0.5 % steps, 0.5–5 %): per month = open book × rate; per year = × 12; accrued to date = Σ open
+principal × rate × days open ÷ 30.
+
+### 12.3 Billing definitions (len-den)
+Gross = amount; Net = gross − discount − old jewellery credit (stored `remaining`); **Collected = net − baki** (snapshot, as
+in the report); Pending = baki on open bills; Received = Σ jama_entries (legacy `lenden.jama` when there are none).
+Flags per bill: **Customer not on file** (red), **Received field blank** (received 0 while collected > 0, red),
+**Received field short** (0 < received < collected, red), **Amount overridden** (grey), **No bill number** (grey).
+Numbered vs earlier: bills with a bill number vs without — bills, gross, net, average net, discount rate, collected share,
+pending, customers, bills with a photo. The v2 cash-by-payment-date "Collected" stays in the Sales sub-tab.
+
+### 12.4 Item keyword rules
+Lower-case the product name, split on non-letters, take the first word found here:
+Payal: payal, paayal · Locket: locket, loket · Bunda: bunda · Anguthi: anguthi, angoothi, angothi, ring · Chain: chain ·
+Kardhan: kardhan, kardhani, krdhn, krdhan · Chhagal: chhagal, chagal · Jhala: jhala · Tika: tika, tikka · Kil: kil, keel ·
+Jhumka: jhumka, jhumki · Nathiya / Nathuni: nathiya, nathuni, nath · Toda: toda · Tops: tops, top · Bali: bali ·
+Mangalsutra: mangalsutra · Hath mehndi: hath, mehndi · Sikdi: sikdi · Haar: haar, har · Kundal: kundal ·
+Kada: kada, bracelet · Guchha: guchha, chabhi · Jantar: jantar · Bal choti: bal, baal, choti · Latkan: latkan ·
+Chudi: chudi, choodi · Peti: peti · Hasuli: hasuli, hansuli.
+Reproduces the report's grouping of its 210 spellings, e.g. "Hk Payal" → Payal, "Krdhn hath mehndi" → Kardhan,
+"Top locket" → Tops, "1 lar" → Other, "3.800" → Unspecified. Unknown words are skipped, so new spellings fall to Other
+until a keyword is added.
+
+### 12.5 Villages (refines §10.4)
+Text before the first comma of the address, punctuation removed, spaces collapsed, case-insensitive; display = most
+common spelling. Blank → **Unknown**. Villages with fewer than **5 customers** are grouped as **Other villages**
+(report rule). Recomputed from live data, so a village leaves "Other" once it reaches 5 customers.
+
+### 12.6 Key findings (generated; each only when its condition holds)
+Risk: open pledges a year old or more ≥ 25 % of open principal (counts and ₹ past 12 and 24 months; median days to
+redeem) · unpaid billing (pending ₹ of net billed; share on customers not on file; oldest unpaid bill in days).
+Watch: top two villages' share of the open book ≥ 40 % · item with the largest open exposure (share; its redemption rate
+vs overall) · lowest redemption rate among villages with ≥ 10 pledges vs the best · ten largest customers' share of open
+principal, customers with ≥ ₹50,000 open, the largest · photo coverage < 50 %.
+Upside: customers with more than one pledge (share of customers and of principal; customers with 7+ pledges) · overlap
+between billing and pledging customers.
+Data: longest run of ≥ 2 months with no new pledge inside the logged span.
+
+### 12.7 Data quality checks (whole ledger, unfiltered)
+Fix: pledges or bills whose customer is missing · bills whose received differs from net − baki.
+Check: possible duplicate customers (same cleaned name + village on more than one ID) · months with no new pledge ·
+photo coverage of pledges and bills · phone coverage · pledges with no amount · status/date inconsistencies (closed
+without a close date, close before open, open with a close date).
+Note: item names that fall to Other · customers without a village. Good: a check that finds nothing.
+Coverage bars: pledges linked to a customer · with an amount · with an item name · with a photo · customers with a
+village · with a phone number · bills with a bill number · bills whose received matches the balance · bills whose
+customer is on file. Bars below 50 % are orange.
+
+### 12.8 Out of scope
+The HTML's theme toggle and Chart/Table switches (the app shows one view per card, a table where the report's table is the
+primary view) and click-to-filter on charts (filters are set from the filter bar).
