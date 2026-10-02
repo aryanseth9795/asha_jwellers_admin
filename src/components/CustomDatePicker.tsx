@@ -172,7 +172,6 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
       visible={visible}
       onClose={onClose}
       title="Select Date"
-      scroll={false}
       footer={
         <View style={styles.quickActions}>
           <TouchableOpacity
@@ -293,6 +292,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    minHeight: 44,
     paddingVertical: 8,
     paddingHorizontal: 16,
     backgroundColor: "#F0F7FF",
@@ -378,6 +378,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickButton: {
+    minHeight: 44,
+    justifyContent: "center",
     paddingVertical: 10,
     paddingHorizontal: 24,
     backgroundColor: "#F0F7FF",
