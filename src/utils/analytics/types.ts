@@ -5,6 +5,8 @@ export interface UserRow {
   id: number;
   name: string;
   address?: string | null;
+  mobileNumber?: string | null;
+  createdAt?: string | null;
 }
 
 export interface LendenRow {
@@ -16,6 +18,10 @@ export interface LendenRow {
   jama: number | null; // legacy total; duplicates jama_entries when they exist
   baki: number | null;
   status: number | null; // 0 open, 1 closed
+  remaining?: number | null; // net payable
+  billNo?: number | null;
+  amountOverridden?: number | null;
+  media?: string | null;
 }
 
 export interface JamaRow {
@@ -31,6 +37,8 @@ export interface RehanRow {
   closedDate: string | null;
   status: number | null;
   amount: number | null; // running balance, not the opening principal
+  productName?: string | null;
+  media?: string | null; // JSON array of image paths
 }
 
 export interface RehanTxRow {

@@ -1,4 +1,5 @@
-import { buildVillageView, villageKey, villageLabel } from "./villages";
+import { buildVillageView, groupVillages, villageKey, villageLabel, villageName } from "./villages";
+import { fixtureData } from "./report/fixture";
 import { fyPeriod } from "./periods";
 import { AnalyticsData, LendenRow } from "./types";
 
@@ -62,5 +63,25 @@ describe("buildVillageView", () => {
 
   it("has no growth without a previous period", () => {
     expect(buildVillageView(data, fyPeriod(2026), null)[0].growth).toBeNull();
+  });
+});
+
+describe("village cleaning and grouping (spec §12.5)", () => {
+  it("drops punctuation", () => {
+    expect(villageName("Manwal .")).toBe("Manwal");
+    expect(villageName("Manwal, Jaunpur")).toBe("Manwal");
+    expect(villageName("Kanja-")).toBe("Kanja");
+  });
+
+  it("groups small villages and blank addresses", () => {
+    const groups = groupVillages(fixtureData.users);
+    expect(groups.of.get(1)).toBe("Manwal");
+    expect(groups.of.get(12)).toBe("Manwal");
+    expect(groups.of.get(3)).toBe("Kanja");
+    expect(groups.of.get(11)).toBe("Other villages");
+    expect(groups.of.get(13)).toBe("Unknown");
+    expect(groups.customers.get("Manwal")).toBe(6);
+    expect(groups.customers.get("Kanja")).toBe(5);
+    expect(groups.order).toEqual(["Manwal", "Kanja", "Other villages", "Unknown"]);
   });
 });

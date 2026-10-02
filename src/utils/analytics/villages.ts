@@ -1,4 +1,4 @@
-import { AnalyticsData } from "./types";
+import { AnalyticsData, UserRow } from "./types";
 import { Period, inPeriod } from "./periods";
 import { Change, change } from "./compare";
 
@@ -13,9 +13,12 @@ export interface VillageStat {
   growth: Change | null;
 }
 
-/** The text before the first comma, with spacing collapsed. */
+// ASCII punctuation and the Devanagari danda; "Manwal ." and "Manwal" are one village.
+const PUNCTUATION = /[.,;:!?'"()[\]{}/\\|_*#@&+=~`^\-।]/g;
+
+/** The text before the first comma, punctuation removed and spacing collapsed. */
 export const villageName = (address: string | null | undefined): string =>
-  (address ?? "").split(",")[0].replace(/\s+/g, " ").trim();
+  (address ?? "").split(",")[0].replace(PUNCTUATION, " ").replace(/\s+/g, " ").trim();
 
 export const villageKey = (address: string | null | undefined): string =>
   villageName(address).toLowerCase();
@@ -78,3 +81,63 @@ export const buildVillageView = (
   }
   return [...stats.values()].sort((a, b) => b.sales - a.sales || b.customers - a.customers);
 };
+
+export const OTHER_VILLAGES = "Other villages";
+export const UNKNOWN_VILLAGE = "Unknown";
+export const MIN_VILLAGE_CUSTOMERS = 5;
+
+export interface VillageGroups {
+  of: Map<number, string>; // userId → grouped village
+  customers: Map<string, number>; // grouped village → customers on file
+  order: string[]; // named villages by customers, then Other villages, then Unknown
+}
+
+const mostCommon = (counts: Map<string, number>): string => {
+  let best = "";
+  let bestCount = 0;
+  for (const [spelling, count] of counts) {
+    if (count > bestCount) {
+      best = spelling;
+      bestCount = count;
+    }
+  }
+  return best;
+};
+
+/** Spec §12.5: villages with fewer than 5 customers become "Other villages"; blank is "Unknown". */
+export const groupVillages = (users: UserRow[]): VillageGroups => {
+  const byKey = new Map<string, { ids: number[]; spellings: Map<string, number> }>();
+  for (const user of users) {
+    const name = villageName(user.address);
+    const key = name.toLowerCase();
+    const group = byKey.get(key) ?? { ids: [], spellings: new Map<string, number>() };
+    group.ids.push(user.id);
+    group.spellings.set(name, (group.spellings.get(name) ?? 0) + 1);
+    byKey.set(key, group);
+  }
+
+  const of = new Map<number, string>();
+  const customers = new Map<string, number>();
+  const named: { name: string; count: number }[] = [];
+  for (const [key, group] of byKey) {
+    let village: string;
+    if (key === "") village = UNKNOWN_VILLAGE;
+    else if (group.ids.length < MIN_VILLAGE_CUSTOMERS) village = OTHER_VILLAGES;
+    else {
+      village = mostCommon(group.spellings);
+      named.push({ name: village, count: group.ids.length });
+    }
+    group.ids.forEach((id) => of.set(id, village));
+    customers.set(village, (customers.get(village) ?? 0) + group.ids.length);
+  }
+  named.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  const order = [
+    ...named.map((n) => n.name),
+    ...[OTHER_VILLAGES, UNKNOWN_VILLAGE].filter((v) => customers.has(v)),
+  ];
+  return { of, customers, order };
+};
+
+/** A customer's grouped village; Unknown when the customer is not on file. */
+export const villageOfUser = (groups: VillageGroups, userId: number): string =>
+  groups.of.get(userId) ?? UNKNOWN_VILLAGE;

@@ -23,13 +23,15 @@ const openDatabase = async () => {
 export const getAnalyticsData = async (): Promise<AnalyticsData> => {
   const database = await openDatabase();
   return {
-    users: await database.getAllAsync<UserRow>("SELECT id, name, address FROM users"),
+    users: await database.getAllAsync<UserRow>(
+      "SELECT id, name, address, mobileNumber, createdAt FROM users",
+    ),
     lenden: await database.getAllAsync<LendenRow>(
-      "SELECT id, userId, date, amount, discount, jama, baki, status FROM lenden",
+      "SELECT id, userId, date, amount, discount, remaining, jama, baki, status, billNo, amountOverridden, media FROM lenden",
     ),
     jama: await database.getAllAsync<JamaRow>("SELECT lendenId, amount, date FROM jama_entries"),
     rehan: await database.getAllAsync<RehanRow>(
-      "SELECT id, userId, openDate, closedDate, status, amount FROM rehan",
+      "SELECT id, userId, openDate, closedDate, status, amount, productName, media FROM rehan",
     ),
     rehanTx: await database.getAllAsync<RehanTxRow>(
       "SELECT rehanId, type, amount, date FROM rehan_transactions",
