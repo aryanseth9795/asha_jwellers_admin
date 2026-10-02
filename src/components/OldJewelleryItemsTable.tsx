@@ -7,6 +7,7 @@ import {
   formatRupees,
   formatWeight,
 } from "../utils/billFormat";
+import { sumOldJewelleryValues } from "../utils/lendenSettlement";
 
 interface OldJewelleryItemsTableProps {
   items: NewOldJewelleryItem[];
@@ -14,6 +15,8 @@ interface OldJewelleryItemsTableProps {
   onAdd?: () => void;
   onEdit?: (index: number) => void;
   onDelete?: (index: number) => void;
+  // When given, a "New − Old = Net" line shows how the exchange adjusts the sale.
+  newJewelleryTotal?: number;
 }
 
 const OldJewelleryItemsTable: React.FC<OldJewelleryItemsTableProps> = ({
@@ -22,6 +25,7 @@ const OldJewelleryItemsTable: React.FC<OldJewelleryItemsTableProps> = ({
   onAdd,
   onEdit,
   onDelete,
+  newJewelleryTotal,
 }) => {
   if (items.length === 0) {
     return (
@@ -100,6 +104,18 @@ const OldJewelleryItemsTable: React.FC<OldJewelleryItemsTableProps> = ({
           )}
         </View>
       ))}
+
+      {newJewelleryTotal !== undefined && (
+        <View style={styles.netRow}>
+          <Text style={styles.netText}>
+            New {formatRupees(newJewelleryTotal)} − Old{" "}
+            {formatRupees(sumOldJewelleryValues(items))}
+          </Text>
+          <Text style={styles.netValue}>
+            = {formatRupees(newJewelleryTotal - sumOldJewelleryValues(items))}
+          </Text>
+        </View>
+      )}
 
       {editable && onAdd && (
         <TouchableOpacity style={styles.addButton} onPress={onAdd}>
@@ -185,6 +201,17 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   addButtonText: { color: "#8C5B14", fontSize: 14, fontWeight: "700" },
+  netRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#F5E8CF",
+  },
+  netText: { flex: 1, color: "#7A6B58", fontSize: 13 },
+  netValue: { color: "#7C4A08", fontSize: 15, fontWeight: "800" },
 });
 
 export default OldJewelleryItemsTable;

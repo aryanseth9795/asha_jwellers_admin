@@ -5,7 +5,6 @@ import {
   OldJewelleryItem,
   Purity,
 } from "../types/entry";
-import { OldJewelleryRegisterRow } from "../utils/oldJewelleryRegister";
 
 // entryDatabase.ts owns schema creation; this module only reads and writes rows.
 let db: SQLite.SQLiteDatabase | null = null;
@@ -88,39 +87,5 @@ export const replaceLendenOldJewelleryItems = async (
   } catch (error) {
     console.error("Error replacing old jewellery items:", error);
     throw error;
-  }
-};
-
-interface RegisterQueryRow extends OldJewelleryItemRow {
-  date: string;
-  billNo: number | null;
-  userId: number;
-  userName: string;
-}
-
-/** Every old jewellery item received across all Len-Den entries, newest first. */
-export const getOldJewelleryRegister = async (): Promise<
-  OldJewelleryRegisterRow[]
-> => {
-  try {
-    const database = await openDatabase();
-    const rows = await database.getAllAsync<RegisterQueryRow>(
-      `SELECT o.id, o.lendenId, o.position, o.description, o.metal, o.purity,
-              o.weight, o.value, l.date, l.billNo, l.userId, u.name AS userName
-       FROM lenden_old_jewellery_items o
-       JOIN lenden l ON o.lendenId = l.id
-       JOIN users u ON l.userId = u.id
-       ORDER BY l.date DESC, o.lendenId DESC, o.position ASC`,
-    );
-    return rows.map((row) => ({
-      ...toOldJewelleryItem(row),
-      date: row.date,
-      billNo: row.billNo,
-      userId: row.userId,
-      userName: row.userName,
-    }));
-  } catch (error) {
-    console.error("Error getting old jewellery register:", error);
-    return [];
   }
 };

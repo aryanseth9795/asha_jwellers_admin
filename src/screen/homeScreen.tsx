@@ -144,27 +144,6 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
             <TouchableOpacity
               style={[styles.card, styles.cardBhav]}
-              onPress={() => navigation.navigate("OldJewelleryRegister")}
-              activeOpacity={0.9}
-            >
-              <View
-                style={[styles.cardIconContainer, styles.iconContainerOld]}
-              >
-                <Ionicons name="repeat" size={32} color="#8C5B14" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={[styles.cardTitle, styles.textDark]}>
-                  Old Jewellery
-                </Text>
-                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
-                  Gold & silver received in exchange
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#8C5B14" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.card, styles.cardBhav]}
               onPress={() => navigation.navigate("Analytics")}
               activeOpacity={0.9}
             >
@@ -340,9 +319,6 @@ const styles = StyleSheet.create({
   },
   iconContainerBhav: {
     backgroundColor: "#FEF9E7",
-  },
-  iconContainerOld: {
-    backgroundColor: "#F5E8CF",
   },
   iconContainerAnalytics: {
     backgroundColor: "#EEF8EF",

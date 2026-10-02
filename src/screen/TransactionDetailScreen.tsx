@@ -882,14 +882,17 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         )}
 
-        {transactionType === "lenden" && (isEditMode || oldJewelleryItems.length > 0) && (
+        {transactionType === "lenden" && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Old Jewellery Exchange</Text>
+            <Text style={styles.sectionTitle}>Old Jewellery Returned</Text>
             <Text style={styles.sectionSubtitle}>
-              Credit received from the customer against this Len-Den sale
+              Its value is subtracted from the new jewellery on this bill
             </Text>
             <OldJewelleryItemsTable
               items={oldJewelleryItems}
+              newJewelleryTotal={
+                lendenItems.length > 0 ? itemsTotal : lenden?.amount ?? 0
+              }
               editable={isEditMode}
               onAdd={() => {
                 setEditingOldJewelleryIndex(null);

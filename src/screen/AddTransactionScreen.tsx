@@ -11,7 +11,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Switch,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -88,7 +87,6 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
   // Optional old jewellery received as credit against the new sale.
-  const [oldJewelleryEnabled, setOldJewelleryEnabled] = useState(false);
   const [oldJewelleryItems, setOldJewelleryItems] = useState<
     NewOldJewelleryItem[]
   >([]);
@@ -98,10 +96,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   >(null);
 
   const itemsTotal = sumItemTotals(lendenItems);
-  const activeOldJewelleryItems = oldJewelleryEnabled
-    ? oldJewelleryItems
-    : [];
-  const oldJewelleryCredit = sumOldJewelleryValues(activeOldJewelleryItems);
+  const oldJewelleryCredit = sumOldJewelleryValues(oldJewelleryItems);
   const totalJama = jamaEntries.reduce((sum, entry) => sum + entry.amount, 0);
   const settlement = calculateLendenSettlement({
     grossTotal: itemsTotal,
@@ -199,14 +194,6 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
-    if (entryType === "lenden" && oldJewelleryEnabled && oldJewelleryItems.length === 0) {
-      Alert.alert(
-        "Validation Error",
-        "Add an old jewellery item or turn off old jewellery exchange.",
-      );
-      return;
-    }
-
     if (entryType === "lenden" && settlement.netPayable < 0) {
       Alert.alert(
         "Validation Error",
@@ -272,7 +259,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
 
         await replaceLendenOldJewelleryItems(
           lendenId,
-          activeOldJewelleryItems,
+          oldJewelleryItems,
         );
       }
 
@@ -441,35 +428,17 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
 
               <View style={{ marginBottom: 16 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: oldJewelleryEnabled ? 12 : 0,
-                  }}
+                <Text
+                  style={[styles.sectionTitle, { fontSize: 16, marginBottom: 2 }]}
                 >
-                  <View style={{ flex: 1, paddingRight: 12 }}>
-                    <Text
-                      style={[
-                        styles.sectionTitle,
-                        { fontSize: 16, marginBottom: 2 },
-                      ]}
-                    >
-                      Old Jewellery Exchange
-                    </Text>
-                    <Text style={styles.helperText}>
-                      Optional customer credit against this sale
-                    </Text>
-                  </View>
-                  <Switch
-                    value={oldJewelleryEnabled}
-                    onValueChange={setOldJewelleryEnabled}
-                  />
-                </View>
-                {oldJewelleryEnabled && (
-                  <OldJewelleryItemsTable
+                  Old Jewellery Returned
+                </Text>
+                <Text style={[styles.helperText, { marginBottom: 12 }]}>
+                  Optional — its value is subtracted from the new jewellery
+                </Text>
+                <OldJewelleryItemsTable
                     items={oldJewelleryItems}
+                    newJewelleryTotal={itemsTotal}
                     editable
                     onAdd={() => {
                       setEditingOldJewelleryIndex(null);
@@ -485,7 +454,6 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
                       );
                     }}
                   />
-                )}
               </View>
 
               <View style={styles.inputContainer}>

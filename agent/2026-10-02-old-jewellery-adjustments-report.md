@@ -176,3 +176,18 @@ logic that matters was kept in pure `.ts` modules.
 
 - Register "This Year" now uses the Indian financial year (Apr–Mar), matching Analytics (done).
 - Legacy items stay "unknown" until edited one by one; there's no bulk "set metal" action.
+
+## 8. Follow-up — old jewellery lives only inside Len-Den
+
+At the owner's request, old jewellery is no longer a separate place in the app; it is part of a single Len-Den bill
+(new jewellery − old jewellery value − discount = net payable, then jama and baki).
+
+- **Removed:** the Old Jewellery register (Home card, `OldJewelleryRegisterScreen`, `getOldJewelleryRegister`,
+  `src/utils/oldJewelleryRegister.ts` and its tests, the `OldJewelleryRegister` route). §3.3's register query,
+  §3.5 and §4.4 above describe that removed code. Old gold/silver received is still reported in Analytics → Metal.
+- **Add entry (`AddTransactionScreen`):** the on/off switch is gone. An "Old Jewellery Returned" section is always
+  shown under Jewellery Items; with no items it costs nothing. The "turn on but add nothing" validation went with it.
+- **Entry detail (`TransactionDetailScreen`):** the same section shows on every Len-Den entry, not only in edit mode
+  or when items exist.
+- **`OldJewelleryItemsTable`:** new optional `newJewelleryTotal` prop renders a live
+  `New ₹X − Old ₹Y = ₹Z` line, so the exchange adjustment is visible before the discount/jama summary.
