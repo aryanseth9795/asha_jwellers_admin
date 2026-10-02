@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     overflow: "hidden",
+    flexShrink: 1,
   },
   handle: {
     alignSelf: "center",
