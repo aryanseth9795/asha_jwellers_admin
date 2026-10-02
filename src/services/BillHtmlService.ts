@@ -132,8 +132,8 @@ export function buildBillHtml(data: BillData): string {
         <td class="c">${item.position}</td>
         <td class="desc">${esc(item.name)}</td>
         <td class="c">${weightCell}</td>
-        <td class="c">${esc(metalPurity)}</td>
         <td class="c">${item.qty ?? 1}</td>
+        <td class="c">${esc(metalPurity)}</td>
         <td class="r">${esc(formatRupees(item.total))}</td>
       </tr>`;
     })
@@ -446,8 +446,8 @@ export function buildBillHtml(data: BillData): string {
             <th style="width:9mm">Sl.No.</th>
             <th>Description</th>
             <th style="width:22mm">Weight</th>
-            <th style="width:23mm">Metal/Purity</th>
             <th style="width:11mm">Qty.</th>
+            <th style="width:23mm">Metal/Purity</th>
             <th style="width:23mm">Amount</th>
           </tr>
         </thead>
@@ -456,8 +456,9 @@ export function buildBillHtml(data: BillData): string {
         </tbody>
         <tfoot>
           <tr class="table-total-row">
-            <td colspan="4" class="r-total">Total</td>
+            <td colspan="3" class="r-total">Total</td>
             <td class="c">${totalQty}</td>
+            <td></td>
             <td class="r">${esc(formatRupees(itemsTotal))}</td>
           </tr>
         </tfoot>

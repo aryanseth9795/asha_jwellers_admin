@@ -73,6 +73,16 @@ describe("buildBillHtml", () => {
     expect(html).toContain("Amount");
   });
 
+  it("orders item columns as the template prints them: Weight, Qty., Metal/Purity", () => {
+    const html = buildBillHtml(data({ items: [item({ qty: 2 })] }));
+    const head = html.slice(html.indexOf('<table class="items">'), html.indexOf("</thead>"));
+    expect(head.indexOf("Weight")).toBeLessThan(head.indexOf("Qty."));
+    expect(head.indexOf("Qty.")).toBeLessThan(head.indexOf("Metal/Purity"));
+    const row = html.slice(html.indexOf("<tbody>"), html.indexOf("</tbody>"));
+    expect(row.indexOf("3.500 ग्राम")).toBeLessThan(row.indexOf(">2<"));
+    expect(row.indexOf(">2<")).toBeLessThan(row.indexOf("Gold / 22KT"));
+  });
+
   it("embeds the template exactly once and bands it with compressed header and bottom-anchored footer", () => {
     const html = buildBillHtml(data());
     expect(html.split("data:image/jpeg;base64,AAAA").length - 1).toBe(1);
