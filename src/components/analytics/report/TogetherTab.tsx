@@ -10,9 +10,15 @@ import HBars from "./HBars";
 
 const inrC = (n: number) => `₹${formatCompactRupees(n)}`;
 
-const TogetherTab: React.FC<{ pledges: PledgeRow[]; bills: BillRow[]; order: string[] }> = ({ pledges, bills, order }) => {
+const TogetherTab: React.FC<{
+  pledges: PledgeRow[];
+  bills: BillRow[];
+  sharePledges: PledgeRow[];
+  shareBills: BillRow[];
+  order: string[];
+}> = ({ pledges, bills, sharePledges, shareBills, order }) => {
   const scale = ledgerScale(pledges, bills);
-  const shares = villageShares(pledges, bills, order);
+  const shares = villageShares(sharePledges, shareBills, order);
   return (
     <View>
       <ReportCard

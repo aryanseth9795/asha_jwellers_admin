@@ -176,7 +176,7 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
       navigation.navigate("UserTransactions", { userId, userName });
     switch (tab) {
       case "Overview":
-        return <OverviewTab pledges={view.pledges} bills={view.villageBills} names={report.names} customersOnFile={data.users.length} />;
+        return <OverviewTab pledges={view.pledges} bills={view.villageBills} names={report.names} customersOnFile={filters.village === "all" ? data.users.length : report.groups.customers.get(filters.village) ?? 0} />;
       case "Rehan book":
         return <RehanBookTab pledges={view.pledges} now={report.now} />;
       case "Items":
@@ -194,7 +194,13 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
           />
         );
       case "Together":
-        return <TogetherTab pledges={view.pledges} bills={view.villageBills} order={report.groups.order} />;
+        return <TogetherTab
+            pledges={view.pledges}
+            bills={view.villageBills}
+            sharePledges={view.byVillageRank}
+            shareBills={report.bills}
+            order={report.groups.order}
+          />;
       case "Data quality":
         return <DataQualityTab report={report.quality} />;
       case "Billing":

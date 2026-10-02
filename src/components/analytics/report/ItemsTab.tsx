@@ -34,7 +34,7 @@ const ItemsTab: React.FC<{
 }> = ({ pledges, rankingPledges, selectedItem, now }) => {
   const [metric, setMetric] = useState<ItemMetric>("principal");
   const ranked = rankItems(rankingPledges);
-  const mix = itemMixByQuarter(pledges, now, 8, 3);
+  const mix = itemMixByQuarter(rankingPledges, now, 8, 3);
   const bundles = bundleStats(pledges);
   return (
     <View>

@@ -47,7 +47,8 @@ const CustomersVillagesTab: React.FC<{
   const watch = exposures(pledges, data.users, 15);
   const repeat = repeatCustomers(pledges);
   const repeaters = repeat.slice(1).reduce((n, b) => n + b.customers, 0);
-  const added = customersAdded(data.users, new Date());
+  const addedUsers = village === "all" ? data.users : data.users.filter((u) => groups.of.get(u.id) === village);
+  const added = customersAdded(addedUsers, new Date());
   const segments = customerSegments(data, allPledges, groups, village);
   return (
     <View>
