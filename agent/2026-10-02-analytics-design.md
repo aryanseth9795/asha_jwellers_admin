@@ -277,12 +277,12 @@ pending, customers, bills with a photo. The v2 cash-by-payment-date "Collected" 
 Lower-case the product name, split on non-letters, take the first word found here:
 Payal: payal, paayal · Locket: locket, loket · Bunda: bunda · Anguthi: anguthi, angoothi, angothi, ring · Chain: chain ·
 Kardhan: kardhan, kardhani, krdhn, krdhan · Chhagal: chhagal, chagal · Jhala: jhala · Tika: tika, tikka · Kil: kil, keel ·
-Jhumka: jhumka, jhumki · Nathiya / Nathuni: nathiya, nathuni, nath · Toda: toda · Tops: tops, top · Bali: bali ·
+Jhumka: jhumka, jhumki · Nathiya / Nathuni: nathiya, nthiya, nathuni, nath · Toda: toda · Tops: tops, top · Bali: bali ·
 Mangalsutra: mangalsutra · Hath mehndi: hath, mehndi · Sikdi: sikdi · Haar: haar, har · Kundal: kundal ·
 Kada: kada, bracelet · Guchha: guchha, chabhi · Jantar: jantar · Bal choti: bal, baal, choti · Latkan: latkan ·
 Chudi: chudi, choodi · Peti: peti · Hasuli: hasuli, hansuli.
 Reproduces the report's grouping of its 210 spellings, e.g. "Hk Payal" → Payal, "Krdhn hath mehndi" → Kardhan,
-"Top locket" → Tops, "1 lar" → Other, "3.800" → Unspecified. Unknown words are skipped, so new spellings fall to Other
+"Top locket" → Tops, "1 lar" → Other, "3.800" → Unspecified. Checked against the report: the same type on 549 of 549 pledges and the same 61 bundles. Unknown words are skipped, so new spellings fall to Other
 until a keyword is added.
 
 ### 12.5 Villages (refines §10.4)
