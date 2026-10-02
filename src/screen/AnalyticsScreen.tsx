@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Text } from "../ui";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Screen, Text, colors, useLayout } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../types/entry";
@@ -54,17 +54,12 @@ import TogetherTab from "../components/analytics/report/TogetherTab";
 import DataQualityTab from "../components/analytics/report/DataQualityTab";
 import PledgeFilterBar from "../components/analytics/report/PledgeFilterBar";
 import Segmented from "../components/analytics/report/Segmented";
+import SectionBar from "../components/analytics/SectionBar";
+import { DEFAULT_VIEW, FIRST_VIEWS, SECTIONS, SectionKey, ViewKey, controlsFor, sectionOf } from "../utils/analytics/report/sections";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Analytics">;
 };
-
-const TABS = ["Overview", "Rehan book", "Items", "Customers & Villages", "Billing", "Together", "Data quality"] as const;
-type Tab = (typeof TABS)[number];
-const BILLING_TABS = ["Summary", "Sales", "Metal", "Trends", "Customers"] as const;
-type BillingTab = (typeof BILLING_TABS)[number];
-
-const FILTERED_TABS: Tab[] = ["Overview", "Rehan book", "Items", "Customers & Villages", "Together"];
 
 const startOfMonth = () => {
   const now = new Date();
@@ -75,8 +70,13 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [failed, setFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState<Tab>("Overview");
-  const [billingTab, setBillingTab] = useState<BillingTab>("Summary");
+  const [section, setSection] = useState<SectionKey>(sectionOf(DEFAULT_VIEW));
+  // Each section remembers its own sub-tab while the screen is open.
+  const [views, setViews] = useState<Record<SectionKey, ViewKey>>(FIRST_VIEWS);
+  const active = views[section];
+  const controls = controlsFor(active);
+  const current = SECTIONS.find((s) => s.key === section) ?? SECTIONS[0];
+  const { gutter } = useLayout();
   const [filters, setFilters] = useState<PledgeFilters>(ALL_PLEDGES);
   const [grain, setGrain] = useState<Grain>("month");
   const [anchor, setAnchor] = useState(() => new Date());
@@ -158,7 +158,7 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
     };
   }, [data]);
 
-  const view = useMemo(() => {
+  const filtered = useMemo(() => {
     if (!report) return null;
     const villageBills =
       filters.village === "all" ? report.bills : report.bills.filter((b) => b.village === filters.village);
@@ -171,22 +171,30 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
   }, [report, filters]);
 
   const content = useMemo(() => {
-    if (!data || !report || !view) return null;
+    if (!data || !report || !filtered) return null;
     const now = new Date();
     const openCustomer = (userId: number, userName: string) =>
       navigation.navigate("UserTransactions", { userId, userName });
-    switch (tab) {
-      case "Overview":
-        return <OverviewTab pledges={view.pledges} bills={view.villageBills} names={report.names} customersOnFile={filters.village === "all" ? data.users.length : report.groups.customers.get(filters.village) ?? 0} />;
-      case "Rehan book":
-        return <RehanBookTab pledges={view.pledges} now={report.now} />;
-      case "Items":
-        return <ItemsTab pledges={view.pledges} rankingPledges={view.byItemRank} selectedItem={filters.item} now={report.now} />;
-      case "Customers & Villages":
+    switch (active) {
+      case "overview/findings":
+        return <OverviewTab pledges={filtered.pledges} bills={filtered.villageBills} names={report.names} customersOnFile={filters.village === "all" ? data.users.length : report.groups.customers.get(filters.village) ?? 0} />;
+      case "overview/together":
+        return (
+          <TogetherTab
+            pledges={filtered.pledges}
+            bills={filtered.villageBills}
+            sharePledges={filtered.byVillageRank}
+            shareBills={report.bills}
+            order={report.groups.order}
+          />
+        );
+      case "overview/quality":
+        return <DataQualityTab report={report.quality} />;
+      case "customer/rehan":
         return (
           <CustomersVillagesTab
-            pledges={view.pledges}
-            rankingPledges={view.byVillageRank}
+            pledges={filtered.pledges}
+            rankingPledges={filtered.byVillageRank}
             allPledges={report.pledges}
             data={data}
             groups={report.groups}
@@ -194,103 +202,47 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
             onCustomerPress={openCustomer}
           />
         );
-      case "Together":
-        return <TogetherTab
-            pledges={view.pledges}
-            bills={view.villageBills}
-            sharePledges={view.byVillageRank}
-            shareBills={report.bills}
-            order={report.groups.order}
-          />;
-      case "Data quality":
-        return <DataQualityTab report={report.quality} />;
-      case "Billing":
-        switch (billingTab) {
-          case "Summary":
-            return <BillingSummaryTab bills={view.villageBills.filter((b) => inPeriod(b.date, period))} />;
-          case "Sales":
-            return (
-              <>
-                <OverviewSection
-                  view={buildOverview(data, period, previous, lastYear, now)}
-                  previousLabel={previous?.label ?? null}
-                  lastYearLabel={lastYear?.label ?? null}
-                />
-                <SalesSection view={buildSalesView(data, period)} onCustomerPress={openCustomer} />
-                <BaakiAgingCard aging={baakiAging(data, now)} />
-              </>
-            );
-          case "Metal":
-            return (
-              <>
-                <MetalSection view={buildMetalView(data, period)} />
-                <CategoriesCard categories={buildCategoryView(data, period, previous)} />
-              </>
-            );
-          case "Trends":
-            return <TrendsSection rows={buildTrends(data, trendGrain, now)} />;
-          case "Customers":
-            return (
-              <>
-                <KeyCustomersCard view={buildImportanceView(data, period)} onCustomerPress={openCustomer} />
-                <CustomersSection view={buildCustomersView(data, period, now)} onCustomerPress={openCustomer} />
-                <VillagesSection villages={buildVillageView(data, period, previous)} />
-              </>
-            );
-        }
+      case "customer/lenden":
+        return (
+          <>
+            <KeyCustomersCard view={buildImportanceView(data, period)} onCustomerPress={openCustomer} />
+            <CustomersSection view={buildCustomersView(data, period, now)} onCustomerPress={openCustomer} />
+            <VillagesSection villages={buildVillageView(data, period, previous)} />
+          </>
+        );
+      case "rehan/book":
+        return <RehanBookTab pledges={filtered.pledges} now={report.now} />;
+      case "rehan/items":
+        return <ItemsTab pledges={filtered.pledges} rankingPledges={filtered.byItemRank} selectedItem={filters.item} now={report.now} />;
+      case "lenden/summary":
+        return <BillingSummaryTab bills={filtered.villageBills.filter((b) => inPeriod(b.date, period))} />;
+      case "lenden/sales":
+        return (
+          <>
+            <OverviewSection
+              view={buildOverview(data, period, previous, lastYear, now)}
+              previousLabel={previous?.label ?? null}
+              lastYearLabel={lastYear?.label ?? null}
+            />
+            <SalesSection view={buildSalesView(data, period)} onCustomerPress={openCustomer} />
+            <BaakiAgingCard aging={baakiAging(data, now)} />
+          </>
+        );
+      case "lenden/metal":
+        return (
+          <>
+            <MetalSection view={buildMetalView(data, period)} />
+            <CategoriesCard categories={buildCategoryView(data, period, previous)} />
+          </>
+        );
+      case "lenden/trends":
+        return <TrendsSection rows={buildTrends(data, trendGrain, now)} />;
     }
-  }, [data, report, view, tab, billingTab, filters.item, filters.village, period, previous, lastYear, trendGrain, navigation]);
+  }, [data, report, filtered, active, filters.item, filters.village, period, previous, lastYear, trendGrain, navigation]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-          {TABS.map((t) => (
-            <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
-              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{t}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        {report && view && FILTERED_TABS.includes(tab) && (
-          <PledgeFilterBar
-            filters={filters}
-            options={report.options}
-            showing={view.pledges.length}
-            total={report.pledges.length}
-            onChange={setFilters}
-          />
-        )}
-        {tab === "Billing" && (
-          <>
-            <PeriodPicker
-              grain={grain}
-              period={period}
-              canGoForward={canGoForward}
-              customFrom={customFrom}
-              customTo={customTo}
-              onGrainChange={(g) => {
-                setGrain(g);
-                setAnchor(new Date());
-              }}
-              onStep={onStep}
-              onCustomChange={(from, to) => {
-                // a backwards pick is stored the right way round
-                setCustomFrom(to < from ? to : from);
-                setCustomTo(to < from ? from : to);
-              }}
-            />
-            <Segmented
-              options={BILLING_TABS.map((t) => ({ key: t, label: t }))}
-              value={billingTab}
-              onChange={setBillingTab}
-            />
-            {filters.village !== "all" && (
-              <Text style={styles.trendNote}>Village: {filters.village} (Summary only)</Text>
-            )}
-          </>
-        )}
-      </View>
-
+    <Screen>
+      <SectionBar sections={SECTIONS} value={section} onChange={setSection} />
       {failed ? (
         <ScrollView
           contentContainerStyle={styles.centered}
@@ -298,34 +250,70 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
         >
           <Text style={styles.error}>Could not load analytics. Pull down to try again.</Text>
         </ScrollView>
-      ) : !data ? (
+      ) : !data || !report || !filtered ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#8C5B14" />
+          <ActivityIndicator size="large" color={colors.goldDeep} />
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.content}
+          stickyHeaderIndices={[0]}
+          contentContainerStyle={styles.scroll}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-          {content}
+          {/* Sticky: sub-tabs and the filter / time-frame row stay reachable while the cards scroll. */}
+          <View style={[styles.controls, { paddingHorizontal: gutter }]}>
+            <Segmented
+              fill
+              options={current.subTabs.map((t) => ({ key: t.key, label: t.label }))}
+              value={active}
+              onChange={(v) => setViews((prev) => ({ ...prev, [section]: v }))}
+            />
+            {controls === "pledge" && (
+              <PledgeFilterBar
+                filters={filters}
+                options={report.options}
+                showing={filtered.pledges.length}
+                total={report.pledges.length}
+                onChange={setFilters}
+              />
+            )}
+            {controls === "timeframe" && (
+              <PeriodPicker
+                grain={grain}
+                period={period}
+                canGoForward={canGoForward}
+                customFrom={customFrom}
+                customTo={customTo}
+                onGrainChange={(g) => {
+                  setGrain(g);
+                  setAnchor(new Date());
+                }}
+                onStep={onStep}
+                onCustomChange={(from, to) => {
+                  // a backwards pick is stored the right way round
+                  setCustomFrom(to < from ? to : from);
+                  setCustomTo(to < from ? from : to);
+                }}
+              />
+            )}
+            {active === "lenden/summary" && filters.village !== "all" && (
+              <Text style={styles.note}>Village: {filters.village} (Summary only)</Text>
+            )}
+          </View>
+          <View style={[styles.body, { paddingHorizontal: gutter }]}>{content}</View>
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA" },
-  header: { padding: 16, paddingBottom: 8, gap: 10 },
-  tabs: { gap: 6 },
-  tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: "#EFE6D6" },
-  tabActive: { backgroundColor: "#8C5B14" },
-  tabText: { fontSize: 13, fontWeight: "700", color: "#8C5B14" },
-  tabTextActive: { color: "#fff" },
-  trendNote: { fontSize: 12, color: "#777" },
-  content: { padding: 16, paddingTop: 8, paddingBottom: 40 },
+  controls: { backgroundColor: colors.bg, paddingTop: 10, paddingBottom: 8, gap: 8 },
+  body: { paddingTop: 4 },
+  scroll: { paddingBottom: 24 },
+  note: { fontSize: 12, color: "#777" },
   centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  error: { color: "#C62828", fontSize: 14, textAlign: "center" },
+  error: { color: colors.danger, fontSize: 14, textAlign: "center" },
 });
 
 export default AnalyticsScreen;

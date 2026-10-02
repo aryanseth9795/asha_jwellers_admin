@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Text } from "../../../ui";
 
 export interface SegmentOption<T extends string> {
@@ -7,27 +7,47 @@ export interface SegmentOption<T extends string> {
   label: string;
 }
 
-/** A row of small chips; scrolls sideways when there are many. */
+/** Small chips that scroll sideways; with `fill`, equal segments that fill the row (sub-tabs, status). */
 const Segmented = <T extends string>({
   options,
   value,
   onChange,
+  fill = false,
 }: {
   options: SegmentOption<T>[];
   value: T;
   onChange: (key: T) => void;
-}) => (
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-    {options.map((o) => (
-      <TouchableOpacity key={o.key} style={[styles.chip, value === o.key && styles.active]} onPress={() => onChange(o.key)}>
-        <Text style={[styles.text, value === o.key && styles.activeText]}>{o.label}</Text>
+  fill?: boolean;
+}) => {
+  const chips = options.map((o) => {
+    const active = value === o.key;
+    return (
+      <TouchableOpacity
+        key={o.key}
+        style={[styles.chip, fill && styles.fillChip, active && styles.active]}
+        onPress={() => onChange(o.key)}
+        hitSlop={fill ? undefined : 6}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+      >
+        <Text style={[styles.text, active && styles.activeText]} numberOfLines={1}>
+          {o.label}
+        </Text>
       </TouchableOpacity>
-    ))}
-  </ScrollView>
-);
+    );
+  });
+  return fill ? (
+    <View style={styles.fillRow}>{chips}</View>
+  ) : (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      {chips}
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
   row: { gap: 6 },
+  fillRow: { flexDirection: "row", gap: 6 },
   chip: {
     paddingHorizontal: 11,
     paddingVertical: 6,
@@ -36,6 +56,7 @@ const styles = StyleSheet.create({
     borderColor: "#E8D5AF",
     backgroundColor: "#fff",
   },
+  fillChip: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 4, borderRadius: 10 },
   active: { backgroundColor: "#8C5B14", borderColor: "#8C5B14" },
   text: { fontSize: 12, fontWeight: "700", color: "#8C5B14" },
   activeText: { color: "#fff" },
