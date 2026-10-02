@@ -10,6 +10,7 @@ interface JamaEntryDisplay {
 
 interface BillTableProps {
   amount: number;
+  oldJewelleryCredit?: number;
   discount: number;
   jamaEntries: JamaEntryDisplay[];
   onAddJama?: () => void;
@@ -20,6 +21,7 @@ interface BillTableProps {
 
 const BillTable: React.FC<BillTableProps> = ({
   amount,
+  oldJewelleryCredit = 0,
   discount,
   jamaEntries,
   onAddJama,
@@ -27,7 +29,7 @@ const BillTable: React.FC<BillTableProps> = ({
   onEditJama,
   editable = false,
 }) => {
-  const remaining = amount - discount;
+  const remaining = amount - oldJewelleryCredit - discount;
   const totalJama = jamaEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
   const formatDate = (dateString: string) => {
@@ -55,6 +57,15 @@ const BillTable: React.FC<BillTableProps> = ({
         <Text style={styles.label}>Amount</Text>
         <Text style={styles.value}>₹{amount.toLocaleString()}</Text>
       </View>
+
+      {oldJewelleryCredit > 0 && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Old Jewellery Credit</Text>
+          <Text style={[styles.value, styles.oldJewelleryValue]}>
+            -₹{oldJewelleryCredit.toLocaleString()}
+          </Text>
+        </View>
+      )}
 
       {/* Discount Row */}
       <View style={styles.row}>
@@ -205,6 +216,9 @@ const styles = StyleSheet.create({
   },
   discountValue: {
     color: "#F9A825",
+  },
+  oldJewelleryValue: {
+    color: "#8C5B14",
   },
   remainingRow: {
     backgroundColor: "#F8F9FA",

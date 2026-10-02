@@ -58,6 +58,7 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
               {[
                 metalLabel(item.metal),
                 item.purity ?? null,
+                item.qty != null ? `Qty: ${item.qty}` : null,
                 item.weight != null ? formatWeight(item.weight).main : null,
                 item.rate != null ? `@ ${formatRupees(item.rate)}` : null,
               ]

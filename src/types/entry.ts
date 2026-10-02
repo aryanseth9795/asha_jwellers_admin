@@ -84,12 +84,12 @@ export type JewelleryMetal = "gold" | "silver";
 export const JEWELLERY_METAL_OPTIONS: JewelleryMetal[] = ["gold", "silver"];
 
 // "Silver" is retained for items created before metal was tracked separately.
-export type Purity = "24KT" | "22KT" | "18KT" | "999" | "925" | "800" | "Silver";
+// "Desi" and "Fancy" are the silver-specific quality labels (replaces carat for silver).
+export type Purity = "24KT" | "22KT" | "18KT" | "999" | "925" | "800" | "Silver" | "Desi" | "Fancy";
 
 export const PURITY_OPTIONS_BY_METAL: Record<JewelleryMetal, Purity[]> = {
   gold: ["24KT", "22KT", "18KT"],
-  silver: ["24KT", "22KT", "18KT"],
-  // silver: ["999", "925", "800"],
+  silver: ["Desi", "Fancy"],
 };
 
 // Jewellery line item on a Len-Den entry
@@ -101,6 +101,7 @@ export interface LendenItem {
   metal: JewelleryMetal | null;
   purity: Purity | null;
   weight: number | null; // grams
+  qty?: number | null;
   rate: number | null; // rupees per gram
   total: number; // rupees
 }
@@ -110,8 +111,26 @@ export interface NewLendenItem {
   metal?: JewelleryMetal | null;
   purity?: Purity | null;
   weight?: number | null;
+  qty?: number | null;
   rate?: number | null;
   total: number;
+}
+
+// Old jewellery received from a customer as credit against a Len-Den sale.
+// Each Len-Den entry can have zero or more of these items.
+export interface OldJewelleryItem {
+  id: number;
+  lendenId: number;
+  position: number;
+  description: string;
+  weight: number | null; // grams
+  value: number; // rupees credited to the customer
+}
+
+export interface NewOldJewelleryItem {
+  description: string;
+  weight?: number | null;
+  value: number;
 }
 
 // Jama Entry - multiple payments per Lenden

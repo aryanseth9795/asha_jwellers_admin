@@ -11,12 +11,18 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { RootStackParamList, EntryType } from "../types/entry";
+import {
+  RootStackParamList,
+  EntryType,
+  NewLendenItem,
+  NewOldJewelleryItem,
+} from "../types/entry";
 import {
   createRehan,
   createLenden,
@@ -28,9 +34,15 @@ import BillTable from "../components/BillTable";
 import AddJamaModal from "../components/AddJamaModal";
 import LendenItemsTable from "../components/LendenItemsTable";
 import AddLendenItemModal from "../components/AddLendenItemModal";
+import OldJewelleryItemsTable from "../components/OldJewelleryItemsTable";
+import AddOldJewelleryItemModal from "../components/AddOldJewelleryItemModal";
 import { replaceLendenItems } from "../database/lendenItems";
+import { replaceLendenOldJewelleryItems } from "../database/lendenOldJewelleryItems";
 import { sumItemTotals } from "../utils/lendenAmount";
-import { NewLendenItem } from "../types/entry";
+import {
+  calculateLendenSettlement,
+  sumOldJewelleryValues,
+} from "../utils/lendenSettlement";
 
 type AddTransactionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -75,7 +87,28 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
+  // Optional old jewellery received as credit against the new sale.
+  const [oldJewelleryEnabled, setOldJewelleryEnabled] = useState(false);
+  const [oldJewelleryItems, setOldJewelleryItems] = useState<
+    NewOldJewelleryItem[]
+  >([]);
+  const [showOldJewelleryModal, setShowOldJewelleryModal] = useState(false);
+  const [editingOldJewelleryIndex, setEditingOldJewelleryIndex] = useState<
+    number | null
+  >(null);
+
   const itemsTotal = sumItemTotals(lendenItems);
+  const activeOldJewelleryItems = oldJewelleryEnabled
+    ? oldJewelleryItems
+    : [];
+  const oldJewelleryCredit = sumOldJewelleryValues(activeOldJewelleryItems);
+  const totalJama = jamaEntries.reduce((sum, entry) => sum + entry.amount, 0);
+  const settlement = calculateLendenSettlement({
+    grossTotal: itemsTotal,
+    oldJewelleryCredit,
+    discount: parseInt(discount, 10) || 0,
+    jamaTotal: totalJama,
+  });
 
   // Minimum date - 5 years ago
   const minDate = new Date();
@@ -166,6 +199,30 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       return;
     }
 
+    if (entryType === "lenden" && oldJewelleryEnabled && oldJewelleryItems.length === 0) {
+      Alert.alert(
+        "Validation Error",
+        "Add an old jewellery item or turn off old jewellery exchange.",
+      );
+      return;
+    }
+
+    if (entryType === "lenden" && settlement.netPayable < 0) {
+      Alert.alert(
+        "Validation Error",
+        "Old jewellery credit and discount cannot be greater than the new jewellery total.",
+      );
+      return;
+    }
+
+    if (entryType === "lenden" && settlement.baki < 0) {
+      Alert.alert(
+        "Validation Error",
+        "Jama payment cannot be greater than the net payable amount.",
+      );
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -180,15 +237,12 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
           amount: amount ? parseInt(amount, 10) : undefined,
         });
       } else {
-        // Calculate fields
-        const lendenAmountVal = itemsTotal;
+        // Keep amount as the gross sold-jewellery total. Remaining and baki
+        // are calculated after old-jewellery credit, discount, and jama.
+        const lendenAmountVal = settlement.grossTotal;
         const discountVal = discount ? parseInt(discount, 10) : 0;
-        const remainingVal = Math.max(0, lendenAmountVal - discountVal);
-        const totalJama = jamaEntries.reduce(
-          (sum, entry) => sum + entry.amount,
-          0
-        );
-        const bakiVal = Math.max(0, remainingVal - totalJama);
+        const remainingVal = settlement.netPayable;
+        const bakiVal = settlement.baki;
 
         const lendenId = await createLenden({
           userId,
@@ -215,6 +269,11 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
         if (lendenItems.length > 0) {
           await replaceLendenItems(lendenId, lendenItems);
         }
+
+        await replaceLendenOldJewelleryItems(
+          lendenId,
+          activeOldJewelleryItems,
+        );
       }
 
       Alert.alert("Success", "Transaction added successfully!", [
@@ -381,6 +440,54 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
                 />
               </View>
 
+              <View style={{ marginBottom: 16 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: oldJewelleryEnabled ? 12 : 0,
+                  }}
+                >
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text
+                      style={[
+                        styles.sectionTitle,
+                        { fontSize: 16, marginBottom: 2 },
+                      ]}
+                    >
+                      Old Jewellery Exchange
+                    </Text>
+                    <Text style={styles.helperText}>
+                      Optional customer credit against this sale
+                    </Text>
+                  </View>
+                  <Switch
+                    value={oldJewelleryEnabled}
+                    onValueChange={setOldJewelleryEnabled}
+                  />
+                </View>
+                {oldJewelleryEnabled && (
+                  <OldJewelleryItemsTable
+                    items={oldJewelleryItems}
+                    editable
+                    onAdd={() => {
+                      setEditingOldJewelleryIndex(null);
+                      setShowOldJewelleryModal(true);
+                    }}
+                    onEdit={(index) => {
+                      setEditingOldJewelleryIndex(index);
+                      setShowOldJewelleryModal(true);
+                    }}
+                    onDelete={(index) => {
+                      setOldJewelleryItems((items) =>
+                        items.filter((_, itemIndex) => itemIndex !== index),
+                      );
+                    }}
+                  />
+                )}
+              </View>
+
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>
                   <Ionicons name="pricetag-outline" size={14} color="#666" />{" "}
@@ -414,6 +521,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
                   </Text>
                   <BillTable
                     amount={itemsTotal}
+                    oldJewelleryCredit={oldJewelleryCredit}
                     discount={parseInt(discount, 10) || 0}
                     jamaEntries={jamaEntries}
                     editable={true}
@@ -546,6 +654,28 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
         }}
       />
 
+      <AddOldJewelleryItemModal
+        visible={showOldJewelleryModal}
+        editMode={editingOldJewelleryIndex !== null}
+        initialItem={
+          editingOldJewelleryIndex !== null
+            ? oldJewelleryItems[editingOldJewelleryIndex]
+            : undefined
+        }
+        onClose={() => {
+          setShowOldJewelleryModal(false);
+          setEditingOldJewelleryIndex(null);
+        }}
+        onSave={(item) => {
+          setOldJewelleryItems((items) => {
+            if (editingOldJewelleryIndex === null) return [...items, item];
+            return items.map((existing, index) =>
+              index === editingOldJewelleryIndex ? item : existing,
+            );
+          });
+        }}
+      />
+
       {/* Custom Date Picker */}
       <CustomDatePicker
         visible={showDatePicker}
@@ -645,6 +775,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1A1A1A",
     marginBottom: 16,
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#7A6B58",
   },
   required: {
     color: "#FF3B30",

@@ -1,10 +1,14 @@
-import { LendenItem } from "../types/entry";
+import { LendenItem, OldJewelleryItem } from "../types/entry";
 import { toHindiRupeesWords } from "../utils/hindiNumberWords";
 import {
   formatBillDate,
   formatRupees,
   formatWeight,
 } from "../utils/billFormat";
+import {
+  calculateLendenSettlement,
+  sumOldJewelleryValues,
+} from "../utils/lendenSettlement";
 
 // ---------------------------------------------------------------------------
 // Template banding. See agent/2026-08-31-lenden-bill-design.md §5.2 and §5.3.
@@ -13,25 +17,25 @@ import {
 // bands render at natural aspect ratio across the full page width and the
 // rebuilt middle absorbs the difference.
 //
-// CALIBRATION: these fractions are aligned to the 2026-09-01 Asha Jewellers
-// artwork. They are the only numbers to touch when the seams do not line up.
+// CALIBRATION: aligned to the Asha Jewellers final bill template artwork.
 // ---------------------------------------------------------------------------
 const TEMPLATE_W = 1024;
 const TEMPLATE_H = 1536;
-// The new artwork has a proprietor line below the contact details, so its
-// header needs to extend to just above the invoice frame.
-export const HEADER_CROP_PCT = 0.424;
-// This is the visible height of the bottom artwork band, not its position.
-// Its CSS `bottom: 0` placement keeps it flush with the page edge.
-export const FOOTER_CROP_PCT = 0.129;
+
+// Header extends down to just above the customer box (captures proprietor box at y=646).
+export const HEADER_CROP_PCT = 0.422;
+// Header display compression factor to compact the artwork header slightly and leave more room for items.
+export const HEADER_COMPRESS_RATIO = 0.8;
+
+// Footer visible fraction: from y=1308 to 1536 (captures Terms & Conditions, Signature, and Thank you flourish).
+export const FOOTER_CROP_PCT = 0.1484;
 
 const PAGE_W_MM = 148;
 const PAGE_H_MM = 210;
 
 const TPL_H_MM = PAGE_W_MM * (TEMPLATE_H / TEMPLATE_W);
-const HEADER_H_MM = TPL_H_MM * HEADER_CROP_PCT;
+const HEADER_H_MM = TPL_H_MM * HEADER_CROP_PCT * HEADER_COMPRESS_RATIO;
 const FOOTER_H_MM = TPL_H_MM * FOOTER_CROP_PCT;
-const FOOTER_OFFSET_MM = -(TPL_H_MM - FOOTER_H_MM);
 const MIDDLE_H_MM = PAGE_H_MM - HEADER_H_MM - FOOTER_H_MM;
 
 const GOLD = "#C08A2E";
@@ -59,11 +63,15 @@ export interface BillData {
   date: string; // ISO; the entry's own date, not today
   customer: BillCustomer;
   items: LendenItem[];
+  oldJewelleryItems: OldJewelleryItem[];
   amount: number; // effective amount, per resolveEffectiveAmount
   discount: number;
   jamaEntries: BillJama[];
   baki: number;
+  pichlaBaki: number; // sum of baki across other transactions (except current)
+  totalBaki: number; // sum of baki across ALL customer transactions
   showPaymentDetails: boolean;
+  showTotalBaki: boolean;
   templateDataUri: string;
 }
 
@@ -85,7 +93,20 @@ export function buildBillHtml(data: BillData): string {
   const { items, customer } = data;
   const compact = items.length > COMPACT_ITEM_THRESHOLD;
 
-  const totalWeight = items.reduce((sum, i) => sum + (i.weight ?? 0), 0);
+  // const totalWeight = items.reduce((sum, i) => sum + (i.weight ?? 0), 0);
+  const totalQty = items.reduce((sum, i) => sum + (i.qty ?? 1), 0);
+  const itemsTotal = items.reduce((sum, i) => sum + i.total, 0);
+  const oldJewelleryCredit = sumOldJewelleryValues(data.oldJewelleryItems);
+  const totalJama = data.jamaEntries.reduce(
+    (sum, jama) => sum + jama.amount,
+    0,
+  );
+  const settlement = calculateLendenSettlement({
+    grossTotal: data.amount,
+    oldJewelleryCredit,
+    discount: data.discount,
+    jamaTotal: totalJama,
+  });
 
   // A single summary rate is only meaningful when every line shares it.
   const rates = items.map((i) => i.rate);
@@ -104,27 +125,57 @@ export function buildBillHtml(data: BillData): string {
             ? esc(w.main)
             : `${esc(w.main)}<div class="sub">${esc(w.sub)}</div>`;
       }
+      const metalPurity = [
+        item.metal === "gold"
+          ? "Gold"
+          : item.metal === "silver"
+            ? "Silver"
+            : "",
+        item.purity ?? "",
+      ]
+        .filter(Boolean)
+        .join(" / ");
+
       return `<tr>
         <td class="c">${item.position}</td>
         <td class="desc">${esc(item.name)}</td>
-        <td class="c">${esc(
-          [
-            item.metal === "gold" ? "Gold" : item.metal === "silver" ? "Silver" : "",
-            item.purity ?? "",
-          ]
-            .filter(Boolean)
-            .join(" / "),
-        )}</td>
         <td class="c">${weightCell}</td>
-        <td class="r">${item.rate !== null ? esc(formatRupees(item.rate)) : ""}</td>
+        <td class="c">${esc(metalPurity)}</td>
+        <td class="c">${item.qty ?? 1}</td>
         <td class="r">${esc(formatRupees(item.total))}</td>
       </tr>`;
     })
     .join("");
 
-  const summary: string[] = [summaryRow("कुल वजन", formatWeight(totalWeight).main)];
+  const oldJewelleryRows = data.oldJewelleryItems
+    .map((item) => {
+      const weight =
+        item.weight != null ? esc(formatWeight(item.weight).main) : "";
+      return `<tr>
+        <td class="c">${item.position}</td>
+        <td class="old-desc">${esc(item.description)}</td>
+        <td class="c">${weight}</td>
+        <td class="r">${esc(formatRupees(item.value))}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const summary: string[] = [
+    // summaryRow("कुल वजन", formatWeight(totalWeight).main),
+  ];
 
   if (data.showPaymentDetails) {
+    if (oldJewelleryCredit > 0) {
+      summary.push(
+        summaryRow(
+          "Old Jewellery Credit",
+          `-${formatRupees(oldJewelleryCredit)}`,
+        ),
+      );
+    }
+    if (data.showTotalBaki) {
+      summary.push(summaryRow("पिछला बाकी", formatRupees(data.pichlaBaki)));
+    }
     summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
     if (data.discount > 0) {
       summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
@@ -137,29 +188,57 @@ export function buildBillHtml(data: BillData): string {
         ),
       );
     }
+    const payable = data.showPaymentDetails
+      ? settlement.baki
+      : settlement.netPayable;
+    // const payable = data.amount - data?.discount - totalJama;
+
+    summary.push(summaryRow("बाकी", formatRupees(payable), "final"));
+    // Optional extra "कुल बाकी" row — only visible when the nested toggle is on
+    if (data.showTotalBaki) {
+      const grandTotalBaki = data.pichlaBaki + payable;
+      summary.push(summaryRow("कुल बाकी", formatRupees(grandTotalBaki), "final"));
+    }
+    // const payable = data.baki;
+    // summary.push(summaryRow("बाकी", formatRupees(payable), "final"));
   } else {
+    if (oldJewelleryCredit > 0) {
+      summary.push(summaryRow("New Jewellery Total", formatRupees(data.amount)));
+      summary.push(
+        summaryRow(
+          "Old Jewellery Credit",
+          `-${formatRupees(oldJewelleryCredit)}`,
+        ),
+      );
+      if (data.discount > 0) {
+        summary.push(summaryRow("Discount", `-${formatRupees(data.discount)}`));
+      }
+      summary.push(
+        summaryRow("Net Payable", formatRupees(settlement.netPayable), "final"),
+      );
+    }
     if (uniformRate !== null) {
       summary.push(summaryRow("दर प्रति ग्राम", formatRupees(uniformRate)));
     }
-    summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
+    if (data.discount > 0 && oldJewelleryCredit === 0) {
+      summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
+      summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
+      summary.push(
+        summaryRow(
+          "कुल देय राशि",
+          formatRupees(data.amount - data.discount),
+          "final",
+        ),
+      );
+    }
   }
 
-  const payable = data.showPaymentDetails ? data.baki : data.amount;
-  const payableLabel = data.showPaymentDetails ? "बाकी" : "कुल देय राशि";
-  summary.push(summaryRow(payableLabel, formatRupees(payable), "final"));
-
-  const addressRow = customer.address
-    ? `<tr><td class="k">पता</td><td class="v">${esc(customer.address)}</td>
-       <td class="k2">दिनांक</td><td class="v2">${esc(formatBillDate(data.date))}</td></tr>`
-    : `<tr><td class="k"></td><td class="v"></td>
-       <td class="k2">दिनांक</td><td class="v2">${esc(formatBillDate(data.date))}</td></tr>`;
-
-  const mobileRow = customer.mobile
-    ? `<tr><td class="k">मोबाइल</td><td class="v" colspan="3">${esc(customer.mobile)}</td></tr>`
-    : "";
+  const payable = data.showPaymentDetails
+    ? data.baki
+    : settlement.netPayable;
 
   return `<!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -167,7 +246,11 @@ export function buildBillHtml(data: BillData): string {
   :root { --tpl: url("${data.templateDataUri}"); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   @page { size: A5; margin: 0; }
-  html, body { width: ${mm(PAGE_W_MM)}; min-height: ${mm(PAGE_H_MM)}; }
+  html, body {
+    width: ${mm(PAGE_W_MM)};
+    min-height: ${mm(PAGE_H_MM)};
+    height: 100%;
+  }
   body {
     background: ${CREAM};
     color: ${INK};
@@ -175,83 +258,165 @@ export function buildBillHtml(data: BillData): string {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* The footer reaches the page bottom when contents fit. Long tables grow
-     into the following A5 page instead of being clipped behind the footer. */
   .page {
     width: ${mm(PAGE_W_MM)};
     min-height: ${mm(PAGE_H_MM)};
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
   }
 
   .band {
     width: 100%;
     flex: none;
     background-image: var(--tpl);
-    background-size: ${mm(PAGE_W_MM)} ${mm(TPL_H_MM)};
     background-repeat: no-repeat;
   }
   .band-header {
     height: ${mm(HEADER_H_MM)};
-    background-position: 0 0;
+    background-size: ${mm(PAGE_W_MM)} ${mm(TPL_H_MM * HEADER_COMPRESS_RATIO)};
+    background-position: center top;
   }
   .band-footer {
     height: ${mm(FOOTER_H_MM)};
-    background-position: 0 ${mm(FOOTER_OFFSET_MM)};
+    background-size: ${mm(PAGE_W_MM)} ${mm(TPL_H_MM)};
+    background-position: left bottom;
+    margin-top: auto;
+    flex-shrink: 0;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
-  /* Continues the template's gold frame down the rebuilt middle. */
   .middle {
     min-height: ${mm(MIDDLE_H_MM)};
     flex: 1;
-    border-left: 0.4mm solid ${GOLD};
-    border-right: 0.4mm solid ${GOLD};
     background: ${CREAM};
-    padding: 2mm 5mm 0;
+    padding: 1.5mm 8mm 0;
     display: flex;
     flex-direction: column;
   }
 
+  /* Customer invoice frame matching Final_templat.jpeg */
+  .inv-frame {
+    border: 0.35mm solid ${GOLD};
+    border-radius: 2mm;
+    padding: 1.5mm 3mm;
+    margin-bottom: 2mm;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.5pt;
+    line-height: 1.2;
+    background: #fff;
+  }
+  .inv-frame-left { flex: 1.35; }
+  .inv-frame-right { flex: 0.95; padding-left: 3mm; }
+  .inv-title {
+    font-size: 10.5pt;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #8C5B14;
+    text-align: center;
+    margin-bottom: 1.5mm;
+  }
+  .field-line {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 1.2mm;
+  }
+  .field-line:last-child { margin-bottom: 0; }
+  .field-label {
+    color: ${INK};
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .field-text {
+    flex: 1;
+    border-bottom: 0.2mm solid ${GOLD_SOFT};
+    margin-left: 1.5mm;
+    padding-left: 1mm;
+    font-weight: 700;
+    color: ${INK};
+    min-height: 3.8mm;
+  }
+
   table { width: 100%; border-collapse: collapse; }
 
-  /* Keep the artwork crop unchanged; compact only the customer-details header. */
-  .cust { font-size: 7.5pt; line-height: 1.15; margin-bottom: 1mm; }
-  .cust td { padding: 0.45mm 0.75mm; vertical-align: top; }
-  .cust .k, .cust .k2 { width: 14mm; color: ${INK}; white-space: nowrap; }
-  .cust .k::after, .cust .k2::after { content: " :"; }
-  .cust .v, .cust .v2 { font-weight: 700; border-bottom: 0.2mm dotted ${GOLD_SOFT}; }
-  .cust .k2 { width: 16mm; padding-left: 2mm; }
-  .cust .v2 { width: 28mm; }
-
-  .items { font-size: 8pt; border: 0.3mm solid ${GOLD}; }
+  .items {
+    font-size: 7.5pt;
+    border: 0.35mm solid ${GOLD};
+    border-radius: 1mm;
+  }
   .items thead { display: table-header-group; }
   .items tr { break-inside: avoid; page-break-inside: avoid; }
   .items th, .items td { border: 0.2mm solid ${GOLD_SOFT}; padding: 1.2mm 1mm; }
-  .items th { background: ${HEAD_BG}; font-size: 8pt; font-weight: 700; }
-  /* The rate is retained in the generated data, but is not shown on the bill. */
-  .items th:nth-child(5), .items td:nth-child(5) { display: none; }
+  .items th { background: ${HEAD_BG}; font-size: 7.5pt; font-weight: 700; color: #8C5B14; }
   .items .c { text-align: center; }
   .items .r { text-align: right; }
   .items .desc { font-weight: 700; }
   .items .sub { font-size: 6.5pt; font-weight: 400; opacity: 0.75; }
 
+  .table-total-row td {
+    background: ${HEAD_BG};
+    font-weight: 700;
+    font-size: 8pt;
+  }
+  .r-total {
+    text-align: right;
+    padding-right: 3mm;
+    letter-spacing: 0.5px;
+  }
+
+  .old-jewellery {
+    margin-top: 2mm;
+    font-size: 7.25pt;
+    border: 0.35mm solid ${GOLD};
+  }
+  .old-jewellery th, .old-jewellery td {
+    border: 0.2mm solid ${GOLD_SOFT};
+    padding: 1mm;
+  }
+  .old-jewellery th {
+    background: ${HEAD_BG};
+    color: #8C5B14;
+    font-weight: 700;
+  }
+  .old-jewellery .old-title { text-align: left; }
+  .old-jewellery .old-desc { font-weight: 600; }
+
   .foot {
     margin-top: auto;
-    padding-bottom: 2mm;
+    padding-top: 1.5mm;
+    padding-bottom: 1mm;
     break-inside: avoid;
     page-break-inside: avoid;
   }
-  .summary-wrap { display: flex; justify-content: flex-end; }
-  .summary { width: 62mm; font-size: 8.5pt; border: 0.3mm solid ${GOLD}; }
-  .summary td { border: 0.2mm solid ${GOLD_SOFT}; padding: 1.1mm 2mm; }
+  .summary-wrap { display: flex; justify-content: flex-end; margin-bottom: 1.5mm; }
+  .summary { width: 62mm; font-size: 8pt; border: 0.3mm solid ${GOLD}; }
+  .summary td { border: 0.2mm solid ${GOLD_SOFT}; padding: 0.9mm 2mm; }
   .summary .sl { color: ${INK}; }
   .summary .sv { text-align: right; font-weight: 700; white-space: nowrap; }
-  .summary .final td { background: ${HEAD_BG}; font-weight: 800; font-size: 9.5pt; }
+  .summary .final td { background: ${HEAD_BG}; font-weight: 800; font-size: 9pt; }
 
-  .words { font-size: 8pt; margin-top: 1.5mm; }
-  .words b { font-weight: 700; }
+  .words-line {
+    font-size: 7.5pt;
+    display: flex;
+    align-items: flex-end;
+    margin-top: 1mm;
+  }
+  .words-lbl {
+    font-weight: 700;
+    color: ${INK};
+    white-space: nowrap;
+  }
+  .words-val {
+    flex: 1;
+    border-bottom: 0.2mm solid ${GOLD_SOFT};
+    margin-left: 2mm;
+    padding-left: 1mm;
+    font-weight: 700;
+    color: ${INK};
+    min-height: 4mm;
+  }
 </style>
 </head>
 <body>
@@ -259,36 +424,92 @@ export function buildBillHtml(data: BillData): string {
     <div class="band band-header"></div>
 
     <div class="middle">
-      <table class="cust">
-        <tr>
-          <td class="k">नाम</td><td class="v">${esc(customer.name)}</td>
-          <td class="k2">बिल नं.</td><td class="v2">${data.billNo}</td>
-        </tr>
-        ${addressRow}
-        ${mobileRow}
-      </table>
+      <div class="inv-frame">
+        <div class="inv-frame-left">
+          <div class="field-line">
+            <span class="field-label">Name :</span>
+            <span class="field-text">${esc(customer.name)}</span>
+          </div>
+          <div class="field-line">
+            <span class="field-label">Address :</span>
+            <span class="field-text">${customer.address ? esc(customer.address) : ""}</span>
+          </div>
+          <div class="field-line">
+            <span class="field-label">Phone Number :</span>
+            <span class="field-text">${customer.mobile ? esc(customer.mobile) : ""}</span>
+          </div>
+        </div>
+        <div class="inv-frame-right">
+          <div class="inv-title">INVOICE</div>
+          <div class="field-line">
+            <span class="field-label">Invoice No. :</span>
+            <span class="field-text">${data.billNo}</span>
+          </div>
+          <div class="field-line">
+            <span class="field-label">Invoice Date :</span>
+            <span class="field-text">${esc(formatBillDate(data.date))}</span>
+          </div>
+        </div>
+      </div>
 
       <table class="items">
         <thead>
           <tr>
-            <th style="width:8mm">क्रं.</th>
-            <th>विवरण</th>
-            <th style="width:15mm">धातु / शुद्धता</th>
-            <th style="width:22mm">वजन</th>
-            <th style="width:20mm">दर</th>
-            <th style="width:24mm">कुल राशि</th>
+            <th style="width:9mm">Sl.No.</th>
+            <th>Description</th>
+            <th style="width:22mm">Weight</th>
+            <th style="width:23mm">Metal/Purity</th>
+            <th style="width:11mm">Qty.</th>
+            <th style="width:23mm">Amount</th>
           </tr>
         </thead>
-        <tbody>${itemRows}</tbody>
+        <tbody>
+          ${itemRows}
+        </tbody>
+        <tfoot>
+          <tr class="table-total-row">
+            <td colspan="4" class="r-total">Total</td>
+            <td class="c">${totalQty}</td>
+            <td class="r">${esc(formatRupees(itemsTotal))}</td>
+          </tr>
+        </tfoot>
       </table>
 
+      ${
+        oldJewelleryRows
+          ? `<table class="old-jewellery">
+        <thead>
+          <tr><th colspan="4" class="old-title">Old Jewellery Exchange</th></tr>
+          <tr>
+            <th style="width:9mm">Sl.No.</th>
+            <th>Description</th>
+            <th style="width:30mm">Weight</th>
+            <th style="width:25mm">Value</th>
+          </tr>
+        </thead>
+        <tbody>${oldJewelleryRows}</tbody>
+        <tfoot>
+          <tr class="table-total-row">
+            <td colspan="3" class="r-total">Old Jewellery Credit</td>
+            <td class="r">${esc(formatRupees(oldJewelleryCredit))}</td>
+          </tr>
+        </tfoot>
+      </table>`
+          : ""
+      }
+
       <div class="foot">
-        <div class="summary-wrap">
+        ${
+          data.showPaymentDetails ||
+          data.discount > 0 ||
+          oldJewelleryCredit > 0 ||
+          uniformRate !== null
+            ? `<div class="summary-wrap">
           <table class="summary">${summary.join("")}</table>
-        </div>
-        <div class="words">
-          <b>राशि शब्दों में :</b> ${esc(toHindiRupeesWords(payable))} ।
-        </div>
+        </div>`
+            : ""
+        }
+       
       </div>
     </div>
 

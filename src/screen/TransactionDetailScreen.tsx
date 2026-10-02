@@ -20,7 +20,12 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 // @ts-ignore
 import { ReactNativeZoomableView } from "@dudigital/react-native-zoomable-view";
-import { RootStackParamList, JamaEntry } from "../types/entry";
+import {
+  RootStackParamList,
+  JamaEntry,
+  NewLendenItem,
+  NewOldJewelleryItem,
+} from "../types/entry";
 import {
   getRehanById,
   getLendenById,
@@ -39,13 +44,22 @@ import { saveImages } from "../storage/fileStorage";
 import BillTable from "../components/BillTable";
 import LendenItemsTable from "../components/LendenItemsTable";
 import AddLendenItemModal from "../components/AddLendenItemModal";
+import OldJewelleryItemsTable from "../components/OldJewelleryItemsTable";
+import AddOldJewelleryItemModal from "../components/AddOldJewelleryItemModal";
 import {
   getLendenItems,
   replaceLendenItems,
   setLendenAmountOverridden,
 } from "../database/lendenItems";
+import {
+  getLendenOldJewelleryItems,
+  replaceLendenOldJewelleryItems,
+} from "../database/lendenOldJewelleryItems";
 import { sumItemTotals } from "../utils/lendenAmount";
-import { NewLendenItem } from "../types/entry";
+import {
+  calculateLendenSettlement,
+  sumOldJewelleryValues,
+} from "../utils/lendenSettlement";
 import AddJamaModal from "../components/AddJamaModal";
 import AddRehanTransactionModal from "../components/AddRehanTransactionModal";
 import RehanTransactionTable from "../components/RehanTransactionTable";
@@ -119,7 +133,19 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
 
+  const [oldJewelleryItems, setOldJewelleryItems] = useState<
+    NewOldJewelleryItem[]
+  >([]);
+  const [originalOldJewelleryItems, setOriginalOldJewelleryItems] = useState<
+    NewOldJewelleryItem[]
+  >([]);
+  const [showOldJewelleryModal, setShowOldJewelleryModal] = useState(false);
+  const [editingOldJewelleryIndex, setEditingOldJewelleryIndex] = useState<
+    number | null
+  >(null);
+
   const itemsTotal = sumItemTotals(lendenItems);
+  const oldJewelleryCredit = sumOldJewelleryValues(oldJewelleryItems);
 
   // Rehan Transactions
   const [rehanTransactions, setRehanTransactions] = useState<
@@ -140,10 +166,16 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     if (transactionType === "lenden" && isEditMode) {
       const amount = parseInt(editAmount, 10) || 0;
       const disc = parseInt(editDiscount, 10) || 0;
-      const calc = amount - disc;
+      const calc = amount - disc - oldJewelleryCredit;
       setEditRemaining(calc > 0 ? calc.toString() : "0");
     }
-  }, [editAmount, editDiscount, transactionType, isEditMode]);
+  }, [
+    editAmount,
+    editDiscount,
+    oldJewelleryCredit,
+    transactionType,
+    isEditMode,
+  ]);
 
   // Auto-calculate Baki = Remaining - Jama (only for lenden in edit mode)
   useEffect(() => {
@@ -171,6 +203,9 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const bakiChanged = editBaki !== originalBaki;
     const lendenItemsChanged =
       JSON.stringify(lendenItems) !== JSON.stringify(originalLendenItems);
+    const oldJewelleryItemsChanged =
+      JSON.stringify(oldJewelleryItems) !==
+      JSON.stringify(originalOldJewelleryItems);
 
     setHasChanges(
       mediaChanged ||
@@ -180,7 +215,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         remainingChanged ||
         jamaChanged ||
         bakiChanged ||
-        lendenItemsChanged,
+        lendenItemsChanged ||
+        oldJewelleryItemsChanged,
     );
   }, [
     mediaPaths,
@@ -199,6 +235,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     originalBaki,
     lendenItems,
     originalLendenItems,
+    oldJewelleryItems,
+    originalOldJewelleryItems,
   ]);
 
   const loadData = async () => {
@@ -259,11 +297,22 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             metal: i.metal,
             purity: i.purity,
             weight: i.weight,
+            qty: i.qty,
             rate: i.rate,
             total: i.total,
           }));
           setLendenItems(mappedItems);
           setOriginalLendenItems(mappedItems);
+
+          const storedOldJewelleryItems =
+            await getLendenOldJewelleryItems(transactionId);
+          const mappedOldJewelleryItems = storedOldJewelleryItems.map((item) => ({
+            description: item.description,
+            weight: item.weight,
+            value: item.value,
+          }));
+          setOldJewelleryItems(mappedOldJewelleryItems);
+          setOriginalOldJewelleryItems(mappedOldJewelleryItems);
         }
       }
     } catch (error) {
@@ -376,6 +425,29 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         transactionType === "lenden" && lendenItems.length > 0
           ? itemsTotal
           : parseInt(editAmount, 10) || 0;
+      const discountValue = parseInt(editDiscount, 10) || 0;
+      const jamaValue = parseInt(editJama, 10) || 0;
+      const lendenSettlement = calculateLendenSettlement({
+        grossTotal: lendenAmount,
+        oldJewelleryCredit,
+        discount: discountValue,
+        jamaTotal: jamaValue,
+      });
+
+      if (transactionType === "lenden" && lendenSettlement.netPayable < 0) {
+        Alert.alert(
+          "Validation Error",
+          "Old jewellery credit and discount cannot be greater than the new jewellery total.",
+        );
+        return;
+      }
+      if (transactionType === "lenden" && lendenSettlement.baki < 0) {
+        Alert.alert(
+          "Validation Error",
+          "Jama payment cannot be greater than the net payable amount.",
+        );
+        return;
+      }
 
       // Update database
       if (transactionType === "rehan") {
@@ -390,10 +462,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           transactionId,
           finalPaths,
           lendenAmount || undefined,
-          editDiscount ? parseInt(editDiscount, 10) : undefined,
-          editRemaining ? parseInt(editRemaining, 10) : undefined,
-          editJama ? parseInt(editJama, 10) : undefined,
-          editBaki ? parseInt(editBaki, 10) : undefined,
+          discountValue || undefined,
+          lendenSettlement.netPayable,
+          jamaValue || undefined,
+          lendenSettlement.baki,
         );
       }
 
@@ -402,6 +474,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         if (lendenItems.length > 0) {
           await setLendenAmountOverridden(transactionId, 0);
         }
+        await replaceLendenOldJewelleryItems(
+          transactionId,
+          oldJewelleryItems,
+        );
       }
 
       setMediaPaths(finalPaths);
@@ -410,6 +486,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       setOriginalAmount(editAmount);
       if (transactionType === "lenden") {
         setOriginalLendenItems(lendenItems);
+        setOriginalOldJewelleryItems(oldJewelleryItems);
       }
 
       // Refresh local data to show updated values in UI immediately
@@ -425,10 +502,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           ...lenden,
           media: JSON.stringify(finalPaths),
           amount: lendenAmount || undefined,
-          discount: editDiscount ? parseInt(editDiscount, 10) : undefined,
-          remaining: editRemaining ? parseInt(editRemaining, 10) : undefined,
-          jama: editJama ? parseInt(editJama, 10) : undefined,
-          baki: editBaki ? parseInt(editBaki, 10) : undefined,
+          discount: discountValue || undefined,
+          remaining: lendenSettlement.netPayable,
+          jama: jamaValue || undefined,
+          baki: lendenSettlement.baki,
         });
         // Update original values after save
         setOriginalDiscount(editDiscount);
@@ -437,6 +514,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         setOriginalBaki(editBaki);
         setEditAmount(lendenAmount ? String(lendenAmount) : "");
         setOriginalAmount(lendenAmount ? String(lendenAmount) : "");
+        setEditRemaining(String(lendenSettlement.netPayable));
+        setOriginalRemaining(String(lendenSettlement.netPayable));
+        setEditBaki(String(lendenSettlement.baki));
+        setOriginalBaki(String(lendenSettlement.baki));
       }
 
       setIsEditMode(false);
@@ -484,6 +565,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setEditJama(originalJama);
     setEditBaki(originalBaki);
     setLendenItems(originalLendenItems);
+    setOldJewelleryItems(originalOldJewelleryItems);
     setIsEditMode(false);
   };
 
@@ -798,6 +880,32 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           </View>
         )}
 
+        {transactionType === "lenden" && (isEditMode || oldJewelleryItems.length > 0) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Old Jewellery Exchange</Text>
+            <Text style={styles.sectionSubtitle}>
+              Credit received from the customer against this Len-Den sale
+            </Text>
+            <OldJewelleryItemsTable
+              items={oldJewelleryItems}
+              editable={isEditMode}
+              onAdd={() => {
+                setEditingOldJewelleryIndex(null);
+                setShowOldJewelleryModal(true);
+              }}
+              onEdit={(index) => {
+                setEditingOldJewelleryIndex(index);
+                setShowOldJewelleryModal(true);
+              }}
+              onDelete={(index) => {
+                setOldJewelleryItems((items) =>
+                  items.filter((_, itemIndex) => itemIndex !== index),
+                );
+              }}
+            />
+          </View>
+        )}
+
         {/* Jama Entries BillTable for Lenden */}
         {transactionType === "lenden" && lenden && (lenden.amount || 0) > 0 && (
           <View style={styles.section}>
@@ -811,6 +919,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             </View>
             <BillTable
               amount={lenden.amount || 0}
+              oldJewelleryCredit={oldJewelleryCredit}
               discount={lenden.discount || 0}
               jamaEntries={jamaEntries}
               editable={!isEditMode}
@@ -975,6 +1084,28 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               if (editingItemIndex === null) return [...prev, item];
               return prev.map((existing, i) =>
                 i === editingItemIndex ? item : existing,
+              );
+            });
+          }}
+        />
+
+        <AddOldJewelleryItemModal
+          visible={showOldJewelleryModal}
+          editMode={editingOldJewelleryIndex !== null}
+          initialItem={
+            editingOldJewelleryIndex !== null
+              ? oldJewelleryItems[editingOldJewelleryIndex]
+              : undefined
+          }
+          onClose={() => {
+            setShowOldJewelleryModal(false);
+            setEditingOldJewelleryIndex(null);
+          }}
+          onSave={(item) => {
+            setOldJewelleryItems((items) => {
+              if (editingOldJewelleryIndex === null) return [...items, item];
+              return items.map((existing, index) =>
+                index === editingOldJewelleryIndex ? item : existing,
               );
             });
           }}
@@ -1396,6 +1527,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: "#1A1A1A",
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: "#7A6B58",
+    marginTop: 4,
+    marginBottom: 12,
   },
   addTransactionButton: {
     flexDirection: "row",

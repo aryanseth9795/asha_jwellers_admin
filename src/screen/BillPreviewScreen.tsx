@@ -18,12 +18,14 @@ import {
   getLendenById,
   getUserById,
   getJamaEntriesByLendenId,
+  getLendenByUserId,
 } from "../database/entryDatabase";
 import {
   getLendenItems,
   getNextBillNo,
   setLendenBillNo,
 } from "../database/lendenItems";
+import { getLendenOldJewelleryItems } from "../database/lendenOldJewelleryItems";
 import { buildBillHtml, BillData } from "../services/BillHtmlService";
 import { loadTemplateDataUri, sharePdf, printBill } from "../services/BillService";
 import { resolveEffectiveAmount } from "../utils/lendenAmount";
@@ -45,6 +47,7 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
   const [billNo, setBillNo] = useState(0);
   const [billNoText, setBillNoText] = useState("");
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
+  const [showTotalBaki, setShowTotalBaki] = useState(false);
   const [data, setData] = useState<BillData | null>(null);
 
   const load = useCallback(async () => {
@@ -57,6 +60,7 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
       const user: User | null = await getUserById(lenden.userId);
       const items = await getLendenItems(lendenId);
       const jama: JamaEntry[] = await getJamaEntriesByLendenId(lendenId);
+      const oldJewelleryItems = await getLendenOldJewelleryItems(lendenId);
 
       // Allocate a bill number the first time this entry is billed, so a
       // reprint always shows the same number.
@@ -69,6 +73,12 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
       const templateDataUri = await loadTemplateDataUri();
       const amount = resolveEffectiveAmount(lenden, items);
 
+      // Sum baki across other lenden entries for this customer (except current)
+      const allLenden = await getLendenByUserId(lenden.userId);
+      const otherLenden = allLenden.filter((l) => l.id !== lendenId);
+      const pichlaBaki = otherLenden.reduce((sum, l) => sum + (l.baki ?? 0), 0);
+      const totalBaki = pichlaBaki + (lenden.baki ?? 0);
+
       const billData: BillData = {
         billNo: resolvedBillNo,
         date: lenden.date,
@@ -78,11 +88,15 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
           mobile: user?.mobileNumber ?? null,
         },
         items,
+        oldJewelleryItems,
         amount,
         discount: lenden.discount ?? 0,
         jamaEntries: jama.map((j) => ({ amount: j.amount, date: j.date })),
         baki: lenden.baki ?? 0,
+        pichlaBaki,
+        totalBaki,
         showPaymentDetails: false,
+        showTotalBaki: false,
         templateDataUri,
       };
 
@@ -104,8 +118,8 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
   // Rebuild the HTML whenever the toggle or the bill number changes.
   useEffect(() => {
     if (!data) return;
-    setHtml(buildBillHtml({ ...data, showPaymentDetails, billNo }));
-  }, [data, showPaymentDetails, billNo]);
+    setHtml(buildBillHtml({ ...data, showPaymentDetails, showTotalBaki, billNo }));
+  }, [data, showPaymentDetails, showTotalBaki, billNo]);
 
   const commitBillNo = async () => {
     const parsed = parseInt(billNoText, 10);
@@ -152,20 +166,47 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
   return (
     <View style={styles.container}>
       <View style={styles.controls}>
-        <View style={styles.controlRow}>
-          <Text style={styles.controlLabel}>बिल नं.</Text>
-          <TextInput
-            style={styles.billNoInput}
-            value={billNoText}
-            onChangeText={(t) => setBillNoText(t.replace(/[^0-9]/g, ""))}
-            onBlur={commitBillNo}
-            keyboardType="numeric"
-          />
+        <View style={styles.topControlsRow}>
+          <View style={styles.controlRow}>
+            <Text style={styles.controlLabel}>बिल नं.</Text>
+            <TextInput
+              style={styles.billNoInput}
+              value={billNoText}
+              onChangeText={(t) => setBillNoText(t.replace(/[^0-9]/g, ""))}
+              onBlur={commitBillNo}
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={styles.controlRow}>
+            <Text style={styles.controlLabel}>भुगतान विवरण</Text>
+            <Switch
+              value={showPaymentDetails}
+              onValueChange={(v) => {
+                setShowPaymentDetails(v);
+                if (!v) setShowTotalBaki(false);
+              }}
+            />
+          </View>
         </View>
-        <View style={styles.controlRow}>
-          <Text style={styles.controlLabel}>भुगतान विवरण</Text>
-          <Switch value={showPaymentDetails} onValueChange={setShowPaymentDetails} />
-        </View>
+
+        {showPaymentDetails && (
+          <TouchableOpacity
+            style={styles.nestedControlRow}
+            activeOpacity={0.8}
+            onPress={() => setShowTotalBaki(!showTotalBaki)}
+          >
+            <View style={styles.nestedLabelContainer}>
+              <Ionicons name="return-down-forward" size={16} color="#007AFF" />
+              <Text style={styles.nestedControlLabel}>पिछला व कुल बाकी दिखाएं</Text>
+            </View>
+            <Switch
+              value={showTotalBaki}
+              onValueChange={setShowTotalBaki}
+              trackColor={{ false: "#D1D1D6", true: "#81B0FF" }}
+              thumbColor={showTotalBaki ? "#007AFF" : "#F4F3F4"}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       <WebView
@@ -202,17 +243,39 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8F9FA" },
   loader: { flex: 1, justifyContent: "center", alignItems: "center" },
   controls: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#E0E0E0",
+    gap: 8,
+  },
+  topControlsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   controlRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   controlLabel: { fontSize: 14, fontWeight: "600", color: "#666" },
+  nestedControlRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingLeft: 12,
+    paddingRight: 10,
+    paddingVertical: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: "#007AFF",
+    backgroundColor: "#F0F7FF",
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  nestedLabelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  nestedControlLabel: { fontSize: 14, fontWeight: "600", color: "#007AFF" },
   billNoInput: {
     minWidth: 70,
     backgroundColor: "#F0F7FF",

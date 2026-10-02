@@ -38,6 +38,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
   const [metal, setMetal] = useState<JewelleryMetal>("gold");
   const [purity, setPurity] = useState<Purity>("22KT");
   const [weight, setWeight] = useState("");
+  const [qty, setQty] = useState("1");
   const [rate, setRate] = useState("");
   const [total, setTotal] = useState("");
   // Once the user edits the total by hand we stop recomputing it for them.
@@ -58,6 +59,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
           : PURITY_OPTIONS_BY_METAL[initialMetal][0],
       );
       setWeight(initialItem.weight != null ? String(initialItem.weight) : "");
+      setQty(initialItem.qty != null ? String(initialItem.qty) : "1");
       setRate(initialItem.rate != null ? String(initialItem.rate) : "");
       setTotal(String(initialItem.total));
       setTotalTouched(true);
@@ -66,6 +68,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
       setMetal("gold");
       setPurity("22KT");
       setWeight("");
+      setQty("1");
       setRate("");
       setTotal("");
       setTotalTouched(false);
@@ -88,20 +91,19 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
 
   const totalNum = parseInt(total, 10) || 0;
   const canSave = name.trim().length > 0 && totalNum > 0;
-  const purityOptions: Purity[] =
-    metal === "silver" && purity === "Silver"
-      ? [...PURITY_OPTIONS_BY_METAL.silver, "Silver"]
-      : PURITY_OPTIONS_BY_METAL[metal];
+  const purityOptions: Purity[] = PURITY_OPTIONS_BY_METAL[metal];
 
   const handleSave = () => {
     if (!canSave) return;
     const w = parseFloat(weight);
+    const q = parseInt(qty, 10);
     const r = parseInt(rate, 10);
     onSave({
       name: name.trim(),
       metal,
       purity,
       weight: Number.isFinite(w) ? w : null,
+      qty: Number.isFinite(q) && q > 0 ? q : 1,
       rate: Number.isFinite(r) ? r : null,
       total: totalNum,
     });
@@ -211,6 +213,18 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
                   value={weight}
                   onChangeText={(t) => setWeight(t.replace(/[^0-9.]/g, ""))}
                   keyboardType="decimal-pad"
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { width: 75, marginHorizontal: 8 }]}>
+                <Text style={styles.label}>मात्रा / Qty</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1"
+                  placeholderTextColor="#999"
+                  value={qty}
+                  onChangeText={(t) => setQty(t.replace(/[^0-9]/g, ""))}
+                  keyboardType="numeric"
                 />
               </View>
 

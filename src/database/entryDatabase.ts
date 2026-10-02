@@ -88,8 +88,22 @@ export const initDatabase = async () => {
         metal TEXT,
         purity TEXT,
         weight REAL,
+        qty INTEGER DEFAULT 1,
         rate INTEGER,
         total INTEGER NOT NULL,
+        FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Old jewellery received as credit against a Len-Den sale.
+    await database.execAsync(`
+      CREATE TABLE IF NOT EXISTS lenden_old_jewellery_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        lendenId INTEGER NOT NULL,
+        position INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        weight REAL,
+        value INTEGER NOT NULL,
         FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
       );
     `);
@@ -208,6 +222,13 @@ export const initDatabase = async () => {
           );
         });
         console.log("Added metal to lenden_items table");
+      }
+
+      if (!lendenItemColumns.includes("qty")) {
+        await database.execAsync(
+          "ALTER TABLE lenden_items ADD COLUMN qty INTEGER DEFAULT 1",
+        );
+        console.log("Added qty to lenden_items table");
       }
     } catch (migrationError) {
       console.error("Migration error:", migrationError);
@@ -683,6 +704,10 @@ export const deleteLenden = async (id: number): Promise<void> => {
     // Delete associated jama entries first
     await database.runAsync("DELETE FROM jama_entries WHERE lendenId = ?", id);
     await database.runAsync("DELETE FROM lenden_items WHERE lendenId = ?", id);
+    await database.runAsync(
+      "DELETE FROM lenden_old_jewellery_items WHERE lendenId = ?",
+      id,
+    );
     await database.runAsync("DELETE FROM lenden WHERE id = ?", id);
   } catch (error) {
     console.error("Error deleting Lenden:", error);

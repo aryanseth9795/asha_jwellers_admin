@@ -23,6 +23,7 @@ interface LendenItemRow {
   metal: string | null;
   purity: string | null;
   weight: number | null;
+  qty: number | null;
   rate: number | null;
   total: number;
 }
@@ -35,6 +36,7 @@ const toLendenItem = (row: LendenItemRow): LendenItem => ({
   metal: (row.metal as JewelleryMetal | null) ?? null,
   purity: (row.purity as Purity | null) ?? null,
   weight: row.weight,
+  qty: row.qty ?? 1,
   rate: row.rate,
   total: row.total,
 });
@@ -74,13 +76,14 @@ export const replaceLendenItems = async (
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         await database.runAsync(
-          "INSERT INTO lenden_items (lendenId, position, name, metal, purity, weight, rate, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO lenden_items (lendenId, position, name, metal, purity, weight, qty, rate, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
           lendenId,
           i + 1,
           item.name,
           item.metal ?? null,
           item.purity ?? null,
           item.weight ?? null,
+          item.qty ?? 1,
           item.rate ?? null,
           item.total,
         );
