@@ -1,5 +1,4 @@
 import { LendenItem, OldJewelleryItem } from "../types/entry";
-import { toHindiRupeesWords } from "../utils/hindiNumberWords";
 import {
   formatBillDate,
   formatMetalPurity,
@@ -26,7 +25,7 @@ const TEMPLATE_H = 1536;
 // Header extends down to just above the customer box (captures proprietor box at y=646).
 export const HEADER_CROP_PCT = 0.422;
 // Header display compression factor to compact the artwork header slightly and leave more room for items.
-export const HEADER_COMPRESS_RATIO = 0.8;
+export const HEADER_COMPRESS_RATIO = 0.7;
 
 // Footer visible fraction: from y=1308 to 1536 (captures Terms & Conditions, Signature, and Thank you flourish).
 export const FOOTER_CROP_PCT = 0.1484;
@@ -156,13 +155,6 @@ export function buildBillHtml(data: BillData): string {
     })
     .join("");
 
-  // The last bold summary figure; the words line speaks the same value.
-  const finalFigure = data.showPaymentDetails
-    ? data.showTotalBaki
-      ? data.pichlaBaki + settlement.baki
-      : settlement.baki
-    : settlement.netPayable;
-
   const summary: string[] = [
     // summaryRow("कुल वजन", formatWeight(totalWeight).main),
   ];
@@ -186,7 +178,7 @@ export function buildBillHtml(data: BillData): string {
     // Optional पिछला बाकी + कुल बाकी rows — only visible when the nested toggle is on
     if (data.showTotalBaki) {
       summary.push(summaryRow("पिछला बाकी", formatRupees(data.pichlaBaki)));
-      summary.push(summaryRow("कुल बाकी", formatRupees(finalFigure), "final"));
+      summary.push(summaryRow("कुल बाकी", formatRupees(data.pichlaBaki + settlement.baki), "final"));
     }
   } else {
     if (oldJewelleryCredit > 0) {
@@ -282,28 +274,28 @@ export function buildBillHtml(data: BillData): string {
   .inv-frame {
     border: 0.35mm solid ${GOLD};
     border-radius: 2mm;
-    padding: 1.5mm 3mm;
-    margin-bottom: 2mm;
+    padding: 1mm 2.5mm;
+    margin-bottom: 1.5mm;
     display: flex;
     justify-content: space-between;
     font-size: 7.5pt;
-    line-height: 1.2;
+    line-height: 1.15;
     background: #fff;
   }
   .inv-frame-left { flex: 1.35; }
   .inv-frame-right { flex: 0.95; padding-left: 3mm; }
   .inv-title {
-    font-size: 10.5pt;
+    font-size: 9pt;
     font-weight: 700;
     letter-spacing: 1.5px;
     color: #8C5B14;
     text-align: center;
-    margin-bottom: 1.5mm;
+    margin-bottom: 0.8mm;
   }
   .field-line {
     display: flex;
     align-items: flex-end;
-    margin-bottom: 1.2mm;
+    margin-bottom: 0.8mm;
   }
   .field-line:last-child { margin-bottom: 0; }
   .field-label {
@@ -318,7 +310,7 @@ export function buildBillHtml(data: BillData): string {
     padding-left: 1mm;
     font-weight: 700;
     color: ${INK};
-    min-height: 3.8mm;
+    min-height: 3.3mm;
   }
 
   table { width: 100%; border-collapse: collapse; }
@@ -362,26 +354,6 @@ export function buildBillHtml(data: BillData): string {
   .summary .sv { text-align: right; font-weight: 700; white-space: nowrap; }
   .summary .final td { background: ${HEAD_BG}; font-weight: 800; font-size: 9pt; }
 
-  .words-line {
-    font-size: 7.5pt;
-    display: flex;
-    align-items: flex-end;
-    margin-top: 1mm;
-  }
-  .words-lbl {
-    font-weight: 700;
-    color: ${INK};
-    white-space: nowrap;
-  }
-  .words-val {
-    flex: 1;
-    border-bottom: 0.2mm solid ${GOLD_SOFT};
-    margin-left: 2mm;
-    padding-left: 1mm;
-    font-weight: 700;
-    color: ${INK};
-    min-height: 4mm;
-  }
 </style>
 </head>
 <body>
@@ -452,10 +424,6 @@ export function buildBillHtml(data: BillData): string {
         </div>`
             : ""
         }
-        <div class="words-line">
-          <span class="words-lbl">Rupees in words :</span>
-          <span class="words-val">${esc(toHindiRupeesWords(finalFigure))}</span>
-        </div>
       </div>
     </div>
 

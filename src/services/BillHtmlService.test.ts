@@ -247,25 +247,13 @@ describe("buildBillHtml", () => {
     });
   });
 
-  it("puts the payable amount into words with Rupees in words prefix", () => {
-    const html = buildBillHtml(data());
-    expect(html).toContain("Rupees in words :");
-    expect(html).toContain("पचास हजार सात सौ पचास रुपये मात्र");
+  it("does not print the amount in words", () => {
+    const html = buildBillHtml(data({ showPaymentDetails: true, showTotalBaki: true, pichlaBaki: 25000 }));
+    expect(html).not.toContain("Rupees in words");
+    expect(html).not.toContain("रुपये मात्र");
   });
 
-  it("words the baki, not the gross, when payment details are shown", () => {
-    const html = buildBillHtml(
-      data({
-        showPaymentDetails: true,
-        discount: 650,
-        jamaEntries: [{ amount: 50000, date: "2026-08-27T00:00:00.000Z" }],
-      }),
-    );
-    expect(html).toContain("एक सौ रुपये मात्र");
-    expect(html).not.toContain("पचास हजार सात सौ पचास रुपये मात्र");
-  });
-
-  it("words the कुल बाकी figure when the total baki row is shown", () => {
+  it("shows कुल बाकी as the last bold figure when the total baki row is on", () => {
     const html = buildBillHtml(
       data({
         showPaymentDetails: true,
@@ -276,7 +264,13 @@ describe("buildBillHtml", () => {
       }),
     );
     expect(html).toContain("25,100/-");
-    expect(html).toContain("पच्चीस हजार एक सौ रुपये मात्र");
+  });
+
+  it("keeps the header band compact so the items get more room", () => {
+    const html = buildBillHtml(data());
+    const height = Number(/\.band-header \{\s*height: ([\d.]+)mm/.exec(html)?.[1]);
+    expect(height).toBeGreaterThan(60);
+    expect(height).toBeLessThanOrEqual(66);
   });
 
   it("drops the milligram sub-line once the table gets crowded", () => {
