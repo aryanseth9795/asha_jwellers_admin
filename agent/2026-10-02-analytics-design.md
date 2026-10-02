@@ -158,3 +158,14 @@ check of each section against hand-counted sample data.
 
 ## 8. Out of scope
 Exporting analytics (PDF/share), profit/margin (purchase cost isn't recorded), forecasting, push alerts.
+
+## 9. Implementation notes (2026-10-02)
+
+Built on `feat/old-jewellery-adjustments` per `agent/2026-10-02-analytics-plan.md`. Deviations and decisions made during implementation:
+
+- **Rehan opened/closed per month** (§4.3) are shown as tile counts for the period, not a separate monthly chart; the monthly Rehan chart is given vs recovered.
+- **Customer activity** (§4.2) counts Len-Den and Rehan *entries* only. Jama payments and rehan transactions are not visits, so a customer who only came in to pay keeps an older "last visit".
+- **Re-purchase gaps** are measured between purchase days inside the selected period; a gap spanning an FY boundary is not counted in that FY.
+- **Baaki outstanding** sums only positive `baki` on open entries; a negative stored baki (data error) is ignored rather than reducing the total.
+- **Old Jewellery register** "This Year" became "This FY" (Apr–Mar) to agree with Analytics.
+- Known cosmetic edges, deferred: compact axis labels near unit boundaries (e.g. 99,999 shows "100K"); FY back-arrow has no lower bound (earlier years show the empty state); turning "All time" off returns to the current FY.
