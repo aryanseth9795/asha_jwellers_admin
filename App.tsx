@@ -11,9 +11,10 @@ import {
   Animated,
   Alert,
 } from "react-native";
-import { Text } from "./src/ui";
+import { Text, colors } from "./src/ui";
 import * as Updates from "expo-updates";
 import HomeScreen from "./src/screen/homeScreen";
+import BusinessMenuScreen from "./src/screen/BusinessMenuScreen";
 import NewCustomerScreen from "./src/screen/NewCustomerScreen";
 import ExistingCustomersScreen from "./src/screen/ExistingCustomersScreen";
 import UserTransactionsScreen from "./src/screen/UserTransactionsScreen";
@@ -27,6 +28,7 @@ import AddEditCategoryScreen from "./src/screen/AddEditCategoryScreen";
 import ProductListScreen from "./src/screen/ProductListScreen";
 import AddEditProductScreen from "./src/screen/AddEditProductScreen";
 import { RootStackParamList } from "./src/types/entry";
+import { headerColorFor } from "./src/navigation/menus";
 import { initDatabase } from "./src/database/entryDatabase";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -115,23 +117,29 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <StatusBar style="auto" />
+        <StatusBar style="light" />
         <Stack.Navigator
           initialRouteName="Home"
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: "#007AFF",
-            },
-            headerTintColor: "#fff",
-            headerTitleStyle: {
-              fontWeight: "bold",
-            },
-          }}
+          screenOptions={({ route }) => ({
+            headerStyle: { backgroundColor: headerColorFor(route.name) },
+            headerTintColor: colors.white,
+            headerTitleStyle: { fontWeight: "bold" },
+          })}
         >
           <Stack.Screen
             name="Home"
             component={HomeScreen}
             options={{ title: "Home", headerShown: false }}
+          />
+          <Stack.Screen
+            name="AshaHome"
+            component={BusinessMenuScreen}
+            options={{ title: "Asha Jewellers" }}
+          />
+          <Stack.Screen
+            name="SsjHome"
+            component={BusinessMenuScreen}
+            options={{ title: "SSJ" }}
           />
           <Stack.Screen
             name="NewCustomer"

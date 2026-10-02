@@ -157,6 +157,8 @@ export type EntryType = "rehan" | "lenden";
 // Navigation types
 export type RootStackParamList = {
   Home: undefined;
+  AshaHome: undefined;
+  SsjHome: undefined;
   NewCustomer: undefined;
   ExistingCustomers: undefined;
   UserTransactions: {

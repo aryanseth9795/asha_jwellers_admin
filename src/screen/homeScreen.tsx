@@ -1,40 +1,24 @@
 import React from "react";
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-  Dimensions,
-  ScrollView,
-  RefreshControl,
-} from "react-native";
-import { Text } from "../ui";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useIsFocused } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { RootStackParamList } from "../types/entry";
 import { exportData } from "../services/ExportService";
+import { BUSINESSES, BusinessId } from "../navigation/menus";
+import { ALL_EDGES, MenuCard, Screen, Text, colors, fontSize, radius, space } from "../ui";
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "Home"
->;
+type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, "Home">;
 
 interface Props {
   navigation: HomeScreenNavigationProp;
 }
 
+/** Business picker: Asha Jewellers or SSJ (spec §4). */
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
+  const isFocused = useIsFocused();
   const [isExporting, setIsExporting] = React.useState(false);
-
-  const handleExistingPress = () => {
-    navigation.navigate("ExistingCustomers");
-  };
-
-  const handleNewPress = () => {
-    navigation.navigate("NewCustomer");
-  };
 
   const handleExport = async () => {
     try {
@@ -42,323 +26,131 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       await exportData();
     } catch (error) {
       console.error("Export failed:", error);
-      alert("Export failed. Please try again.");
+      Alert.alert("Export failed", "Please try again.");
     } finally {
       setIsExporting(false);
     }
   };
 
-  // Get current date and day
-  const today = new Date();
-  const options: Intl.DateTimeFormatOptions = {
+  const openBusiness = (id: BusinessId) =>
+    id === "aj" ? navigation.navigate("AshaHome") : navigation.navigate("SsjHome");
+
+  const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
-    year: "numeric",
-    month: "long",
     day: "numeric",
-  };
-  const formattedDate = today.toLocaleDateString("en-IN", options);
+    month: "long",
+    year: "numeric",
+  });
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.headerSection}>
-          <View>
+    <Screen edges={ALL_EDGES}>
+      {/* Only while Home is on top, so the dark icons don't leak onto the navy headers. */}
+      {isFocused && <StatusBar style="dark" />}
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.header}>
+          <View style={styles.headerText}>
             <Text style={styles.greeting}>Welcome back,</Text>
-            <Text style={styles.userName}>Ayush</Text>
+            <Text style={styles.name} numberOfLines={1}>
+              Ayush
+            </Text>
+            <View style={styles.dateBadge}>
+              <Ionicons name="calendar-outline" size={14} color={colors.textDim} />
+              <Text style={styles.dateText} numberOfLines={1}>
+                {today}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity
             style={styles.exportButton}
             onPress={handleExport}
             disabled={isExporting}
+            accessibilityLabel="Export data"
           >
             {isExporting ? (
-              <Ionicons name="cloud-upload" size={24} color="#999" />
+              <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-              <Ionicons name="cloud-upload-outline" size={24} color="#007AFF" />
+              <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
             )}
+            <Text style={styles.exportText}>Export</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.contentSection}>
-          <Text style={styles.helpText}>What would you like to do?</Text>
-
-          <View style={styles.cardsContainer}>
-            <TouchableOpacity
-              style={[styles.card, styles.cardExisting]}
-              onPress={handleExistingPress}
-              activeOpacity={0.9}
-            >
-              <View style={styles.cardIconContainer}>
-                <Ionicons name="folder-open" size={32} color="#fff" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>Existing Customer</Text>
-                <Text style={styles.cardSubtitle}>View and manage entries</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#fff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.card, styles.cardNew]}
-              onPress={handleNewPress}
-              activeOpacity={0.9}
-            >
-              <View style={[styles.cardIconContainer, styles.iconContainerNew]}>
-                <Ionicons name="person-add" size={32} color="#007AFF" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={[styles.cardTitle, styles.textDark]}>
-                  New Customer
-                </Text>
-                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
-                  Create a new entry
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#007AFF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.card, styles.cardBhav]}
-              onPress={() => navigation.navigate("UpdateBhav")}
-              activeOpacity={0.9}
-            >
-              <View
-                style={[styles.cardIconContainer, styles.iconContainerBhav]}
-              >
-                <Ionicons name="trending-up" size={32} color="#D4AF37" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={[styles.cardTitle, styles.textDark]}>
-                  Update Bhav
-                </Text>
-                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
-                  Update commodity rates
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#D4AF37" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.card, styles.cardBhav]}
-              onPress={() => navigation.navigate("Analytics")}
-              activeOpacity={0.9}
-            >
-              <View style={[styles.cardIconContainer, styles.iconContainerAnalytics]}>
-                <Ionicons name="bar-chart" size={32} color="#2E7D32" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={[styles.cardTitle, styles.textDark]}>Analytics</Text>
-                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
-                  Sales, customers, rehan & metal
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#2E7D32" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.card, styles.cardCategory]}
-              onPress={() => navigation.navigate("CategoryList")}
-              activeOpacity={0.9}
-            >
-              <View
-                style={[styles.cardIconContainer, styles.iconContainerCategory]}
-              >
-                <Ionicons name="folder-outline" size={32} color="#8B5CF6" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={[styles.cardTitle, styles.textDark]}>
-                  Categories
-                </Text>
-                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
-                  Manage product categories
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#8B5CF6" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.card, styles.cardProduct]}
-              onPress={() => navigation.navigate("ProductList", {})}
-              activeOpacity={0.9}
-            >
-              <View
-                style={[styles.cardIconContainer, styles.iconContainerProduct]}
-              >
-                <Ionicons name="cube-outline" size={32} color="#10B981" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={[styles.cardTitle, styles.textDark]}>
-                  Products
-                </Text>
-                <Text style={[styles.cardSubtitle, styles.textDarkDim]}>
-                  Manage products & variants
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#10B981" />
-            </TouchableOpacity>
-          </View>
+        <Text style={styles.sectionTitle}>Choose business</Text>
+        <View style={styles.list}>
+          {BUSINESSES.map((b) => (
+            <MenuCard
+              key={b.id}
+              size="large"
+              title={b.name}
+              subtitle={b.subtitle}
+              icon={b.icon}
+              accent={b.accent}
+              tint={b.tint}
+              onPress={() => openBusiness(b.id)}
+            />
+          ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-  },
-  scrollContent: {
-    paddingBottom: 24,
-  },
-  headerSection: {
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === "android" ? 40 : 20,
-    paddingBottom: 32,
-    backgroundColor: "#fff",
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
+  content: { paddingBottom: space.xxl },
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: space.md,
+    paddingHorizontal: space.xl,
+    paddingTop: space.xl,
+    paddingBottom: space.xxl,
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
-    elevation: 5,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
   },
-  exportButton: {
-    padding: 10,
-    backgroundColor: "#F0F7FF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  greeting: {
-    fontSize: 18,
-    color: "#666",
-    fontWeight: "500",
-  },
-  userName: {
-    fontSize: 34,
-    fontWeight: "800",
-    color: "#1A1A1A",
-    marginTop: 4,
-    letterSpacing: -0.5,
-  },
+  headerText: { flex: 1, minWidth: 0 },
+  greeting: { fontSize: fontSize.bodyLg, color: colors.textDim, fontWeight: "500" },
+  name: { fontSize: fontSize.display, fontWeight: "800", color: colors.text, marginTop: 2 },
   dateBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F0F2F5",
     alignSelf: "flex-start",
-    paddingHorizontal: 12,
+    maxWidth: "100%",
+    gap: 6,
+    marginTop: space.md,
+    paddingHorizontal: space.md,
     paddingVertical: 6,
     borderRadius: 20,
-    marginTop: 16,
-    gap: 6,
+    backgroundColor: "#F0F2F5",
   },
-  dateText: {
-    fontSize: 13,
-    color: "#666",
-    fontWeight: "600",
+  dateText: { flexShrink: 1, fontSize: fontSize.caption + 1, color: colors.textDim, fontWeight: "600" },
+  exportButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 64,
+    minHeight: 56,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.md,
+    backgroundColor: "#F0F7FF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    gap: 2,
   },
-  contentSection: {
-    flex: 1,
-    padding: 24,
-    paddingTop: 32,
-  },
-  helpText: {
-    fontSize: 20,
+  exportText: { fontSize: fontSize.caption, fontWeight: "700", color: colors.primary },
+  sectionTitle: {
+    fontSize: fontSize.title,
     fontWeight: "700",
     color: "#333",
-    marginBottom: 24,
+    marginTop: space.xxl,
+    marginBottom: space.md,
+    paddingHorizontal: space.xl,
   },
-  cardsContainer: {
-    gap: 20,
-  },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 24,
-    borderRadius: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    height: 120,
-  },
-  cardExisting: {
-    backgroundColor: "#007AFF",
-  },
-  cardNew: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#EEF0F2",
-  },
-  cardIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  iconContainerNew: {
-    backgroundColor: "#E6F2FF",
-  },
-  cardBhav: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#EEF0F2",
-  },
-  iconContainerBhav: {
-    backgroundColor: "#FEF9E7",
-  },
-  iconContainerAnalytics: {
-    backgroundColor: "#EEF8EF",
-  },
-  cardCategory: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#EEF0F2",
-  },
-  iconContainerCategory: {
-    backgroundColor: "#F3E8FF",
-  },
-  cardProduct: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#EEF0F2",
-  },
-  iconContainerProduct: {
-    backgroundColor: "#D1FAE5",
-  },
-  cardContent: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.8)",
-    fontWeight: "500",
-  },
-  textDark: {
-    color: "#1A1A1A",
-  },
-  textDarkDim: {
-    color: "#666",
-  },
+  list: { gap: space.lg, paddingHorizontal: space.xl },
 });
 
 export default HomeScreen;
