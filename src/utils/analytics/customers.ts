@@ -57,6 +57,23 @@ const latest = (dates: string[]) =>
 const earliest = (dates: string[]) =>
   dates.reduce((a, b) => (new Date(a).getTime() <= new Date(b).getTime() ? a : b));
 
+/** Customers whose first Len-Den or Rehan entry falls in the period (the view's newInPeriod, without the rest). */
+export const countNewCustomers = (data: AnalyticsData, period: Period): number => {
+  const first = new Map<number, number>();
+  const note = (userId: number, iso: string) => {
+    const t = new Date(iso).getTime();
+    const seen = first.get(userId);
+    if (seen === undefined || t < seen) first.set(userId, t);
+  };
+  data.lenden.forEach((entry) => note(entry.userId, entry.date));
+  data.rehan.forEach((entry) => note(entry.userId, entry.openDate));
+  const start = period.start.getTime();
+  const end = period.end.getTime();
+  let count = 0;
+  for (const t of first.values()) if (t >= start && t < end) count++;
+  return count;
+};
+
 export const buildCustomersView = (
   data: AnalyticsData,
   period: Period,

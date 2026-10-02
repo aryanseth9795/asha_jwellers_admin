@@ -1,5 +1,5 @@
 import { allPeriod, fyPeriod } from "./periods";
-import { buildCustomersView, recencyPoints, thirdPoints, tierFor } from "./customers";
+import { buildCustomersView, countNewCustomers, recencyPoints, thirdPoints, tierFor } from "./customers";
 import { AnalyticsData, LendenRow } from "./types";
 
 const iso = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12).toISOString();
@@ -64,6 +64,13 @@ describe("buildCustomersView", () => {
     expect(view.activeInPeriod).toBe(4); // C4 via rehan
     expect(view.newInPeriod).toBe(3); // C4's first activity was FY 25-26
     expect(view.buyers).toBe(3);
+  });
+
+  it("counts new customers like the full view", () => {
+    expect(countNewCustomers(data, FY26)).toBe(view.newInPeriod);
+    const all = allPeriod(data.lenden.map((l) => l.date));
+    expect(countNewCustomers(data, all)).toBe(buildCustomersView(data, all, NOW).newInPeriod);
+    expect(countNewCustomers(empty, FY26)).toBe(0);
   });
 
   it("treats same-day bills as one visit for repeats and gaps", () => {
