@@ -1,3 +1,5 @@
+import { formatRupees } from "../billFormat";
+
 const trim = (value: number, decimals: number): string =>
   String(parseFloat(value.toFixed(decimals)));
 
@@ -17,3 +19,10 @@ export const formatGrams = (grams: number): string =>
 // Weights are entered to the milligram; rounding after each sum keeps float
 // noise like 0.30000000000000004 out of the UI.
 export const roundGrams = (grams: number): number => Math.round(grams * 1000) / 1000;
+
+
+/** 182500 -> "₹1,82,500"; for sentences and tiles. */
+export const formatInr = (value: number): string =>
+  `${value < 0 ? "-" : ""}₹${formatRupees(Math.abs(value)).replace(/\/-$/, "")}`;
+
+export const formatPct = (ratio: number): string => `${Math.round(ratio * 100)}%`;

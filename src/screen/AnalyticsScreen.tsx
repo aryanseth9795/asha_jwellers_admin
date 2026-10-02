@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../types/entry";
 import { getAnalyticsData } from "../database/analyticsQueries";
 import { AnalyticsData } from "../utils/analytics/types";
-import { Period, currentPeriod, fyLabel } from "../utils/analytics/periods";
+import { Period, allPeriod, periodFor, shiftPeriod } from "../utils/analytics/periods";
 import { buildSalesView } from "../utils/analytics/sales";
 import { buildCustomersView } from "../utils/analytics/customers";
 import { buildRehanView } from "../utils/analytics/rehan";
@@ -27,7 +27,7 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [failed, setFailed] = useState(false);
   const [section, setSection] = useState<Section>("Sales");
-  const latestFy = currentPeriod();
+  const latestFy = periodFor("fy", new Date());
   const [period, setPeriod] = useState<Period>(latestFy);
 
   useFocusEffect(
@@ -67,8 +67,8 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
   }, [data, period, section, navigation]);
 
   const shiftYear = (delta: number) =>
-    period.kind === "fy" && setPeriod({ kind: "fy", startYear: period.startYear + delta });
-  const atLatest = period.kind === "fy" && latestFy.kind === "fy" && period.startYear >= latestFy.startYear;
+    period.grain === "fy" && setPeriod(shiftPeriod(period, delta));
+  const atLatest = period.grain === "fy" && period.end.getTime() > Date.now();
 
   return (
     <View style={styles.container}>
@@ -85,12 +85,12 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
         <View style={styles.periodRow}>
-          {period.kind === "fy" ? (
+          {period.grain === "fy" ? (
             <>
               <TouchableOpacity onPress={() => shiftYear(-1)} style={styles.arrow}>
                 <Ionicons name="chevron-back" size={20} color="#8C5B14" />
               </TouchableOpacity>
-              <Text style={styles.periodLabel}>{fyLabel(period.startYear)}</Text>
+              <Text style={styles.periodLabel}>{period.label}</Text>
               <TouchableOpacity onPress={() => shiftYear(1)} style={styles.arrow} disabled={atLatest}>
                 <Ionicons name="chevron-forward" size={20} color={atLatest ? "#DDD" : "#8C5B14"} />
               </TouchableOpacity>
@@ -99,10 +99,16 @@ const AnalyticsScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.periodLabel}>All time</Text>
           )}
           <TouchableOpacity
-            style={[styles.allChip, period.kind === "all" && styles.allChipActive]}
-            onPress={() => setPeriod(period.kind === "all" ? latestFy : { kind: "all" })}
+            style={[styles.allChip, period.grain === "all" && styles.allChipActive]}
+            onPress={() => setPeriod(
+                period.grain === "all"
+                  ? latestFy
+                  : allPeriod(
+                      data ? [...data.lenden.map((l) => l.date), ...data.rehan.map((r) => r.openDate)] : [],
+                    ),
+              )}
           >
-            <Text style={[styles.allText, period.kind === "all" && styles.allTextActive]}>All time</Text>
+            <Text style={[styles.allText, period.grain === "all" && styles.allTextActive]}>All time</Text>
           </TouchableOpacity>
         </View>
       </View>

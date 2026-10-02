@@ -68,10 +68,7 @@ export const buildSalesView = (data: AnalyticsData, period: Period): SalesView =
     .sort((a, b) => b.baki - a.baki)
     .slice(0, 5);
 
-  const bucketList = buckets(period, [
-    ...bills.map((entry) => entry.date),
-    ...periodPayments.map((p) => p.date),
-  ]);
+  const bucketList = buckets(period);
 
   return {
     bills: bills.length,

@@ -1,4 +1,4 @@
-import { formatCompactRupees, formatGrams, roundGrams } from "./format";
+import { formatCompactRupees, formatGrams, formatInr, formatPct, roundGrams } from "./format";
 
 describe("formatCompactRupees", () => {
   it("uses Indian units", () => {
@@ -26,5 +26,21 @@ describe("roundGrams", () => {
   it("rounds to milligrams", () => {
     expect(roundGrams(0.1 + 0.2)).toBe(0.3);
     expect(roundGrams(1.23456)).toBe(1.235);
+  });
+});
+
+describe("formatInr", () => {
+  it("uses Indian grouping with a rupee sign", () => {
+    expect(formatInr(182500)).toBe("₹1,82,500");
+    expect(formatInr(950)).toBe("₹950");
+    expect(formatInr(-5000)).toBe("-₹5,000");
+  });
+});
+
+describe("formatPct", () => {
+  it("rounds to a whole percent", () => {
+    expect(formatPct(0.1234)).toBe("12%");
+    expect(formatPct(1)).toBe("100%");
+    expect(formatPct(-0.4)).toBe("-40%");
   });
 });

@@ -1,8 +1,9 @@
+import { fyPeriod } from "./periods";
 import { buildRehanView, principalOf } from "./rehan";
 import { AnalyticsData, RehanRow } from "./types";
 
 const iso = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12).toISOString();
-const FY26 = { kind: "fy", startYear: 2026 } as const;
+const FY26 = fyPeriod(2026);
 const empty: AnalyticsData = {
   users: [], lenden: [], jama: [], rehan: [], rehanTx: [], soldItems: [], oldItems: [],
 };

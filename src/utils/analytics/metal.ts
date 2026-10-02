@@ -60,7 +60,7 @@ export const buildMetalView = (data: AnalyticsData, period: Period): MetalView =
 
   const sold = toLines(data.soldItems, (i) => data.soldItems[i].total);
   const received = toLines(data.oldItems, (i) => data.oldItems[i].value);
-  const bucketList = buckets(period, [...sold, ...received].map((l) => l.date));
+  const bucketList = buckets(period);
   const weightSeries = (lines: MetalLine[], metal: keyof MetalTotals) =>
     series(bucketList, period,
       lines.filter((l) => l.metal === metal).map((l) => ({ date: l.date, value: l.weight })),

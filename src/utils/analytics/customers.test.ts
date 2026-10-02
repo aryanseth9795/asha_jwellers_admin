@@ -1,10 +1,10 @@
+import { allPeriod, fyPeriod } from "./periods";
 import { buildCustomersView, recencyPoints, thirdPoints, tierFor } from "./customers";
 import { AnalyticsData, LendenRow } from "./types";
 
 const iso = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12).toISOString();
 const NOW = new Date(2026, 9, 2, 12);
-const FY26 = { kind: "fy", startYear: 2026 } as const;
-const ALL = { kind: "all" } as const;
+const FY26 = fyPeriod(2026);
 
 let nextId = 1;
 const bill = (userId: number, date: string, amount: number, o: Partial<LendenRow> = {}): LendenRow => ({
@@ -109,7 +109,7 @@ describe("buildCustomersView", () => {
   });
 
   it("makes everyone medium with fewer than three buyers", () => {
-    const small = buildCustomersView({ ...data, lenden: data.lenden.filter((l) => l.userId === 1) }, ALL, NOW);
+    const small = buildCustomersView({ ...data, lenden: data.lenden.filter((l) => l.userId === 1) }, allPeriod(data.lenden.map((l) => l.date)), NOW);
     expect(small.customers.map((c) => c.tier)).toEqual(["medium"]);
   });
 

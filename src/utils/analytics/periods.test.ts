@@ -1,18 +1,28 @@
 import {
-  buckets,
+  allPeriod,
   bucketKey,
-  currentPeriod,
+  buckets,
+  customPeriod,
   daysBetween,
   fyLabel,
+  fyPeriod,
   fyStartYear,
   inPeriod,
   median,
+  monthPeriod,
+  periodFor,
+  previousPeriod,
+  quarterPeriod,
+  samePeriodLastYear,
   series,
+  shiftPeriod,
   sum,
+  weekPeriod,
 } from "./periods";
 
-const iso = (y: number, m: number, d: number, h = 12) =>
-  new Date(y, m - 1, d, h).toISOString();
+const d = (y: number, m: number, day: number, h = 12) => new Date(y, m - 1, day, h);
+const iso = (y: number, m: number, day: number, h = 12) => d(y, m, day, h).toISOString();
+const midnight = (y: number, m: number, day: number) => new Date(y, m - 1, day).getTime();
 
 describe("financial year", () => {
   it("starts on 1 April local time", () => {
@@ -25,43 +35,121 @@ describe("financial year", () => {
     expect(fyLabel(1999)).toBe("FY 1999-00");
   });
 
-  it("buckets a 1 a.m. sale on 1 April into April of the new FY", () => {
-    const earlyMorning = iso(2027, 4, 1, 1); // UTC instant may be 31 Mar
-    expect(bucketKey(earlyMorning, { kind: "fy", startYear: 2027 })).toBe("2027-04");
-    expect(inPeriod(earlyMorning, { kind: "fy", startYear: 2027 })).toBe(true);
-    expect(inPeriod(earlyMorning, { kind: "fy", startYear: 2026 })).toBe(false);
-  });
-
-  it("currentPeriod is the FY containing now", () => {
-    expect(currentPeriod(new Date(2026, 9, 2))).toEqual({ kind: "fy", startYear: 2026 });
-  });
-
-  it("all-time includes everything", () => {
-    expect(inPeriod(iso(1990, 1, 1), { kind: "all" })).toBe(true);
+  it("puts a 1 a.m. sale on 1 April into April of the new FY", () => {
+    const early = iso(2027, 4, 1, 1);
+    expect(inPeriod(early, fyPeriod(2027))).toBe(true);
+    expect(inPeriod(early, fyPeriod(2026))).toBe(false);
+    expect(bucketKey(early, fyPeriod(2027))).toBe("2027-04");
   });
 });
 
-describe("buckets and series", () => {
-  it("gives Apr..Mar for an FY", () => {
-    const b = buckets({ kind: "fy", startYear: 2026 }, []);
+describe("period constructors", () => {
+  it("week runs Monday to Sunday with day bars", () => {
+    const p = weekPeriod(d(2026, 10, 7)); // Wednesday
+    expect(p.start.getTime()).toBe(midnight(2026, 10, 5));
+    expect(p.end.getTime()).toBe(midnight(2026, 10, 12));
+    expect(p.unit).toBe("day");
+    expect(p.label).toBe("5 Oct – 11 Oct 2026");
+    expect(buckets(p).map((b) => b.label)).toEqual(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  });
+
+  it("month uses week bars starting with the week that contains the 1st", () => {
+    const p = monthPeriod(d(2026, 10, 7));
+    expect(p.label).toBe("Oct 2026");
+    expect(p.unit).toBe("week");
+    expect(buckets(p)).toEqual([
+      { key: "2026-09-28", label: "1 Oct" },
+      { key: "2026-10-05", label: "5 Oct" },
+      { key: "2026-10-12", label: "12 Oct" },
+      { key: "2026-10-19", label: "19 Oct" },
+      { key: "2026-10-26", label: "26 Oct" },
+    ]);
+  });
+
+  it("quarters follow the financial year", () => {
+    const q3 = quarterPeriod(d(2026, 10, 7));
+    expect(q3.label).toBe("Q3 FY 2026-27");
+    expect(q3.start.getTime()).toBe(midnight(2026, 10, 1));
+    expect(q3.end.getTime()).toBe(midnight(2027, 1, 1));
+    const q4 = quarterPeriod(d(2027, 2, 10));
+    expect(q4.label).toBe("Q4 FY 2026-27");
+    expect(q4.start.getTime()).toBe(midnight(2027, 1, 1));
+    expect(quarterPeriod(d(2026, 4, 1)).label).toBe("Q1 FY 2026-27");
+    expect(periodFor("quarter", d(2026, 10, 7)).label).toBe("Q3 FY 2026-27");
+  });
+
+  it("FY has Apr..Mar month bars", () => {
+    const b = buckets(fyPeriod(2026));
     expect(b).toHaveLength(12);
     expect(b[0]).toEqual({ key: "2026-04", label: "Apr" });
     expect(b[11]).toEqual({ key: "2027-03", label: "Mar" });
   });
 
-  it("gives one bucket per FY between the data's extremes for all-time", () => {
-    const b = buckets({ kind: "all" }, [iso(2024, 5, 1), iso(2026, 2, 1)]);
-    expect(b.map((x) => x.key)).toEqual(["2024", "2025"]);
-    expect(b[0].label).toBe("24-25");
+  it("custom range is inclusive, swaps a backwards pick, and sizes its bars", () => {
+    const p = customPeriod(d(2026, 1, 10), d(2026, 1, 1));
+    expect(p.start.getTime()).toBe(midnight(2026, 1, 1));
+    expect(p.end.getTime()).toBe(midnight(2026, 1, 11));
+    expect(p.label).toBe("1 Jan 2026 – 10 Jan 2026");
+    expect(buckets(p).map((b) => b.label)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
+    expect(customPeriod(d(2026, 1, 1), d(2026, 6, 30)).unit).toBe("week");
+    const year = customPeriod(d(2026, 1, 1), d(2026, 12, 31));
+    expect(year.unit).toBe("month");
+    expect(buckets(year)[0].label).toBe("Jan 26");
   });
 
-  it("gives no all-time buckets without data", () => {
-    expect(buckets({ kind: "all" }, [])).toEqual([]);
+  it("all-time spans whole FYs of the data", () => {
+    const p = allPeriod([iso(2024, 5, 1), iso(2026, 2, 1)]);
+    expect(p.label).toBe("All time");
+    expect(p.start.getTime()).toBe(midnight(2024, 4, 1));
+    expect(p.end.getTime()).toBe(midnight(2026, 4, 1));
+    expect(buckets(p)).toEqual([
+      { key: "2024", label: "24-25" },
+      { key: "2025", label: "25-26" },
+    ]);
+    expect(buckets(allPeriod([]))).toEqual([]);
+  });
+});
+
+describe("moving between periods", () => {
+  it("shifts by whole periods", () => {
+    expect(shiftPeriod(monthPeriod(d(2026, 10, 7)), -1).label).toBe("Sep 2026");
+    expect(shiftPeriod(quarterPeriod(d(2026, 10, 7)), -1).label).toBe("Q2 FY 2026-27");
+    expect(shiftPeriod(quarterPeriod(d(2026, 4, 1)), -1).label).toBe("Q4 FY 2025-26");
+    expect(previousPeriod(fyPeriod(2026))?.label).toBe("FY 2025-26");
   });
 
-  it("sums points into their buckets and ignores points outside", () => {
-    const period = { kind: "fy", startYear: 2026 } as const;
-    const values = series(buckets(period, []), period, [
+  it("compares a custom range with the same number of days just before it", () => {
+    const prev = previousPeriod(customPeriod(d(2026, 1, 1), d(2026, 1, 10)))!;
+    expect(prev.start.getTime()).toBe(midnight(2025, 12, 22));
+    expect(prev.end.getTime()).toBe(midnight(2026, 1, 1));
+  });
+
+  it("has no previous period for all-time", () => {
+    expect(previousPeriod(allPeriod([iso(2026, 1, 1)]))).toBeNull();
+    expect(samePeriodLastYear(allPeriod([iso(2026, 1, 1)]))).toBeNull();
+  });
+
+  it("finds the same period last year", () => {
+    expect(samePeriodLastYear(monthPeriod(d(2026, 10, 7)))?.label).toBe("Oct 2025");
+    expect(samePeriodLastYear(quarterPeriod(d(2026, 10, 7)))?.label).toBe("Q3 FY 2025-26");
+    expect(samePeriodLastYear(weekPeriod(d(2026, 10, 7)))?.start.getTime()).toBe(midnight(2025, 10, 6));
+    const custom = samePeriodLastYear(customPeriod(d(2026, 1, 1), d(2026, 1, 10)))!;
+    expect(custom.start.getTime()).toBe(midnight(2025, 1, 1));
+    expect(custom.end.getTime()).toBe(midnight(2025, 1, 11));
+  });
+});
+
+describe("inPeriod, series", () => {
+  it("includes the last evening and excludes the next morning", () => {
+    const oct = monthPeriod(d(2026, 10, 7));
+    expect(inPeriod(iso(2026, 10, 31, 23), oct)).toBe(true);
+    expect(inPeriod(iso(2026, 11, 1, 1), oct)).toBe(false);
+    expect(inPeriod(iso(2026, 9, 30), oct)).toBe(false);
+  });
+
+  it("sums points into their buckets and drops points outside every bucket", () => {
+    const fy = fyPeriod(2026);
+    const values = series(buckets(fy), fy, [
       { date: iso(2026, 4, 3), value: 100 },
       { date: iso(2026, 4, 30), value: 50 },
       { date: iso(2027, 3, 31), value: 7 },
@@ -79,7 +167,7 @@ describe("day maths", () => {
     expect(daysBetween(iso(2026, 1, 1), iso(2026, 12, 31))).toBe(364);
   });
 
-  it("takes the median of odd and even lists, null when empty", () => {
+  it("takes the median, null when empty", () => {
     expect(median([5, 1, 3])).toBe(3);
     expect(median([4, 1, 3, 2])).toBe(2.5);
     expect(median([])).toBeNull();

@@ -1,8 +1,9 @@
+import { fyPeriod } from "./periods";
 import { buildSalesView, payments } from "./sales";
 import { AnalyticsData, LendenRow } from "./types";
 
 const iso = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12).toISOString();
-const FY26 = { kind: "fy", startYear: 2026 } as const;
+const FY26 = fyPeriod(2026);
 
 const lenden = (o: Partial<LendenRow>): LendenRow => ({
   id: 1, userId: 1, date: iso(2026, 5, 10), amount: 0, discount: null,

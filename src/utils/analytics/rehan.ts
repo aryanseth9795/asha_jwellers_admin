@@ -1,5 +1,5 @@
 import { AnalyticsData, RehanRow, RehanTxRow } from "./types";
-import { Bucket, Period, Point, buckets, daysBetween, inPeriod, median, series, sum } from "./periods";
+import { Bucket, Period, Point, allPeriod, buckets, daysBetween, inPeriod, median, series, sum } from "./periods";
 
 export interface AnnualRehan {
   label: string;
@@ -59,9 +59,9 @@ export const buildRehanView = (data: AnalyticsData, period: Period): RehanView =
     .map((r) => daysBetween(r.openDate, r.closedDate))
     .filter((d) => d >= 0);
 
-  const bucketList = buckets(period, [...givenPoints, ...recoveredPoints].filter(inP).map((p) => p.date));
-  const all: Period = { kind: "all" };
-  const annualBuckets = buckets(all, [...givenPoints, ...recoveredPoints].map((p) => p.date));
+  const bucketList = buckets(period);
+  const all = allPeriod([...givenPoints, ...recoveredPoints].map((p) => p.date));
+  const annualBuckets = buckets(all);
   const annualGiven = series(annualBuckets, all, givenPoints);
   const annualRecovered = series(annualBuckets, all, recoveredPoints);
   const annualOpened = series(annualBuckets, all, openedPoints);
