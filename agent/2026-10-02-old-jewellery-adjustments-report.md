@@ -191,3 +191,4 @@ At the owner's request, old jewellery is no longer a separate place in the app; 
   or when items exist.
 - **`OldJewelleryItemsTable`:** new optional `newJewelleryTotal` prop renders a live
   `New ₹X − Old ₹Y = ₹Z` line, so the exchange adjustment is visible before the discount/jama summary.
+- **Printed bill (owner change 77b0ea8):** the itemised Old Jewellery Exchange table is no longer printed; §3.6's table description is historical. The credit appears in the Hindi payment summary.

@@ -224,3 +224,4 @@ Built on `feat/old-jewellery-adjustments` per `agent/2026-10-02-dashboard-v2-pla
 - **Baaki at period end is reconstructed** from bill and payment dates; it can differ slightly from the stored baki if entries were hand-edited. "Baaki older than 6 months" and the aging card always use today's date.
 - **Trends chart labels** are short forms of the period (FY "25-26", quarter "Q1 26", month "Aug", week "5 Oct"); the table shows full labels.
 - **Printed bill** (owner change in 77b0ea8): the itemised old-jewellery table is no longer printed; the credit shows only in the Hindi payment summary. Old items, their metal and purity are still stored and feed Analytics.
+- **In-progress periods are compared with the same number of days** of the previous / last-year period (e.g. 1–2 Oct vs 1–2 Sep); the chart overlay still shows the whole previous period; the newest Trends row is marked "(so far)".
