@@ -437,23 +437,23 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
                   Optional — its value is subtracted from the new jewellery
                 </Text>
                 <OldJewelleryItemsTable
-                    items={oldJewelleryItems}
-                    newJewelleryTotal={itemsTotal}
-                    editable
-                    onAdd={() => {
-                      setEditingOldJewelleryIndex(null);
-                      setShowOldJewelleryModal(true);
-                    }}
-                    onEdit={(index) => {
-                      setEditingOldJewelleryIndex(index);
-                      setShowOldJewelleryModal(true);
-                    }}
-                    onDelete={(index) => {
-                      setOldJewelleryItems((items) =>
-                        items.filter((_, itemIndex) => itemIndex !== index),
-                      );
-                    }}
-                  />
+                  items={oldJewelleryItems}
+                  newJewelleryTotal={itemsTotal}
+                  editable
+                  onAdd={() => {
+                    setEditingOldJewelleryIndex(null);
+                    setShowOldJewelleryModal(true);
+                  }}
+                  onEdit={(index) => {
+                    setEditingOldJewelleryIndex(index);
+                    setShowOldJewelleryModal(true);
+                  }}
+                  onDelete={(index) => {
+                    setOldJewelleryItems((items) =>
+                      items.filter((_, itemIndex) => itemIndex !== index),
+                    );
+                  }}
+                />
               </View>
 
               <View style={styles.inputContainer}>

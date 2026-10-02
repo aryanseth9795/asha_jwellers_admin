@@ -891,7 +891,11 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             <OldJewelleryItemsTable
               items={oldJewelleryItems}
               newJewelleryTotal={
-                lendenItems.length > 0 ? itemsTotal : lenden?.amount ?? 0
+                lendenItems.length > 0
+                  ? itemsTotal
+                  : isEditMode
+                    ? parseInt(editAmount, 10) || 0
+                    : lenden?.amount ?? 0
               }
               editable={isEditMode}
               onAdd={() => {

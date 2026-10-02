@@ -112,7 +112,8 @@ const OldJewelleryItemsTable: React.FC<OldJewelleryItemsTableProps> = ({
             {formatRupees(sumOldJewelleryValues(items))}
           </Text>
           <Text style={styles.netValue}>
-            = {formatRupees(newJewelleryTotal - sumOldJewelleryValues(items))}
+            = {newJewelleryTotal - sumOldJewelleryValues(items) < 0 ? "−" : ""}
+            {formatRupees(newJewelleryTotal - sumOldJewelleryValues(items))}
           </Text>
         </View>
       )}
