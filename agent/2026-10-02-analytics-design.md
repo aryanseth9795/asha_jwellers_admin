@@ -313,3 +313,15 @@ customer is on file. Bars below 50 % are orange.
 ### 12.8 Out of scope
 The HTML's theme toggle and Chart/Table switches (the app shows one view per card, a table where the report's table is the
 primary view) and click-to-filter on charts (filters are set from the filter bar).
+
+## 13. Insights v3 implementation notes (2026-10-02)
+
+Built on `feat/old-jewellery-adjustments` per `agent/2026-10-02-insights-v3-plan.md`. Deviations from §12 and decisions made while building:
+
+- **Bundles:** "Krdhn hath mehndi" names Kardhan and Hath mehndi, so it is a bundle; the same rule reproduced the report's 61 bundles.
+- **Concentration** counts the top 10 % / 20 % / 50 % of customers with whole-number rounding up (no floating-point drift), shown as four tiles rather than a curve chart.
+- **Item mix** shows the last 8 calendar quarters.
+- **Interest what-if** uses −/+ buttons in 0.5 % steps from 0.5 % to 5 %, default 2 % per month.
+- **Billing sub-tabs** Sales, Metal, Trends and Customers are the v2 views: they follow the time frame but not the village filter; Summary follows both. Trends shows its own last periods regardless of the picker.
+- **Filters** are set on the pledge tabs (the filter bar folds into one line until tapped); Billing shows the active village as a note.
+- **Data quality** always uses the whole ledger. Duplicate-customer, logging-gap and no-amount checks show nothing when they find nothing (no separate Good line).
