@@ -88,8 +88,8 @@ All 11 views of the current screen (7 tabs, Billing's 5 sub-tabs folded in) appe
 Overview → Findings. One pledge-filter state and one time-frame state are shared by every section, as now.
 
 `src/utils/analytics/report/sections.ts` (pure, tested) exports:
-- `SECTIONS`: each section's sub-tabs in order.
-- `controlsFor(section, sub): "pledge" | "timeframe" | "none"`.
+- `SECTIONS`: each section's sub-tabs in order. Every sub-tab is a view key such as `"lenden/sales"`.
+- `controlsFor(view): "pledge" | "timeframe" | "none"`.
 
 ### UX changes
 
