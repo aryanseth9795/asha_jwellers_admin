@@ -63,11 +63,26 @@ const BarChart: React.FC<BarChartProps> = ({
         ))}
       </View>
       <View style={styles.labels}>
-        {buckets.map((bucket, i) => (
-          <Text key={bucket.key} style={styles.label} numberOfLines={1}>
-            {i % labelEvery === 0 ? bucket.label : ""}
-          </Text>
-        ))}
+        {labelEvery > 1
+          ? buckets
+              .filter((_, i) => i % labelEvery === 0)
+              .map((bucket) => {
+                const start = buckets.indexOf(bucket);
+                return (
+                  <Text
+                    key={bucket.key}
+                    style={[styles.label, { flex: Math.min(labelEvery, buckets.length - start) }]}
+                    numberOfLines={1}
+                  >
+                    {bucket.label}
+                  </Text>
+                );
+              })
+          : buckets.map((bucket) => (
+              <Text key={bucket.key} style={styles.label} numberOfLines={1}>
+                {bucket.label}
+              </Text>
+            ))}
       </View>
       {series.length > 1 && (
         <View style={styles.legend}>
@@ -92,10 +107,10 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E5E5",
   },
   column: { flex: 1, alignItems: "center", justifyContent: "flex-end" },
-  group: { flexDirection: "row", alignItems: "flex-end", gap: 2 },
-  stack: { flexDirection: "column-reverse", alignItems: "center" },
-  bar: { width: 7, borderTopLeftRadius: 3, borderTopRightRadius: 3 },
-  stackSegment: { width: 14 },
+  group: { width: "80%", flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 2 },
+  stack: { width: "100%", flexDirection: "column-reverse", alignItems: "center" },
+  bar: { flex: 1, maxWidth: 14, borderTopLeftRadius: 3, borderTopRightRadius: 3 },
+  stackSegment: { width: "70%", maxWidth: 18 },
   labels: { flexDirection: "row", marginTop: 4 },
   label: { flex: 1, fontSize: 9, color: "#777", textAlign: "center" },
   legend: { flexDirection: "row", gap: 14, marginTop: 10, justifyContent: "center" },

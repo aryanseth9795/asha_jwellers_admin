@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { PledgeRow } from "../../../utils/analytics/report/pledges";
 import {
@@ -19,22 +19,32 @@ const METRICS: { key: Metric; label: string }[] = [
   { key: "principal", label: "Principal" },
   { key: "pledges", label: "Pledges" },
 ];
+type Range = "24" | "all";
+const RANGES: { key: Range; label: string }[] = [
+  { key: "24", label: "Last 24 months" },
+  { key: "all", label: "All" },
+];
 const asBuckets = (labels: string[]) => labels.map((label) => ({ key: label, label }));
 
 const RehanBookTab: React.FC<{ pledges: PledgeRow[]; now: Date }> = ({ pledges, now }) => {
   const [flowMetric, setFlowMetric] = useState<Metric>("principal");
   const [ageMetric, setAgeMetric] = useState<Metric>("principal");
   const [sizeMetric, setSizeMetric] = useState<Metric>("pledges");
+  const [range, setRange] = useState<Range>("24");
   const [rate, setRate] = useState(0.02);
 
-  const s = pledgeStats(pledges);
-  const months = monthlyBook(pledges, now);
+  const s = useMemo(() => pledgeStats(pledges), [pledges, now]);
+  const allMonths = useMemo(() => monthlyBook(pledges, now), [pledges, now]);
+  const months = range === "24" ? allMonths.slice(-24) : allMonths;
   const monthBuckets = months.map((m) => ({ key: m.key, label: m.label }));
   const every = Math.max(1, Math.ceil(months.length / 6));
-  const age = ageBuckets(pledges);
-  const redeem = redeemBuckets(pledges);
-  const size = sizeBands(pledges);
-  const interest = interestWhatIf(pledges, rate);
+  const age = useMemo(() => ageBuckets(pledges), [pledges, now]);
+  const redeem = useMemo(() => redeemBuckets(pledges), [pledges, now]);
+  const size = useMemo(() => sizeBands(pledges), [pledges, now]);
+  const cohortRows = useMemo(() => cohorts(pledges), [pledges, now]);
+  const weekdayRows = useMemo(() => weekdays(pledges), [pledges, now]);
+  const interest = useMemo(() => interestWhatIf(pledges, rate), [pledges, rate]);
+  const rangeToggle = <Segmented options={RANGES} value={range} onChange={setRange} />;
   const money = flowMetric === "principal";
 
   return (
@@ -42,7 +52,12 @@ const RehanBookTab: React.FC<{ pledges: PledgeRow[]; now: Date }> = ({ pledges, 
       <ReportCard
         title="Opened and redeemed per month"
         subtitle={`${s.pledges} pledges opened, ${s.redeemed} redeemed.`}
-        right={<Segmented options={METRICS} value={flowMetric} onChange={setFlowMetric} />}
+        right={
+          <View style={styles.controls}>
+            <Segmented options={METRICS} value={flowMetric} onChange={setFlowMetric} />
+            {rangeToggle}
+          </View>
+        }
       >
         <BarChart
           buckets={monthBuckets}
@@ -57,7 +72,8 @@ const RehanBookTab: React.FC<{ pledges: PledgeRow[]; now: Date }> = ({ pledges, 
 
       <ReportCard
         title="Open principal at month-end"
-        subtitle={`Principal on open pledges at each month-end. Now ${inrC(months.length ? months[months.length - 1].openAtEnd : 0)}.`}
+        subtitle={`Principal on open pledges at each month-end. Now ${inrC(allMonths.length ? allMonths[allMonths.length - 1].openAtEnd : 0)}.`}
+        right={rangeToggle}
       >
         <BarChart
           buckets={monthBuckets}
@@ -113,7 +129,7 @@ const RehanBookTab: React.FC<{ pledges: PledgeRow[]; now: Date }> = ({ pledges, 
 
       <ReportCard title="Cohorts by year opened" subtitle="Each year's pledges: how much is still open and how fast the rest came back.">
         <DataTable<Cohort>
-          rows={cohorts(pledges)}
+          rows={cohortRows}
           rowKey={(c) => c.year}
           columns={[
             { key: "year", title: "Opened", width: 64, text: (c) => c.year },
@@ -129,8 +145,8 @@ const RehanBookTab: React.FC<{ pledges: PledgeRow[]; now: Date }> = ({ pledges, 
 
       <ReportCard title="Day of the week opened" subtitle="Dates are ledger dates, not entry times.">
         <BarChart
-          buckets={asBuckets(weekdays(pledges).map((d) => d.label))}
-          series={[{ label: "Pledges", color: "#B8860B", values: weekdays(pledges).map((d) => d.count) }]}
+          buckets={asBuckets(weekdayRows.map((d) => d.label))}
+          series={[{ label: "Pledges", color: "#B8860B", values: weekdayRows.map((d) => d.count) }]}
           formatValue={count}
         />
       </ReportCard>
@@ -159,6 +175,7 @@ const RehanBookTab: React.FC<{ pledges: PledgeRow[]; now: Date }> = ({ pledges, 
 };
 
 const styles = StyleSheet.create({
+  controls: { gap: 8 },
   rateRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, marginBottom: 12 },
   rateButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#FAF1E2", alignItems: "center", justifyContent: "center" },
   rateButtonText: { fontSize: 22, fontWeight: "800", color: "#8C5B14" },

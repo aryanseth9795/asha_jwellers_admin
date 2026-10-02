@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import {
   BillGroup, BillRow, billLabel, billingSummary, discountPerBill, numberedVsEarlier, waterfall,
 } from "../../../utils/analytics/report/billing";
@@ -14,6 +14,9 @@ const inrC = (n: number) => `₹${formatCompactRupees(n)}`;
 const pct1 = (r: number) => `${(r * 100).toFixed(1)}%`;
 const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+const RECENT_BILLS = 30;
+const TABLE_BILLS = 50;
 
 const COMPARE: { label: string; value: (g: BillGroup) => string }[] = [
   { label: "Bills", value: (g) => String(g.bills) },
@@ -30,7 +33,10 @@ const COMPARE: { label: string; value: (g: BillGroup) => string }[] = [
 const BillingSummaryTab: React.FC<{ bills: BillRow[] }> = ({ bills }) => {
   const s = billingSummary(bills);
   const steps = waterfall(s);
-  const discounts = discountPerBill(bills);
+  const [showAll, setShowAll] = useState(false);
+  const recent = bills.slice(0, RECENT_BILLS);
+  const discounts = discountPerBill(recent);
+  const weightedDiscount = discountPerBill(bills).weighted;
   const { numbered, earlier } = numberedVsEarlier(bills);
   const maxNet = bills.reduce((m, b) => Math.max(m, b.net), 0);
   return (
@@ -63,7 +69,7 @@ const BillingSummaryTab: React.FC<{ bills: BillRow[] }> = ({ bills }) => {
         {bills.length === 0 ? (
           <Text style={styles.muted}>No bills in this period</Text>
         ) : (
-          bills.map((b) => (
+          recent.map((b) => (
             <View key={b.id} style={styles.billRow}>
               <Text style={styles.billLabel} numberOfLines={1}>
                 {billLabel(b)}  {b.customer}
@@ -79,9 +85,12 @@ const BillingSummaryTab: React.FC<{ bills: BillRow[] }> = ({ bills }) => {
             </View>
           ))
         )}
+        {bills.length > RECENT_BILLS && (
+          <Text style={[styles.muted, styles.more]}>+ {bills.length - RECENT_BILLS} more bills in this period</Text>
+        )}
       </ReportCard>
 
-      <ReportCard title="Discount given per bill" subtitle={`Weighted average ${pct1(discounts.weighted)} of gross. Oldest bill first.`}>
+      <ReportCard title="Discount given per bill" subtitle={`Weighted average ${pct1(weightedDiscount)} of gross. Latest ${recent.length} bills, oldest first.`}>
         <BarChart
           buckets={discounts.bills.map((d, i) => ({ key: `${d.label}-${i}`, label: d.label }))}
           labelEvery={Math.max(1, Math.ceil(discounts.bills.length / 8))}
@@ -104,7 +113,7 @@ const BillingSummaryTab: React.FC<{ bills: BillRow[] }> = ({ bills }) => {
 
       <ReportCard title="All bills" subtitle="Red flags need a decision. Grey flags are for information. Tap a column to sort.">
         <DataTable<BillRow>
-          rows={bills}
+          rows={showAll ? bills : bills.slice(0, TABLE_BILLS)}
           rowKey={(b) => String(b.id)}
           initialSort={{ key: "date", desc: true }}
           columns={[
@@ -133,6 +142,11 @@ const BillingSummaryTab: React.FC<{ bills: BillRow[] }> = ({ bills }) => {
             },
           ]}
         />
+        {bills.length > TABLE_BILLS && (
+          <TouchableOpacity style={styles.toggle} onPress={() => setShowAll((v) => !v)}>
+            <Text style={styles.toggleText}>{showAll ? "Show fewer" : `Show all ${bills.length} bills`}</Text>
+          </TouchableOpacity>
+        )}
       </ReportCard>
     </View>
   );
@@ -140,6 +154,9 @@ const BillingSummaryTab: React.FC<{ bills: BillRow[] }> = ({ bills }) => {
 
 const styles = StyleSheet.create({
   muted: { color: "#999", fontSize: 13 },
+  more: { marginTop: 8 },
+  toggle: { alignSelf: "center", paddingVertical: 10, paddingHorizontal: 16, marginTop: 6 },
+  toggleText: { color: "#8C5B14", fontSize: 13, fontWeight: "700" },
   billRow: { paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#F0F2F5" },
   billLabel: { fontSize: 13, fontWeight: "700", color: "#1A1A1A" },
   billSub: { fontSize: 11, color: "#888", marginBottom: 4 },
