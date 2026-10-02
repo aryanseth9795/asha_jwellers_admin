@@ -142,7 +142,7 @@ export const monthlyBook = (rows: PledgeRow[], now: Date): MonthPoint[] => {
 };
 
 export const AGE_LABELS = ["≤3 mo", "3–6 mo", "6–12 mo", "1–2 yr", "2 yr +"];
-const AGE_MAX_DAYS = [91, 182, 365, 730, Infinity];
+const AGE_MAX_DAYS = [91, 182, 364, 729, Infinity];
 
 const byDays = (rows: PledgeRow[], days: (r: PledgeRow) => number | null): CountBucket[] => {
   const buckets = AGE_LABELS.map((label) => ({ label, count: 0, principal: 0 }));

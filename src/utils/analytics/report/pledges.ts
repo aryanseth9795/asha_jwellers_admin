@@ -104,7 +104,8 @@ export const filterPledges = (
 export const filterOptions = (rows: PledgeRow[], groups: VillageGroups) => {
   const principalByItem = new Map<string, number>();
   for (const r of rows) principalByItem.set(r.item, (principalByItem.get(r.item) ?? 0) + r.principal);
-  const villages = [...groups.order];
+  const withPledges = new Set(rows.map((r) => r.village));
+  const villages = groups.order.filter((v) => withPledges.has(v));
   if (rows.some((r) => r.village === UNKNOWN_VILLAGE) && !villages.includes(UNKNOWN_VILLAGE)) {
     villages.push(UNKNOWN_VILLAGE);
   }

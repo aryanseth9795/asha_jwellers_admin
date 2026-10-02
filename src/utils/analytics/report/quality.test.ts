@@ -61,6 +61,6 @@ describe("field coverage", () => {
       "Bills whose customer is on file",
     ]);
     const shares = report.coverage.map((c) => c.share);
-    [8 / 9, 8 / 9, 1, 1 / 9, 12 / 13, 1 / 13, 4 / 6, 3 / 6, 5 / 6].forEach((v, i) => expect(shares[i]).toBeCloseTo(v));
+    [8 / 9, 8 / 9, 8 / 9, 1 / 9, 12 / 13, 1 / 13, 4 / 6, 3 / 6, 5 / 6].forEach((v, i) => expect(shares[i]).toBeCloseTo(v));
   });
 });

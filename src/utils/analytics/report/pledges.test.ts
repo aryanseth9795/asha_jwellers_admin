@@ -70,4 +70,9 @@ describe("filterOptions", () => {
       years: ["2024", "2025", "2026"],
     });
   });
+
+  it("leaves out villages that have no pledges", () => {
+    const only = rows.filter((r) => r.village === "Manwal");
+    expect(filterOptions(only, groupVillages(fixtureData.users)).villages).toEqual(["Manwal"]);
+  });
 });

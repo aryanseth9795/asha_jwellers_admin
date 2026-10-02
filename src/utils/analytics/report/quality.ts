@@ -230,7 +230,7 @@ export const dataQuality = (data: AnalyticsData, now: Date = new Date()): Qualit
   const coverage: Coverage[] = [
     { label: "Pledges linked to a customer on file", share: share(pledges.filter((p) => p.onFile).length, pledges.length) },
     { label: "Pledges with an amount", share: share(pledges.filter((p) => p.principal > 0).length, pledges.length) },
-    { label: "Pledges with an item name", share: share(pledges.filter((p) => p.name.trim() !== "").length, pledges.length) },
+    { label: "Pledges with an item name", share: share(pledges.filter((p) => p.item !== UNSPECIFIED_ITEM).length, pledges.length) },
     { label: "Pledges with a photo", share: share(pledges.filter((p) => p.photo).length, pledges.length) },
     { label: "Customers with a village", share: share(data.users.filter((u) => villageName(u.address) !== "").length, data.users.length) },
     { label: "Customers with a phone number", share: share(data.users.filter((u) => hasPhone(u.mobileNumber)).length, data.users.length) },

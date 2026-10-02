@@ -61,6 +61,14 @@ describe("buckets", () => {
     ]);
   });
 
+  it("puts exactly one year in 1–2 yr and exactly two years in 2 yr +", () => {
+    const at = (daysOpen: number) => ageBuckets([{ ...rows[0], daysOpen }]).filter((b) => b.count).map((b) => b.label);
+    expect(at(364)).toEqual(["6–12 mo"]);
+    expect(at(365)).toEqual(["1–2 yr"]);
+    expect(at(729)).toEqual(["1–2 yr"]);
+    expect(at(730)).toEqual(["2 yr +"]);
+  });
+
   it("groups redeemed pledges by time taken", () => {
     expect(redeemBuckets(rows).map((b) => b.count)).toEqual([0, 2, 0, 0, 0]);
   });
