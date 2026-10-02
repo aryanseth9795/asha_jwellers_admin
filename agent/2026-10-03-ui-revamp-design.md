@@ -116,7 +116,7 @@ Overview → Findings. One pledge-filter state and one time-frame state are shar
 |---|---|
 | `theme.ts` | Tokens. **Colours**: `ajNavy #0B1F4B`, `ssjMaroon #7B1E3A`, `gold #B8860B`, `goldDeep #8C5B14`, `primary #007AFF` (kept for existing flows), `bg #F8F9FA`, `surface #FFFFFF`, `border #EEF0F2`, `text #1A1A1A`, `textDim #666666`, `danger #C62828`, `success #2E7D32`. **Spacing** 4 / 8 / 12 / 16 / 20 / 24. **Radius** 8 / 12 / 16 / 20. **Type scale (sp)** caption 12 · body 14 · bodyLg 15 · title 17 · heading 20 · display 26 · hero 32 (fit-to-width) |
 | `Text.tsx` | `Text` and `TextInput` with `maxFontSizeMultiplier={1.3}` by default (a prop can override it). Every screen and component imports `Text` / `TextInput` from `src/ui` instead of `react-native`. React 19 no longer applies `defaultProps` to function components, so a wrapper is the only global switch |
-| `layout.ts` | Pure `layoutFor(width: number, fontScale: number)` → `{ narrow: width < 340, compact: width < 360, tileColumns: 1 \| 2, mediaColumns: 3, gutter: 12 \| 16 }`, plus the hook `useLayout()` built on `useWindowDimensions` |
+| `layout.ts` | Pure `layoutFor(width: number)` → `narrow` (width < 340), `compact` (width < 360), `tileColumns` (2 at ≥ 340, else 1), `gutter` (12 below 360, else 16), `mediaTile` (`Math.floor((width − 44) / 3)`), plus the hook `useLayout()` built on `useWindowDimensions` |
 | `Screen.tsx` | Screen root: `SafeAreaView` with background. `edges` defaults to `["left","right","bottom"]` because the native header already covers the top. Home passes `["top","left","right","bottom"]` |
 | `FooterBar.tsx` | In-flow bottom action bar (surface, top border, padding 16). Placed after the scroll view in a flex column, so it can't cover content and sits above the navigation bar. Replaces every absolute bottom bar |
 | `BottomSheet.tsx` | `Modal` (transparent, slide, `statusBarTranslucent`, `navigationBarTranslucent`) + backdrop that closes on tap + sheet with handle, title, close button, `maxHeight` 90 % of the window, scrollable body, bottom padding = bottom inset, and `KeyboardAvoidingView` (`behavior="padding"`) so inputs stay above the keyboard |
@@ -150,7 +150,7 @@ Overview → Findings. One pledge-filter state and one time-frame state are shar
 | ExistingCustomers | `Screen`. Customer rows: name 1 line with ellipsis, amounts 1 line. The filter modal moves to `BottomSheet` |
 | UserTransactions | FAB 16 dp above the safe area (was `bottom: 100`). Summary amounts (24 sp) fit to width on one line |
 | AddTransaction | `Screen`. Keyboard handling per rule 9. Amount 28 → display, single line |
-| TransactionDetail | `Screen`. The save bar becomes `FooterBar` (no more `paddingBottom` guesswork). The media grid uses the live width from `useLayout()`. The image viewer's footer is offset by the bottom inset (was `bottom: 40`). Its 17 label/value rows follow rule 4 |
+| TransactionDetail | `Screen`. The save bar becomes `FooterBar` (no more `paddingBottom` guesswork). The media grid uses `useLayout().mediaTile` (live width). The image viewer's footer is offset by the bottom inset (was `bottom: 40`). Its 17 label/value rows follow rule 4 |
 | BillPreview | `Screen`, so the share and print actions sit above the navigation bar |
 | UpdateBhav | The footer becomes `FooterBar`. 28 / 22 sp rates → display / heading, single line |
 | CategoryList, ProductList | FAB per rule 2. ProductList's filter modal moves to `BottomSheet` |
@@ -163,8 +163,8 @@ Overview → Findings. One pledge-filter state and one time-frame state are shar
 
 - **Jest (pure):**
   - `layoutFor` at 320, 339, 340, 359, 360 and 412 dp, including the column switch.
-  - `BUSINESSES`: two businesses, the exact routes from §4, every menu route exists in `RootStackParamList`, and every
-    route maps to one business.
+  - `BUSINESSES`: two businesses, the exact routes from §4, and every route maps to one business. Menu routes are typed as
+    `keyof RootStackParamList`, so `tsc` rejects a route that does not exist.
   - `SECTIONS` / `controlsFor`: each of the 11 former views appears exactly once with the controls listed in §5, and
     Overview → Findings is the default.
 - **`npx tsc --noEmit`** stays clean, and the existing 212 tests keep passing.
