@@ -1,7 +1,7 @@
 # Analytics Screen — Design Spec
 
 **Date:** 2026-10-02
-**Status:** Draft — awaiting approval
+**Status:** Approved 2026-10-02 (P1 FY, P2 three numbers, P3 RFM tiers)
 **Source:** `analytics plan .md` (owner's notes). The ChatGPT plan link could not be fetched (HTTP 403),
 so requirements are reconstructed from the notes and the schema.
 
@@ -27,13 +27,13 @@ so requirements are reconstructed from the notes and the schema.
 | A2 | Placement | One `AnalyticsScreen` pushed from Home, with a segmented control: **Sales / Customers / Rehan / Metal**. |
 | A3 | Old metal type | Done on this branch (`2026-10-02-old-jewellery-adjustments-report.md`). |
 
-## 3. Proposed decisions (need approval)
+## 3. Decisions approved 2026-10-02
 
 | # | Question | Proposal | Why |
 |---|---|---|---|
-| P1 | Period | **Indian financial year (Apr–Mar)** selector, default current FY, plus "All time". Charts show the 12 months of the FY. | Matches how a shop does accounts and tax. The register would switch to FY too, for consistency. |
-| P2 | What "revenue" means | Show three numbers, never one blended figure: **Sales** (gross bill value), **Collected** (cash actually received), **Baaki** (still owed). | The three answer different questions; a single "revenue" would hide credit sales. |
-| P3 | Customer tiers | RFM score, explained in §6.3 | Simple, explainable, adapts to the shop's own data. |
+| P1 ✅ | Period | **Indian financial year (Apr–Mar)** selector, default current FY, plus "All time". Charts show the 12 months of the FY. | Matches how a shop does accounts and tax. The register would switch to FY too, for consistency. |
+| P2 ✅ | What "revenue" means | Show three numbers, never one blended figure: **Sales** (gross bill value), **Collected** (cash actually received), **Baaki** (still owed). | The three answer different questions; a single "revenue" would hide credit sales. |
+| P3 ✅ | Customer tiers | RFM score, explained in §6.3 | Simple, explainable, adapts to the shop's own data. |
 
 ## 4. Metric definitions
 
