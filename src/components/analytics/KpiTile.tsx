@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { Text } from "../../ui";
+import { Text, useLayout } from "../../ui";
 import { Change } from "../../utils/analytics/compare";
 import { KpiFormat } from "../../utils/analytics/overview";
 import { formatGrams, formatInr, formatPct } from "../../utils/analytics/format";
@@ -54,20 +54,22 @@ export const KpiTile: React.FC<{
   upIsGood: boolean;
   change: Change | null;
   yoy: Change | null;
-}> = ({ label, value, format, upIsGood, change, yoy }) => (
-  <View style={styles.tile}>
-    <Text style={styles.label}>{label}</Text>
-    <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
-      {formatKpi(value, format)}
-    </Text>
-    <ChangeChip change={change} format={format} upIsGood={upIsGood} />
-    <ChangeChip change={yoy} format={format} upIsGood={upIsGood} prefix="LY " />
-  </View>
-);
+}> = ({ label, value, format, upIsGood, change, yoy }) => {
+  const { tileColumns } = useLayout();
+  return (
+    <View style={[styles.tile, { width: tileColumns === 2 ? "48%" : "100%" }]}>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
+        {formatKpi(value, format)}
+      </Text>
+      <ChangeChip change={change} format={format} upIsGood={upIsGood} />
+      <ChangeChip change={yoy} format={format} upIsGood={upIsGood} prefix="LY " />
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   tile: {
-    width: "48%",
     flexGrow: 1,
     padding: 12,
     borderRadius: 12,

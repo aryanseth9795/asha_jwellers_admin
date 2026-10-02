@@ -27,7 +27,9 @@ const OverviewTab: React.FC<{
     <View>
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>OPEN PLEDGE BOOK</Text>
-        <Text style={styles.big}>{inrC(s.openBook)}</Text>
+        <Text style={styles.big} numberOfLines={1} adjustsFontSizeToFit>
+          {inrC(s.openBook)}
+        </Text>
         <Text style={styles.exact}>{formatInr(s.openBook)}</Text>
         <Text style={styles.lede}>
           {s.open} open {s.open === 1 ? "pledge" : "pledges"} held for {openCustomers}{" "}
@@ -85,7 +87,7 @@ const OverviewTab: React.FC<{
 const styles = StyleSheet.create({
   hero: { backgroundColor: "#fff", borderRadius: 14, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: "#EEF0F2" },
   eyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 1, color: "#8C5B14" },
-  big: { fontSize: 40, fontWeight: "900", color: "#1A1A1A", marginTop: 4 },
+  big: { fontSize: 32, fontWeight: "900", color: "#1A1A1A", marginTop: 4 },
   exact: { fontSize: 13, color: "#777" },
   lede: { fontSize: 13, color: "#444", marginTop: 8, lineHeight: 19 },
   track: { flexDirection: "row", height: 8, borderRadius: 4, overflow: "hidden", marginTop: 12, backgroundColor: "#EEE" },

@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { Text } from "../../../ui";
+import { Text, barLabelWidth } from "../../../ui";
 
 export interface HBarRow {
   key: string;
@@ -17,17 +17,19 @@ export interface HBarRow {
 const HBars: React.FC<{ rows: HBarRow[]; emptyText?: string; labelWidth?: number }> = ({
   rows,
   emptyText = "No data in this view",
-  labelWidth = 104,
+  labelWidth,
 }) => {
+  const [width, setWidth] = useState(0);
+  const label = barLabelWidth(width, labelWidth ?? 120);
   const max = rows.reduce((m, r) => Math.max(m, r.value), 0);
   if (max <= 0) return <Text style={styles.empty}>{emptyText}</Text>;
   return (
-    <View>
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       {rows.map((r) => {
         const fill = Math.max(0, r.value) / max;
         const body = (
           <View style={styles.row}>
-            <Text style={[styles.label, { width: labelWidth }, r.highlight && styles.bold]} numberOfLines={1}>
+            <Text style={[styles.label, { width: label }, r.highlight && styles.bold]} numberOfLines={1}>
               {r.label}
             </Text>
             <View style={styles.track}>

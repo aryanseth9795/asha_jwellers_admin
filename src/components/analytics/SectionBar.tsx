@@ -26,7 +26,12 @@ const SectionBar: React.FC<{
             size={20}
             color={active ? colors.goldDeep : colors.textMuted}
           />
-          <Text style={[styles.label, active && styles.labelActive]} numberOfLines={1}>
+          <Text
+            style={[styles.label, active && styles.labelActive]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
             {s.label}
           </Text>
         </TouchableOpacity>

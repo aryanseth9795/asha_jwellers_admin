@@ -30,7 +30,12 @@ const Segmented = <T extends string>({
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
       >
-        <Text style={[styles.text, active && styles.activeText]} numberOfLines={1}>
+        <Text
+          style={[styles.text, active && styles.activeText]}
+          numberOfLines={1}
+          adjustsFontSizeToFit={fill}
+          minimumFontScale={fill ? 0.8 : undefined}
+        >
           {o.label}
         </Text>
       </TouchableOpacity>

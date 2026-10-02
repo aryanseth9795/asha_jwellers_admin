@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
-import { Text } from "../../ui";
+import { Text, useLayout } from "../../ui";
 
 export type TileTone = "default" | "good" | "warn" | "gold" | "silver";
 
@@ -17,15 +17,18 @@ export const StatTile: React.FC<{
   value: string;
   hint?: string;
   tone?: TileTone;
-}> = ({ label, value, hint, tone = "default" }) => (
-  <View style={[styles.tile, { backgroundColor: TONES[tone].bg }]}>
-    <Text style={styles.tileLabel}>{label}</Text>
-    <Text style={[styles.tileValue, { color: TONES[tone].fg }]} numberOfLines={1} adjustsFontSizeToFit>
-      {value}
-    </Text>
-    {hint ? <Text style={styles.tileHint}>{hint}</Text> : null}
-  </View>
-);
+}> = ({ label, value, hint, tone = "default" }) => {
+  const { tileColumns } = useLayout();
+  return (
+    <View style={[styles.tile, { width: tileColumns === 2 ? "48%" : "100%", backgroundColor: TONES[tone].bg }]}>
+      <Text style={styles.tileLabel}>{label}</Text>
+      <Text style={[styles.tileValue, { color: TONES[tone].fg }]} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      {hint ? <Text style={styles.tileHint}>{hint}</Text> : null}
+    </View>
+  );
+};
 
 export const StatGrid: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <View style={styles.grid}>{children}</View>
@@ -44,7 +47,6 @@ export const AnalyticsCard: React.FC<{ title: string; children: React.ReactNode 
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
   tile: {
-    width: "48%",
     flexGrow: 1,
     padding: 12,
     borderRadius: 12,
