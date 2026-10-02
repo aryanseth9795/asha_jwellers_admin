@@ -38,6 +38,15 @@ describe("concentration", () => {
       customers: 0, top10: 0, top20: 0, top50: 0, tenLargest: 0, curve: [{ customerShare: 0, principalShare: 0 }],
     });
   });
+
+  it("rounds the top shares up exactly, without floating-point drift", () => {
+    const base = rows[0];
+    const equal = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ ...base, id: i + 1, userId: i + 1, principal: 1000 }));
+    expect(concentration(equal(30)).top10).toBeCloseTo(3 / 30);
+    expect(concentration(equal(30)).top20).toBeCloseTo(6 / 30);
+    expect(concentration(equal(35)).top20).toBeCloseTo(7 / 35);
+  });
 });
 
 describe("exposures", () => {

@@ -114,9 +114,9 @@ export const concentration = (rows: PledgeRow[]): Concentration => {
   });
   return {
     customers: n,
-    top10: shareOfTop(Math.ceil(n * 0.1)),
-    top20: shareOfTop(Math.ceil(n * 0.2)),
-    top50: shareOfTop(Math.ceil(n * 0.5)),
+    top10: shareOfTop(Math.ceil(n / 10)),
+    top20: shareOfTop(Math.ceil(n / 5)),
+    top50: shareOfTop(Math.ceil(n / 2)),
     tenLargest: shareOfTop(10),
     curve,
   };
