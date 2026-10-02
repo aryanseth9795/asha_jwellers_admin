@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
   Animated,
   Alert,
-  Text,
 } from "react-native";
+import { Text } from "./src/ui";
 import * as Updates from "expo-updates";
 import HomeScreen from "./src/screen/homeScreen";
 import NewCustomerScreen from "./src/screen/NewCustomerScreen";

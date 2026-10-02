@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
@@ -10,6 +9,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
+import { Text } from "../ui";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useFocusEffect } from "@react-navigation/native";

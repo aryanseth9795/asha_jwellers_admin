@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../../ui";
 import { CustomersView, Tier } from "../../utils/analytics/customers";
 import { formatRupees } from "../../utils/billFormat";
 import { AnalyticsCard, StatGrid, StatTile } from "./StatTile";

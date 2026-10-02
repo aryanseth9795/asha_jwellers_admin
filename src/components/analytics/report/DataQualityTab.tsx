@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../ui";
 import { QualityReport } from "../../../utils/analytics/report/quality";
 import { formatPct } from "../../../utils/analytics/format";
 import ReportCard from "./ReportCard";

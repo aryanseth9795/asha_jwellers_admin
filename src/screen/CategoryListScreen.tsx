@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
@@ -10,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
+import { Text } from "../ui";
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";

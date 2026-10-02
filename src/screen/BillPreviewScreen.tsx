@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   Switch,
-  TextInput,
 } from "react-native";
+import { Text, TextInput } from "../ui";
 import { WebView } from "react-native-webview";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";

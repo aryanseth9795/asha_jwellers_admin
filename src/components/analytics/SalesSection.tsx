@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../../ui";
 import { SalesView } from "../../utils/analytics/sales";
 import { formatCompactRupees } from "../../utils/analytics/format";
 import { formatRupees } from "../../utils/billFormat";

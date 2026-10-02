@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../ui";
 import { Ionicons } from "@expo/vector-icons";
 import { OverviewView } from "../../utils/analytics/overview";
 import { formatCompactRupees } from "../../utils/analytics/format";

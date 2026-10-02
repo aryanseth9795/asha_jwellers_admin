@@ -1,9 +1,7 @@
 import React, { useState, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
-  TextInput,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
@@ -13,6 +11,7 @@ import {
   Switch,
   Platform,
 } from "react-native";
+import { Text, TextInput } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";

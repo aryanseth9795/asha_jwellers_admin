@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
-  Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -12,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Text, TextInput } from "../ui";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {

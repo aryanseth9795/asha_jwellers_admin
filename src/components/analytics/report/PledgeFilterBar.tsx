@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../../../ui";
 import { ALL_PLEDGES, PledgeFilters } from "../../../utils/analytics/report/pledges";
 import Segmented from "./Segmented";
 

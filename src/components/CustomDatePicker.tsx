@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   Modal,
   ScrollView,
 } from "react-native";
+import { Text } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 
 interface DatePickerProps {

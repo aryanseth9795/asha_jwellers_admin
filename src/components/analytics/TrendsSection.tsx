@@ -1,5 +1,6 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "../../ui";
 import { Period } from "../../utils/analytics/periods";
 import { TrendRow } from "../../utils/analytics/trends";
 import { formatCompactRupees, formatGrams, formatInr, formatPct } from "../../utils/analytics/format";

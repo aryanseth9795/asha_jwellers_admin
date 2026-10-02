@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../ui";
 import { MetalView, WeightValue } from "../../utils/analytics/metal";
 import { formatGrams } from "../../utils/analytics/format";
 import { formatRupees } from "../../utils/billFormat";

@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../ui";
 
 /** A titled card with an optional one-line explanation and a control on the right. */
 export const ReportCard: React.FC<{

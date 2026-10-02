@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../../../ui";
 
 export interface Column<R> {
   key: string;

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../../ui";
 import { Ionicons } from "@expo/vector-icons";
 import CustomDatePicker from "../CustomDatePicker";
 import { Grain, Period } from "../../utils/analytics/periods";

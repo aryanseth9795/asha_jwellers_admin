@@ -1,7 +1,6 @@
 import React from "react";
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -9,6 +8,7 @@ import {
   ScrollView,
   RefreshControl,
 } from "react-native";
+import { Text } from "../ui";
 import { StatusBar } from "expo-status-bar";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";

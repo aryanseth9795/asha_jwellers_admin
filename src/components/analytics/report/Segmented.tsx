@@ -1,5 +1,6 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import { Text } from "../../../ui";
 
 export interface SegmentOption<T extends string> {
   key: T;

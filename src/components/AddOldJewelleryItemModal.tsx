@@ -5,11 +5,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 import {
   JEWELLERY_METAL_OPTIONS,

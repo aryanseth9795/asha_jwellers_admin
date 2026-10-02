@@ -1,17 +1,16 @@
 import React, { useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   Image,
   Alert,
   ActivityIndicator,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Text, TextInput } from "../ui";
 import * as ImagePicker from "expo-image-picker";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";

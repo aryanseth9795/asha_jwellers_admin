@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Modal,
-  TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Text, TextInput } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomDatePicker from "./CustomDatePicker";

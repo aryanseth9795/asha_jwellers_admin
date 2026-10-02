@@ -1,0 +1,26 @@
+import * as fs from "fs";
+import * as path from "path";
+
+/** Static checks that pin the UI revamp's layout rules (spec §6) on the whole source tree. */
+const ROOT = path.join(__dirname, "..", "..");
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
+const tsxUnder = (dir: string): string[] =>
+  fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+    const rel = `${dir}/${e.name}`;
+    if (e.isDirectory()) return tsxUnder(rel);
+    return rel.endsWith(".tsx") ? [rel] : [];
+  });
+/** App code: App.tsx and every .tsx under src except the UI layer itself. */
+const appFiles = ["App.tsx", ...tsxUnder("src").filter((f) => !f.startsWith("src/ui/"))];
+/** Names imported with `import { … } from "react-native"`. */
+const rnImports = (src: string): string[] =>
+  [...src.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']react-native["']/g)].flatMap((m) =>
+    m[1].split(",").map((s) => s.trim()).filter(Boolean),
+  );
+
+describe("source audit (UI revamp spec §6)", () => {
+  it("imports Text and TextInput from src/ui, never straight from react-native", () => {
+    const offenders = appFiles.filter((f) => rnImports(read(f)).some((s) => s === "Text" || s === "TextInput"));
+    expect(offenders).toEqual([]);
+  });
+});

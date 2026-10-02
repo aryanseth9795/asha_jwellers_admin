@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../ui";
 import { Change } from "../../utils/analytics/compare";
 import { KpiFormat } from "../../utils/analytics/overview";
 import { formatGrams, formatInr, formatPct } from "../../utils/analytics/format";

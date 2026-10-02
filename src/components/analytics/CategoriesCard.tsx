@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../ui";
 import { CategoryStat } from "../../utils/analytics/categories";
 import { formatGrams, formatInr, formatPct } from "../../utils/analytics/format";
 import { AnalyticsCard } from "./StatTile";

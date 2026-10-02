@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../../../ui";
 import { PledgeRow } from "../../../utils/analytics/report/pledges";
 import {
   Cohort, ageBuckets, cohorts, interestWhatIf, monthlyBook, pledgeStats, redeemBuckets, sizeBands, weekdays,

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../../../ui";
 import {
   BillGroup, BillRow, billLabel, billingSummary, discountPerBill, numberedVsEarlier, waterfall,
 } from "../../../utils/analytics/report/billing";

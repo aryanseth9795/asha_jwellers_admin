@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { Text } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 import { NewLendenItem } from "../types/entry";
 import { sumItemTotals } from "../utils/lendenAmount";

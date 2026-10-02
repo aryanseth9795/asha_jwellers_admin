@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Text } from "../../../ui";
 import { PledgeRow } from "../../../utils/analytics/report/pledges";
 import { BillRow, billingSummary } from "../../../utils/analytics/report/billing";
 import { pledgeStats } from "../../../utils/analytics/report/pledgeBook";

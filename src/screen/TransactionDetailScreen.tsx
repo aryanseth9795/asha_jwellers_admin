@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   Image,
@@ -10,10 +9,10 @@ import {
   Dimensions,
   Modal,
   Alert,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Text, TextInput } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
