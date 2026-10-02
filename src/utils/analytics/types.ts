@@ -4,6 +4,7 @@
 export interface UserRow {
   id: number;
   name: string;
+  address?: string | null;
 }
 
 export interface LendenRow {
@@ -43,6 +44,7 @@ export interface RehanTxRow {
 export interface SoldItemRow {
   lendenId: number;
   metal: string | null;
+  purity?: string | null;
   weight: number | null;
   total: number;
 }
