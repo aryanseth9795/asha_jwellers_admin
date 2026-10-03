@@ -20,6 +20,7 @@ import {
   confirm,
   notify,
 } from "../ui";
+import { formatInr } from "../utils/analytics/format";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -705,11 +706,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     numberOfLines={1}
                     adjustsFontSizeToFit
                   >
-                    ₹
-                    {(transactionType === "rehan"
+                    {formatInr((transactionType === "rehan"
                       ? rehan?.amount
                       : lenden?.amount
-                    )?.toLocaleString()}
+                    ) ?? 0)}
                   </Text>
                 </View>
                 <View style={styles.dateBadge}>
@@ -753,7 +753,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Discount</Text>
                   <Text style={styles.infoValue}>
-                    ₹{lenden.discount.toLocaleString()}
+                    {formatInr(lenden.discount)}
                   </Text>
                 </View>
               </View>
@@ -782,7 +782,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Remaining</Text>
                   <Text style={styles.infoValue}>
-                    ₹{lenden.remaining.toLocaleString()}
+                    {formatInr(lenden.remaining)}
                   </Text>
                 </View>
               </View>
@@ -816,7 +816,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Jama</Text>
                   <Text style={[styles.infoValue, { color: "#2E7D32" }]}>
-                    ₹{lenden.jama.toLocaleString()}
+                    {formatInr(lenden.jama)}
                   </Text>
                 </View>
               </View>
@@ -845,7 +845,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Baki</Text>
                   <Text style={[styles.infoValue, { color: "#C62828" }]}>
-                    ₹{lenden.baki.toLocaleString()}
+                    {formatInr(lenden.baki)}
                   </Text>
                 </View>
               </View>

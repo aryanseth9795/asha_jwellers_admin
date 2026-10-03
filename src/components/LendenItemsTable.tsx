@@ -13,6 +13,17 @@ const metalLabel = (metal: NewLendenItem["metal"]): string | null => {
   return null;
 };
 
+/** The item's details as short chips: "Gold · 18KT", "Qty 1", "12.000 ग्राम", "@ 14,500/-". */
+const itemDetails = (item: NewLendenItem): string[] => {
+  const metal = [metalLabel(item.metal), item.purity ?? null].filter(Boolean).join(" · ");
+  return [
+    metal || null,
+    item.qty != null ? `Qty ${item.qty}` : null,
+    item.weight != null ? formatWeight(item.weight).main : null,
+    item.rate != null ? `@ ${formatRupees(item.rate)}` : null,
+  ].filter((d): d is string => Boolean(d));
+};
+
 interface LendenItemsTableProps {
   items: NewLendenItem[];
   editable?: boolean;
@@ -52,23 +63,25 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
           </View>
 
           <View style={styles.itemBody}>
-            <Text style={styles.itemName} numberOfLines={2}>
-              {item.name}
-            </Text>
-            <Text style={styles.itemMeta} numberOfLines={2}>
-              {[
-                metalLabel(item.metal),
-                item.purity ?? null,
-                item.qty != null ? `Qty: ${item.qty}` : null,
-                item.weight != null ? formatWeight(item.weight).main : null,
-                item.rate != null ? `@ ${formatRupees(item.rate)}` : null,
-              ]
-                .filter(Boolean)
-                .join("  ·  ")}
-            </Text>
+            {/* Name and amount share the top line; the details wrap as chips underneath at full width. */}
+            <View style={styles.itemTop}>
+              <Text style={styles.itemName} numberOfLines={2}>
+                {item.name}
+              </Text>
+              <Text style={styles.itemTotal} numberOfLines={1}>
+                {formatRupees(item.total)}
+              </Text>
+            </View>
+            <View style={styles.metaRow}>
+              {itemDetails(item).map((detail) => (
+                <View key={detail} style={styles.metaChip}>
+                  <Text style={styles.metaText} numberOfLines={1}>
+                    {detail}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
-
-          <Text style={styles.itemTotal} numberOfLines={1}>{formatRupees(item.total)}</Text>
 
           {editable && onEdit && (
             <TouchableOpacity style={styles.iconButton} onPress={() => onEdit(index)}>
@@ -136,7 +149,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, color: "#999" },
   itemRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -144,6 +157,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F0F2F5",
   },
   serial: {
+    marginTop: 1,
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -152,11 +166,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   serialText: { fontSize: 12, fontWeight: "700", color: "#007AFF" },
-  itemBody: { flex: 1 },
-  itemName: { fontSize: 15, fontWeight: "600", color: "#1A1A1A" },
-  itemMeta: { fontSize: 12, color: "#666", marginTop: 2 },
+  itemBody: { flex: 1, minWidth: 0 },
+  itemTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  itemName: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: "600", color: "#1A1A1A" },
   itemTotal: { flexShrink: 0, textAlign: "right", fontSize: 15, fontWeight: "700", color: "#1A1A1A" },
-  iconButton: { padding: 2 },
+  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
+  metaChip: {
+    maxWidth: "100%",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: "#F3F5F8",
+  },
+  metaText: { fontSize: 12, color: "#555" },
+  iconButton: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center", alignSelf: "center" },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",

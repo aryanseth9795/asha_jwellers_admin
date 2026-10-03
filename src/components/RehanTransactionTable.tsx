@@ -1,6 +1,7 @@
 import React from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "../ui";
+import { formatInr } from "../utils/analytics/format";
 import { Ionicons } from "@expo/vector-icons";
 import { RehanTransaction } from "../types/entry";
 
@@ -76,8 +77,8 @@ const RehanTransactionTable: React.FC<RehanTransactionTableProps> = ({
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {transaction.type === "diya" ? "+" : "-"}₹
-            {transaction.amount.toLocaleString()}
+            {transaction.type === "diya" ? "+" : "-"}
+            {formatInr(transaction.amount ?? 0)}
           </Text>
           <View style={[styles.cellView, styles.actionCol]}>
             <TouchableOpacity

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "../ui";
+import { formatInr } from "../utils/analytics/format";
 import { Ionicons } from "@expo/vector-icons";
 
 interface JamaEntryDisplay {
@@ -56,14 +57,14 @@ const BillTable: React.FC<BillTableProps> = ({
       {/* Amount Row */}
       <View style={styles.row}>
         <Text style={styles.label} numberOfLines={2}>Amount</Text>
-        <Text style={styles.value} numberOfLines={1}>₹{amount.toLocaleString()}</Text>
+        <Text style={styles.value} numberOfLines={1}>{formatInr(amount)}</Text>
       </View>
 
       {oldJewelleryCredit > 0 && (
         <View style={styles.row}>
           <Text style={styles.label} numberOfLines={2}>Old Jewellery Credit</Text>
           <Text style={[styles.value, styles.oldJewelleryValue]} numberOfLines={1}>
-            -₹{oldJewelleryCredit.toLocaleString()}
+            -{formatInr(oldJewelleryCredit)}
           </Text>
         </View>
       )}
@@ -72,7 +73,7 @@ const BillTable: React.FC<BillTableProps> = ({
       <View style={styles.row}>
         <Text style={styles.label} numberOfLines={2}>Discount</Text>
         <Text style={[styles.value, styles.discountValue]} numberOfLines={1}>
-          -₹{discount.toLocaleString()}
+          -{formatInr(discount)}
         </Text>
       </View>
 
@@ -80,7 +81,7 @@ const BillTable: React.FC<BillTableProps> = ({
       <View style={[styles.row, styles.remainingRow]}>
         <Text style={[styles.label, styles.remainingLabel]} numberOfLines={2}>REMAINING</Text>
         <Text style={[styles.value, styles.remainingValue]} numberOfLines={1}>
-          ₹{remaining.toLocaleString()}
+          {formatInr(remaining)}
         </Text>
       </View>
 
@@ -99,7 +100,7 @@ const BillTable: React.FC<BillTableProps> = ({
               </View>
               <View style={styles.jamaAmountContainer}>
                 <Text style={[styles.value, styles.jamaValue]} numberOfLines={1}>
-                  -₹{entry.amount.toLocaleString()}
+                  -{formatInr(entry.amount)}
                 </Text>
                 {editable && onEditJama && (
                   <TouchableOpacity
@@ -124,7 +125,7 @@ const BillTable: React.FC<BillTableProps> = ({
             <View style={styles.bakiRow}>
               <Text style={styles.bakiLabel} numberOfLines={2}>Baki</Text>
               <Text style={styles.bakiValue} numberOfLines={1}>
-                ₹{bakiAfterJama.toLocaleString()}
+                {formatInr(bakiAfterJama)}
               </Text>
             </View>
           </View>
@@ -136,7 +137,7 @@ const BillTable: React.FC<BillTableProps> = ({
         <View style={[styles.row, styles.totalJamaRow]}>
           <Text style={[styles.label, styles.totalJamaLabel]} numberOfLines={2}>TOTAL JAMA</Text>
           <Text style={[styles.value, styles.totalJamaValue]} numberOfLines={1}>
-            -₹{totalJama.toLocaleString()}
+            -{formatInr(totalJama)}
           </Text>
         </View>
       )}
@@ -146,7 +147,7 @@ const BillTable: React.FC<BillTableProps> = ({
         <View style={[styles.row, styles.finalBakiRow]}>
           <Text style={[styles.label, styles.finalBakiLabel]} numberOfLines={2}>BAKI</Text>
           <Text style={[styles.value, styles.finalBakiValue]} numberOfLines={1}>
-            ₹{remaining.toLocaleString()}
+            {formatInr(remaining)}
           </Text>
         </View>
       )}
@@ -156,7 +157,7 @@ const BillTable: React.FC<BillTableProps> = ({
         <View style={[styles.row, styles.finalBakiRow]}>
           <Text style={[styles.label, styles.finalBakiLabel]} numberOfLines={2}>FINAL BAKI</Text>
           <Text style={[styles.value, styles.finalBakiValue]} numberOfLines={1}>
-            ₹{runningBaki.toLocaleString()}
+            {formatInr(runningBaki)}
           </Text>
         </View>
       )}

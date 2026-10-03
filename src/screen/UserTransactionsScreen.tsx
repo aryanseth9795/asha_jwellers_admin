@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, Screen, confirm, notify } from "../ui";
+import { formatInr } from "../utils/analytics/format";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -235,7 +236,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
           <View style={styles.amountHighlight}>
             <Ionicons name="cash" size={20} color="#2E7D32" />
             <Text style={styles.highlightedAmount} numberOfLines={1} adjustsFontSizeToFit>
-              ₹{item.amount.toLocaleString()}
+              {formatInr(item.amount)}
             </Text>
           </View>
           <View style={styles.dateHighlightBadge}>
@@ -255,7 +256,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
               <View style={styles.summaryChip}>
                 <Ionicons name="pricetag" size={12} color="#666" />
                 <Text style={styles.summaryChipText} numberOfLines={1}>
-                  -₹{item.discount.toLocaleString()}
+                  -{formatInr(item.discount)}
                 </Text>
               </View>
             ) : null}
@@ -263,7 +264,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
               <View style={styles.summaryChip}>
                 <Ionicons name="wallet" size={12} color="#666" />
                 <Text style={styles.summaryChipText} numberOfLines={1}>
-                  ₹{item.remaining.toLocaleString()}
+                  {formatInr(item.remaining)}
                 </Text>
               </View>
             ) : null}
@@ -276,7 +277,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
                   style={[styles.summaryChipText, { color: "#2E7D32" }]}
                   numberOfLines={1}
                 >
-                  ₹{item.jama.toLocaleString()}
+                  {formatInr(item.jama)}
                 </Text>
               </View>
             ) : null}
@@ -289,7 +290,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
                   style={[styles.summaryChipText, { color: "#C62828" }]}
                   numberOfLines={1}
                 >
-                  ₹{item.baki.toLocaleString()}
+                  {formatInr(item.baki)}
                 </Text>
               </View>
             ) : null}
@@ -404,7 +405,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={[styles.statAmount, styles.openRehanAmount]}
                 numberOfLines={1}
               >
-                ₹{totalOpenRehanAmount.toLocaleString()}
+                {formatInr(totalOpenRehanAmount)}
               </Text>
               <Text style={styles.statLabel}>Open Rehan</Text>
             </View>
@@ -418,7 +419,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={[styles.statAmount, styles.bakiAmount]}
                 numberOfLines={1}
               >
-                ₹{totalBaki.toLocaleString()}
+                {formatInr(totalBaki)}
               </Text>
               <Text style={styles.statLabel}>Total Baki</Text>
             </View>
