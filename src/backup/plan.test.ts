@@ -194,6 +194,17 @@ describe("planMerge idempotence", () => {
     expect(plan.billNoClashes).toEqual([]);
   });
 
+  it("re-planning identical data with photos gives 0 inserts and 0 conflicts", () => {
+    const backup = makeBackup();
+    backup.lenden[0].media = ["media/" + L1 + "/1-a.jpg", "media/" + L1 + "/2-b.jpg"];
+    const plan = planMerge(backup, toSnapshot(backup));
+    for (const k of TABLE_KEYS) {
+      expect(plan.summary[k].insert).toBe(0);
+      expect(plan.summary[k].conflict).toBe(0);
+    }
+    expect(plan.conflicts).toEqual([]);
+  });
+
   it("keeps summary totals consistent", () => {
     const backup = makeBackup();
     const local = toSnapshot(backup);
@@ -296,12 +307,24 @@ describe("rehan", () => {
     expect(plan.summary.rehanTransactions).toEqual({ total: 2, insert: 1, same: 1, conflict: 0 });
   });
 
-  it("does not compare amount or media", () => {
+  it("does not compare the amount", () => {
     const backup = makeBackup();
     const local = toSnapshot(backup);
     local.rehan[0].amount = 12345;
-    local.rehan[0].media = [];
     expect(planMerge(backup, local).summary.rehan).toEqual({ total: 1, insert: 0, same: 1, conflict: 0 });
+  });
+
+  it("flags a rehan whose photo count differs, and matches an equal count with other file names", () => {
+    const backup = makeBackup();
+    const fewer = toSnapshot(backup);
+    fewer.rehan[0].media = [];
+    const plan = planMerge(backup, fewer);
+    expect(plan.summary.rehan).toEqual({ total: 1, insert: 0, same: 0, conflict: 1 });
+    expect(plan.conflicts).toContainEqual({ table: "rehan", uuid: R1 });
+
+    const sameCount = toSnapshot(backup);
+    sameCount.rehan[0].media = ["/phone/other-name.jpg"];
+    expect(planMerge(backup, sameCount).summary.rehan).toEqual({ total: 1, insert: 0, same: 1, conflict: 0 });
   });
 
   it("treats a local rehan with an unknown userId as customerUuid null", () => {
@@ -385,13 +408,27 @@ describe("lenden", () => {
     expect(plan.recomputeLenden).toEqual([L1]);
   });
 
-  it("does not compare jama, baki or media", () => {
+  it("does not compare jama or baki", () => {
     const backup = makeBackup();
     const local = toSnapshot(backup);
     local.lenden[0].jama = 0;
     local.lenden[0].baki = 1;
-    local.lenden[0].media = ["/x.jpg"];
     expect(planMerge(backup, local).summary.lenden).toEqual({ total: 1, insert: 0, same: 1, conflict: 0 });
+  });
+
+  it("flags a len-den whose photo count differs, and matches an equal count with other file names", () => {
+    const backup = makeBackup();
+    const more = toSnapshot(backup);
+    more.lenden[0].media = ["/x.jpg"];
+    const plan = planMerge(backup, more);
+    expect(plan.summary.lenden).toEqual({ total: 1, insert: 0, same: 0, conflict: 1 });
+    expect(plan.conflicts).toContainEqual({ table: "lenden", uuid: L1 });
+
+    const withPhoto = makeBackup();
+    withPhoto.lenden[0].media = ["media/" + L1 + "/1-a.jpg"];
+    const sameCount = toSnapshot(withPhoto);
+    sameCount.lenden[0].media = ["/phone/renamed.jpg"];
+    expect(planMerge(withPhoto, sameCount).summary.lenden).toEqual({ total: 1, insert: 0, same: 1, conflict: 0 });
   });
 
   it("treats a local len-den with an unknown userId as customerUuid null", () => {

@@ -173,9 +173,12 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
 
     setIsSaving(true);
     try {
-      // Save does not blur the focused village field, so normalise here against the current village list.
-      const villages = await getVillages().catch(() => []);
-      const village = normaliseVillageForSave(editAddress, villages);
+      // Save does not blur the focused village field, so normalise here against the current village list, but only
+      // when the owner changed it; an untouched village is saved as it is stored.
+      const addressChanged = editAddress !== (editingUser.address || "");
+      const village = addressChanged
+        ? normaliseVillageForSave(editAddress, await getVillages().catch(() => []))
+        : editingUser.address || null;
       await updateUser(
         editingUser.id,
         editName.trim(),

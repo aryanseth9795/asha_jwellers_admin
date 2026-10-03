@@ -124,7 +124,7 @@ Every stored column is kept. Relationships use UUIDs.
 
 ## 6. Import pipeline
 
-1. **Pick:** `File.pickFileAsync(undefined, "application/zip")`. If the owner cancels, nothing happens.
+1. **Pick:** `File.pickFileAsync()` (any file type, because zips shared through WhatsApp or Drive carry other labels). The backup is recognised by its content. If the owner cancels, nothing happens.
 2. **Stage:**
    - Copy the file to `cacheDirectory/import-<ts>/backup.zip` and unzip it into the same folder.
    - **v2** is detected by `manifest.json`. **v1 (legacy)** is detected by `users.json`, `rehan.json` and

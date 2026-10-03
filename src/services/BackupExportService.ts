@@ -96,6 +96,41 @@ export const exportBackup = async (): Promise<void> => {
   await Sharing.shareAsync(zipUri, { mimeType: "application/zip", dialogTitle: "Save AJ backup", UTI: "public.zip-archive" });
 };
 
+/** Date from an automatic backup's name (before-restore-2026-10-03_1830-12-123.zip, local time), or null. */
+const emergencyDate = (name: string): Date | null => {
+  const m = /^before-restore-(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})-(\d{2})(?:-(\d{3}))?\.zip$/.exec(name);
+  if (!m) return null;
+  const [y, mo, d, h, mi, s, ms] = m.slice(1).map((v) => Number(v ?? 0));
+  const date = new Date(y, mo - 1, d, h, mi, s, ms);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+/**
+ * The automatic backups saved before a Replace and restore (documentDirectory/backups/before-restore-*.zip), newest
+ * first. Empty when there are none or the folder cannot be read.
+ */
+export const listAutomaticBackups = async (): Promise<{ uri: string; createdAt: Date }[]> => {
+  const dir = `${FileSystem.documentDirectory}${EMERGENCY_DIR}`;
+  try {
+    const out: { uri: string; createdAt: Date }[] = [];
+    for (const name of await FileSystem.readDirectoryAsync(dir)) {
+      if (!name.startsWith(EMERGENCY_PREFIX) || !name.endsWith(".zip")) continue;
+      const uri = dir + name;
+      if (!(await fileExists(uri))) continue;
+      let createdAt = emergencyDate(name);
+      if (!createdAt) {
+        const info = await FileSystem.getInfoAsync(uri);
+        const seconds = info.exists ? info.modificationTime : undefined;
+        createdAt = typeof seconds === "number" ? new Date(seconds * 1000) : new Date(0);
+      }
+      out.push({ uri, createdAt });
+    }
+    return out.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  } catch {
+    return [];
+  }
+};
+
 /**
  * Saves a v2 backup of the current ledger in documentDirectory/backups/ before a Replace and restore, keeping the
  * newest three. Returns the zip's URI. Throws when the backup cannot be made; the restore must then stop.

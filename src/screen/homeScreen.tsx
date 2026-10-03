@@ -5,12 +5,13 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useIsFocused } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../types/entry";
-import { exportBackup } from "../services/BackupExportService";
+import { exportBackup, listAutomaticBackups } from "../services/BackupExportService";
 import {
   StagedImport,
   applyImport,
   discardStagedImport,
   pickAndStageBackup,
+  stageBackupFrom,
 } from "../services/BackupImportService";
 import { BackupError, ImportMode } from "../backup/format";
 import ImportBackupSheet from "../components/ImportBackupSheet";
@@ -39,6 +40,19 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [staged, setStaged] = React.useState<StagedImport | null>(null);
   const [applying, setApplying] = React.useState(false);
   const busy = isExporting || isImporting || applying;
+  /** One line in the import sheet while it works: the automatic backup first, then the import itself. */
+  const [progress, setProgress] = React.useState<string | null>(null);
+  /** The newest automatic backup saved before a Replace, or null when there is none. */
+  const [previous, setPrevious] = React.useState<{ uri: string; createdAt: Date } | null>(null);
+
+  const refreshPrevious = React.useCallback(async () => {
+    setPrevious((await listAutomaticBackups())[0] ?? null);
+  }, []);
+
+  // Re-check whenever Home gains focus (a Replace elsewhere may have saved a new automatic backup).
+  React.useEffect(() => {
+    if (isFocused) refreshPrevious();
+  }, [isFocused, refreshPrevious]);
 
   const handleExport = async () => {
     if (busy) return;
@@ -68,6 +82,33 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const handleRestorePrevious = async () => {
+    if (busy || !previous) return;
+    const when = previous.createdAt.toLocaleString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    const ok = await confirm({
+      tone: "warning",
+      title: "Restore previous data?",
+      message: `This opens the automatic backup saved on ${when} before your last Replace.`,
+      confirmLabel: "Open",
+    });
+    if (!ok) return;
+    setIsImporting(true);
+    try {
+      setStaged(await stageBackupFrom(previous.uri, (p) => setPhase(p === "reading" ? "Reading backup…" : "Checking…")));
+    } catch (error) {
+      notify.error("Import failed", errorText(error));
+    } finally {
+      setPhase(null);
+      setIsImporting(false);
+    }
+  };
+
   const runImport = async (mode: ImportMode) => {
     if (!staged || applying) return;
     if (mode === "replace") {
@@ -83,7 +124,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     setApplying(true);
     let announce: () => void;
     try {
-      const result = await applyImport(staged, mode);
+      const result = await applyImport(staged, mode, setProgress);
       announce = () =>
         notify.success(
           "Backup imported",
@@ -94,7 +135,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     }
     // applyImport has deleted the staging folder either way; close the sheet, then tell the owner.
     setApplying(false);
+    setProgress(null);
     setStaged(null);
+    refreshPrevious();
     announce();
   };
 
@@ -164,6 +207,18 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           </View>
         </View>
 
+        {previous ? (
+          <TouchableOpacity
+            style={[styles.linkButton, busy && styles.dimmed]}
+            onPress={handleRestorePrevious}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel="Restore previous data"
+          >
+            <Text style={styles.linkText}>Restore previous data</Text>
+          </TouchableOpacity>
+        ) : null}
+
         <Text style={styles.sectionTitle}>Choose business</Text>
         <View style={styles.list}>
           {BUSINESSES.map((b) => (
@@ -196,6 +251,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         visible={staged !== null}
         preview={staged?.preview ?? null}
         busy={applying}
+        progress={progress}
         onMerge={() => runImport("merge")}
         onReplace={() => runImport("replace")}
         onClose={closeSheet}
@@ -254,6 +310,13 @@ const styles = StyleSheet.create({
   },
   actionText: { fontSize: fontSize.caption, fontWeight: "700", color: colors.primary },
   dimmed: { opacity: 0.5 },
+  linkButton: {
+    alignSelf: "flex-end",
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: space.xl,
+  },
+  linkText: { fontSize: fontSize.body, fontWeight: "700", color: colors.primary },
   sectionTitle: {
     fontSize: fontSize.title,
     fontWeight: "700",

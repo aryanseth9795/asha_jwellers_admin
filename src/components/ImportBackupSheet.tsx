@@ -8,6 +8,8 @@ interface Props {
   visible: boolean;
   preview: ImportPreview | null;
   busy: boolean;
+  /** One line shown above the buttons while busy (e.g. "Importing…"). */
+  progress?: string | null;
   onMerge: () => void;
   onReplace: () => void;
   onClose: () => void;
@@ -45,7 +47,7 @@ const buildWarnings = (preview: ImportPreview): string[] => {
   return [...out, ...preview.warnings];
 };
 
-const ImportBackupSheet: React.FC<Props> = ({ visible, preview, busy, onMerge, onReplace, onClose }) => {
+const ImportBackupSheet: React.FC<Props> = ({ visible, preview, busy, progress, onMerge, onReplace, onClose }) => {
   const merge = preview?.merge ?? null;
   const subtitle = preview
     ? `${formatDate(preview.createdAt)}${preview.kind === "legacy" ? " · Old backup" : ""}`
@@ -53,6 +55,11 @@ const ImportBackupSheet: React.FC<Props> = ({ visible, preview, busy, onMerge, o
 
   const footer = preview ? (
     <View style={styles.footer}>
+      {busy && progress ? (
+        <Text style={styles.progress} numberOfLines={1} accessibilityLiveRegion="polite">
+          {progress}
+        </Text>
+      ) : null}
       {merge ? (
         <TouchableOpacity
           style={[styles.button, styles.primary, busy && styles.disabled]}
@@ -189,6 +196,7 @@ const styles = StyleSheet.create({
   },
   warningText: { flex: 1, flexShrink: 1, fontSize: fontSize.body, color: colors.goldDeep },
   footer: { gap: space.sm },
+  progress: { fontSize: fontSize.body, fontWeight: "600", color: colors.textDim, textAlign: "center" },
   button: {
     height: 48,
     borderRadius: 12,

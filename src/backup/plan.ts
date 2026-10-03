@@ -1,6 +1,8 @@
 /**
  * Merge planner (backup spec §6.1). Pure: compares a parsed backup with a snapshot of the phone and says which rows
  * to insert, which are already there, and which differ (those stay as they are on the phone).
+ * Photos are compared by count only: the phone keeps absolute paths and the backup zip-relative ones, so a different
+ * number of photos on a rehan or len-den is a difference.
  */
 import {
   BackupData,
@@ -89,7 +91,8 @@ export const planMerge = (backup: BackupData, local: LocalSnapshot): MergePlan =
       eq(l.category, r.category) &&
       eq(l.status, r.status) &&
       eq(l.openDate, r.openDate) &&
-      eq(l.closedDate, r.closedDate)
+      eq(l.closedDate, r.closedDate) &&
+      l.media.length === r.media.length
     ) {
       mark("rehan", r.uuid, "same");
     } else {
@@ -127,7 +130,8 @@ export const planMerge = (backup: BackupData, local: LocalSnapshot): MergePlan =
       eq(l.remaining, d.remaining) &&
       eq(l.status, d.status) &&
       eq(l.billNo, d.billNo) &&
-      eq(l.amountOverridden, d.amountOverridden)
+      eq(l.amountOverridden, d.amountOverridden) &&
+      l.media.length === d.media.length
     ) {
       mark("lenden", d.uuid, "same");
     } else {

@@ -248,11 +248,13 @@ export type StagePhase = "reading" | "checking";
 /**
  * Lets the owner pick a backup zip, then unzips, validates and plans it without touching the ledger.
  * Returns null when the owner cancels the picker. Throws BackupError with a message for the owner.
+ * Any file type can be picked (a zip shared through WhatsApp or Drive may be labelled octet-stream); a file that is not
+ * a backup fails with "Not an AJ backup".
  */
 export const pickAndStageBackup = async (onPhase?: (phase: StagePhase) => void): Promise<StagedImport | null> => {
   let picked: PickedFile;
   try {
-    const result = await File.pickFileAsync(undefined, "application/zip");
+    const result = await File.pickFileAsync();
     const file = Array.isArray(result) ? result[0] : result;
     if (!file) return null;
     picked = file;
@@ -261,7 +263,14 @@ export const pickAndStageBackup = async (onPhase?: (phase: StagePhase) => void):
     console.error("Backup pick failed:", error);
     throw new BackupError("Could not open the chosen file");
   }
+  return stageFrom(picked, onPhase);
+};
 
+/** Stages a backup zip that is already on the phone (for example an automatic backup), without the picker. */
+export const stageBackupFrom = (uri: string, onPhase?: (phase: StagePhase) => void): Promise<StagedImport> =>
+  stageFrom({ uri }, onPhase);
+
+const stageFrom = async (picked: PickedFile, onPhase?: (phase: StagePhase) => void): Promise<StagedImport> => {
   onPhase?.("reading");
   // Staging folders left behind when the app was closed in the middle of an import or export.
   try {
@@ -343,13 +352,18 @@ const placePhoto = async (
  * fails. Photos are copied before the database is touched; if anything fails, the photos this import copied are
  * deleted and the database transaction rolls back. The staging folder is always deleted.
  */
-export const applyImport = async (staged: StagedImport, mode: ImportMode): Promise<ImportResult> => {
+export const applyImport = async (
+  staged: StagedImport,
+  mode: ImportMode,
+  onProgress?: (step: string) => void,
+): Promise<ImportResult> => {
   const copied: string[] = [];
   try {
     if (mode === "merge" && !staged.plan) {
       throw new BackupError("Safe merge is not available for an old backup. Use Replace & restore.");
     }
     if (mode === "replace") {
+      onProgress?.("Saving an automatic backup…");
       try {
         await writeEmergencyBackup();
       } catch (error) {
@@ -359,6 +373,7 @@ export const applyImport = async (staged: StagedImport, mode: ImportMode): Promi
       }
     }
 
+    onProgress?.("Importing…");
     const root: MediaRoot = staged.preview.kind === "v2" ? "media" : "images";
     const inZip = new Set(staged.mediaPaths);
     const records =
