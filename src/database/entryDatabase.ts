@@ -9,6 +9,7 @@ import {
   JamaEntry,
   NewJamaEntry,
 } from "../types/entry";
+import { UUID_SQL } from "./uuidSql";
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -17,6 +18,61 @@ const openDatabase = async () => {
   if (db) return db;
   db = await SQLite.openDatabaseAsync("aj_database.db");
   return db;
+};
+
+// Tables that carry a permanent uuid + updatedAt, with the column whose value
+// seeds updatedAt for rows that already exist (null = no usable date, use now).
+const IDENTITY_TABLES: { table: string; dateColumn: string | null }[] = [
+  { table: "users", dateColumn: "createdAt" },
+  { table: "rehan", dateColumn: "openDate" },
+  { table: "rehan_transactions", dateColumn: "date" },
+  { table: "lenden", dateColumn: "date" },
+  { table: "lenden_items", dateColumn: null },
+  { table: "lenden_old_jewellery_items", dateColumn: null },
+  { table: "jama_entries", dateColumn: "date" },
+];
+
+const ensureIdentityColumns = async (database: SQLite.SQLiteDatabase) => {
+  for (const { table, dateColumn } of IDENTITY_TABLES) {
+    const columns = (
+      await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`)
+    ).map((c) => c.name);
+
+    if (!columns.includes("uuid")) {
+      // DATA SAFETY: the ALTERs and both backfills MUST be one atomic unit (same
+      // reasoning as amountOverridden above). If the uuid column landed but the
+      // backfill did not, the guard above would be satisfied on the next launch
+      // and the backfill would NEVER RUN AGAIN, leaving rows with NULL uuids that
+      // a backup cannot identify. In a transaction a failure rolls everything
+      // back, so the next launch retries from the original table.
+      const now = new Date().toISOString();
+      await database.withTransactionAsync(async () => {
+        await database.execAsync(`ALTER TABLE ${table} ADD COLUMN uuid TEXT`);
+        // updatedAt may already exist if a previous build added it; only add it when missing.
+        if (!columns.includes("updatedAt")) {
+          await database.execAsync(
+            `ALTER TABLE ${table} ADD COLUMN updatedAt TEXT`,
+          );
+        }
+        await database.execAsync(
+          `UPDATE ${table} SET uuid = ${UUID_SQL} WHERE uuid IS NULL`,
+        );
+        await database.runAsync(
+          dateColumn
+            ? `UPDATE ${table} SET updatedAt = COALESCE(${dateColumn}, ?) WHERE updatedAt IS NULL`
+            : `UPDATE ${table} SET updatedAt = ? WHERE updatedAt IS NULL`,
+          now,
+        );
+      });
+      console.log(`Added uuid and updatedAt to ${table} and backfilled existing rows`);
+    }
+
+    // Always runs: a no-op once the index exists. Created after the backfill so
+    // existing rows are already unique.
+    await database.execAsync(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_uuid ON ${table}(uuid)`,
+    );
+  }
 };
 
 // Initialize database (create tables if not exist)
@@ -32,7 +88,9 @@ export const initDatabase = async () => {
         address TEXT,
         mobileNumber TEXT,
         nickname TEXT,
-        createdAt TEXT NOT NULL
+        createdAt TEXT NOT NULL,
+        uuid TEXT,
+        updatedAt TEXT
       );
     `);
 
@@ -47,6 +105,8 @@ export const initDatabase = async () => {
         closedDate TEXT,
         productName TEXT,
         amount INTEGER,
+        uuid TEXT,
+        updatedAt TEXT,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       );
     `);
@@ -63,6 +123,8 @@ export const initDatabase = async () => {
         remaining INTEGER,
         jama INTEGER,
         baki INTEGER,
+        uuid TEXT,
+        updatedAt TEXT,
         FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
       );
     `);
@@ -74,6 +136,8 @@ export const initDatabase = async () => {
         lendenId INTEGER NOT NULL,
         amount INTEGER NOT NULL,
         date TEXT NOT NULL,
+        uuid TEXT,
+        updatedAt TEXT,
         FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
       );
     `);
@@ -91,6 +155,8 @@ export const initDatabase = async () => {
         qty INTEGER DEFAULT 1,
         rate INTEGER,
         total INTEGER NOT NULL,
+        uuid TEXT,
+        updatedAt TEXT,
         FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
       );
     `);
@@ -106,6 +172,8 @@ export const initDatabase = async () => {
         purity TEXT,
         weight REAL,
         value INTEGER NOT NULL,
+        uuid TEXT,
+        updatedAt TEXT,
         FOREIGN KEY (lendenId) REFERENCES lenden(id) ON DELETE CASCADE
       );
     `);
@@ -118,6 +186,8 @@ export const initDatabase = async () => {
         type TEXT NOT NULL, 
         amount INTEGER NOT NULL,
         date TEXT NOT NULL,
+        uuid TEXT,
+        updatedAt TEXT,
         FOREIGN KEY (rehanId) REFERENCES rehan(id) ON DELETE CASCADE
       );
     `);
@@ -276,6 +346,13 @@ export const initDatabase = async () => {
       console.error("Error migrating users table:", error);
     }
 
+    // Permanent identity (uuid) + updatedAt on every table. Deliberately NOT
+    // wrapped in a swallowing try/catch: each table migrates atomically, so a
+    // failure leaves that table untouched and throws to the outer catch. The
+    // next launch retries from a clean state. Swallowing it would let the app
+    // run with INSERTs that reference a column that does not exist.
+    await ensureIdentityColumns(database);
+
     console.log("SQLite database initialized with User, Rehan, Lenden tables");
   } catch (error) {
     console.error("Error initializing database:", error);
@@ -318,11 +395,12 @@ export const createUser = async (user: NewUser): Promise<number> => {
     const createdAt = new Date().toISOString();
 
     const result = await database.runAsync(
-      "INSERT INTO users (name, address, mobileNumber, nickname, createdAt) VALUES (?, ?, ?, ?, ?)",
+      `INSERT INTO users (name, address, mobileNumber, nickname, createdAt, uuid, updatedAt) VALUES (?, ?, ?, ?, ?, ${UUID_SQL}, ?)`,
       user.name,
       user.address || null,
       user.mobileNumber || null,
       user.nickname || null,
+      createdAt,
       createdAt,
     );
 
@@ -386,7 +464,29 @@ export const searchUsers = async (query: string): Promise<User[]> => {
 export const deleteUser = async (id: number): Promise<void> => {
   try {
     const database = await openDatabase();
-    await database.runAsync("DELETE FROM users WHERE id = ?", id);
+    // Delete every dependent row explicitly, in one transaction, so a user is
+    // never left half-deleted and nothing depends on foreign-key cascades.
+    await database.withTransactionAsync(async () => {
+      await database.runAsync(
+        "DELETE FROM rehan_transactions WHERE rehanId IN (SELECT id FROM rehan WHERE userId = ?)",
+        id,
+      );
+      await database.runAsync("DELETE FROM rehan WHERE userId = ?", id);
+      await database.runAsync(
+        "DELETE FROM jama_entries WHERE lendenId IN (SELECT id FROM lenden WHERE userId = ?)",
+        id,
+      );
+      await database.runAsync(
+        "DELETE FROM lenden_items WHERE lendenId IN (SELECT id FROM lenden WHERE userId = ?)",
+        id,
+      );
+      await database.runAsync(
+        "DELETE FROM lenden_old_jewellery_items WHERE lendenId IN (SELECT id FROM lenden WHERE userId = ?)",
+        id,
+      );
+      await database.runAsync("DELETE FROM lenden WHERE userId = ?", id);
+      await database.runAsync("DELETE FROM users WHERE id = ?", id);
+    });
   } catch (error) {
     console.error("Error deleting user:", error);
     throw error;
@@ -404,11 +504,12 @@ export const updateUser = async (
   try {
     const database = await openDatabase();
     await database.runAsync(
-      "UPDATE users SET name = ?, address = ?, mobileNumber = ?, nickname = ? WHERE id = ?",
+      "UPDATE users SET name = ?, address = ?, mobileNumber = ?, nickname = ?, updatedAt = ? WHERE id = ?",
       name,
       address || null,
       mobileNumber || null,
       nickname || null,
+      new Date().toISOString(),
       id,
     );
   } catch (error) {
@@ -427,12 +528,13 @@ export const createRehan = async (rehan: NewRehan): Promise<number> => {
     const media = JSON.stringify(rehan.media || []);
 
     const result = await database.runAsync(
-      "INSERT INTO rehan (userId, media, status, openDate, productName, amount) VALUES (?, ?, 0, ?, ?, ?)",
+      `INSERT INTO rehan (userId, media, status, openDate, productName, amount, uuid, updatedAt) VALUES (?, ?, 0, ?, ?, ?, ${UUID_SQL}, ?)`,
       rehan.userId,
       media,
       openDate,
       rehan.productName || null,
       rehan.amount || null,
+      new Date().toISOString(),
     );
 
     return result.lastInsertRowId;
@@ -497,10 +599,11 @@ export const updateRehanDetails = async (
     const database = await openDatabase();
     const mediaJson = JSON.stringify(media);
     await database.runAsync(
-      "UPDATE rehan SET media = ?, productName = ?, amount = ? WHERE id = ?",
+      "UPDATE rehan SET media = ?, productName = ?, amount = ?, updatedAt = ? WHERE id = ?",
       mediaJson,
       productName || null,
       amount || null,
+      new Date().toISOString(),
       id,
     );
   } catch (error) {
@@ -515,7 +618,8 @@ export const closeRehan = async (id: number): Promise<void> => {
     const database = await openDatabase();
     const closedDate = new Date().toISOString();
     await database.runAsync(
-      "UPDATE rehan SET status = 1, closedDate = ? WHERE id = ?",
+      "UPDATE rehan SET status = 1, closedDate = ?, updatedAt = ? WHERE id = ?",
+      closedDate,
       closedDate,
       id,
     );
@@ -552,11 +656,12 @@ export const createRehanTransaction = async (
 
     // 1. Insert transaction
     const result = await database.runAsync(
-      "INSERT INTO rehan_transactions (rehanId, type, amount, date) VALUES (?, ?, ?, ?)",
+      `INSERT INTO rehan_transactions (rehanId, type, amount, date, uuid, updatedAt) VALUES (?, ?, ?, ?, ${UUID_SQL}, ?)`,
       transaction.rehanId,
       transaction.type,
       transaction.amount,
       transaction.date,
+      new Date().toISOString(),
     );
 
     // 2. Update Rehan Balance (Amount)
@@ -564,8 +669,9 @@ export const createRehanTransaction = async (
     // If 'jama' (paid) -> Decrease amount
     const operator = transaction.type === "diya" ? "+" : "-";
     await database.runAsync(
-      `UPDATE rehan SET amount = amount ${operator} ? WHERE id = ?`,
+      `UPDATE rehan SET amount = amount ${operator} ?, updatedAt = ? WHERE id = ?`,
       transaction.amount,
+      new Date().toISOString(),
       transaction.rehanId,
     );
 
@@ -612,8 +718,9 @@ export const deleteRehanTransaction = async (id: number): Promise<void> => {
     // If original was 'jama' (-), now we add (+)
     const operator = transaction.type === "diya" ? "-" : "+";
     await database.runAsync(
-      `UPDATE rehan SET amount = amount ${operator} ? WHERE id = ?`,
+      `UPDATE rehan SET amount = amount ${operator} ?, updatedAt = ? WHERE id = ?`,
       transaction.amount,
+      new Date().toISOString(),
       transaction.rehanId,
     );
   } catch (error) {
@@ -631,7 +738,7 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
     const media = JSON.stringify(lenden.media || []);
 
     const result = await database.runAsync(
-      "INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status, amountOverridden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      `INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status, amountOverridden, uuid, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${UUID_SQL}, ?)`,
       lenden.userId,
       lenden.date,
       media,
@@ -642,6 +749,7 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
       lenden.baki || null,
       lenden.status ?? 0,
       lenden.amountOverridden ?? 0,
+      new Date().toISOString(),
     );
 
     return result.lastInsertRowId;
@@ -709,13 +817,14 @@ export const updateLendenDetails = async (
     const database = await openDatabase();
     const mediaJson = JSON.stringify(media);
     await database.runAsync(
-      "UPDATE lenden SET media = ?, amount = ?, discount = ?, remaining = ?, jama = ?, baki = ? WHERE id = ?",
+      "UPDATE lenden SET media = ?, amount = ?, discount = ?, remaining = ?, jama = ?, baki = ?, updatedAt = ? WHERE id = ?",
       mediaJson,
       amount || null,
       discount || null,
       remaining || null,
       jama || null,
       baki || null,
+      new Date().toISOString(),
       id,
     );
   } catch (error) {
@@ -1236,10 +1345,11 @@ export const createJamaEntry = async (entry: NewJamaEntry): Promise<number> => {
   try {
     const database = await openDatabase();
     const result = await database.runAsync(
-      "INSERT INTO jama_entries (lendenId, amount, date) VALUES (?, ?, ?)",
+      `INSERT INTO jama_entries (lendenId, amount, date, uuid, updatedAt) VALUES (?, ?, ?, ${UUID_SQL}, ?)`,
       entry.lendenId,
       entry.amount,
       entry.date,
+      new Date().toISOString(),
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -1309,9 +1419,10 @@ export const updateLendenBaki = async (lendenId: number): Promise<void> => {
     const status = finalBaki === 0 ? 1 : 0;
 
     await database.runAsync(
-      "UPDATE lenden SET baki = ?, status = ? WHERE id = ?",
+      "UPDATE lenden SET baki = ?, status = ?, updatedAt = ? WHERE id = ?",
       finalBaki,
       status,
+      new Date().toISOString(),
       lendenId,
     );
   } catch (error) {
@@ -1329,9 +1440,10 @@ export const editJamaEntry = async (
   try {
     const database = await openDatabase();
     await database.runAsync(
-      "UPDATE jama_entries SET amount = ?, date = ? WHERE id = ?",
+      "UPDATE jama_entries SET amount = ?, date = ?, updatedAt = ? WHERE id = ?",
       amount,
       date,
+      new Date().toISOString(),
       id,
     );
   } catch (error) {

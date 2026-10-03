@@ -7,6 +7,8 @@ export interface User {
   mobileNumber: string | null;
   nickname: string | null;
   createdAt: string;
+  uuid?: string;
+  updatedAt?: string;
 }
 
 export interface NewUser {
@@ -25,6 +27,8 @@ export interface Rehan {
   closedDate: string | null;
   productName?: string;
   amount?: number;
+  uuid?: string;
+  updatedAt?: string;
 }
 
 export interface NewRehan {
@@ -41,6 +45,8 @@ export interface RehanTransaction {
   type: "jama" | "diya";
   amount: number;
   date: string;
+  uuid?: string;
+  updatedAt?: string;
 }
 
 export interface NewRehanTransaction {
@@ -63,6 +69,8 @@ export interface Lenden {
   status: number; // 0 = open, 1 = closed
   billNo?: number | null;
   amountOverridden?: number | null;
+  uuid?: string;
+  updatedAt?: string;
 }
 
 export interface NewLenden {
@@ -104,6 +112,8 @@ export interface LendenItem {
   qty?: number | null;
   rate: number | null; // rupees per gram
   total: number; // rupees
+  uuid?: string;
+  updatedAt?: string;
 }
 
 export interface NewLendenItem {
@@ -127,6 +137,8 @@ export interface OldJewelleryItem {
   purity: Purity | null;
   weight: number | null; // grams
   value: number; // rupees credited to the customer
+  uuid?: string;
+  updatedAt?: string;
 }
 
 export interface NewOldJewelleryItem {
@@ -143,6 +155,8 @@ export interface JamaEntry {
   lendenId: number;
   amount: number;
   date: string;
+  uuid?: string;
+  updatedAt?: string;
 }
 
 export interface NewJamaEntry {

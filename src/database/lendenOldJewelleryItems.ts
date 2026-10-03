@@ -5,6 +5,7 @@ import {
   OldJewelleryItem,
   Purity,
 } from "../types/entry";
+import { UUID_SQL } from "./uuidSql";
 
 // entryDatabase.ts owns schema creation; this module only reads and writes rows.
 let db: SQLite.SQLiteDatabase | null = null;
@@ -64,6 +65,7 @@ export const replaceLendenOldJewelleryItems = async (
 ): Promise<void> => {
   try {
     const database = await openDatabase();
+    const now = new Date().toISOString();
     await database.withTransactionAsync(async () => {
       await database.runAsync(
         "DELETE FROM lenden_old_jewellery_items WHERE lendenId = ?",
@@ -73,7 +75,7 @@ export const replaceLendenOldJewelleryItems = async (
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         await database.runAsync(
-          "INSERT INTO lenden_old_jewellery_items (lendenId, position, description, metal, purity, weight, value) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          `INSERT INTO lenden_old_jewellery_items (lendenId, position, description, metal, purity, weight, value, uuid, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ${UUID_SQL}, ?)`,
           lendenId,
           i + 1,
           item.description.trim(),
@@ -81,6 +83,7 @@ export const replaceLendenOldJewelleryItems = async (
           item.purity ?? null,
           item.weight ?? null,
           item.value,
+          now,
         );
       }
     });

@@ -5,6 +5,7 @@ import {
   NewLendenItem,
   Purity,
 } from "../types/entry";
+import { UUID_SQL } from "./uuidSql";
 
 // entryDatabase.ts owns schema creation; this module only reads and writes rows.
 let db: SQLite.SQLiteDatabase | null = null;
@@ -68,6 +69,7 @@ export const replaceLendenItems = async (
 ): Promise<void> => {
   try {
     const database = await openDatabase();
+    const now = new Date().toISOString();
     await database.withTransactionAsync(async () => {
       await database.runAsync(
         "DELETE FROM lenden_items WHERE lendenId = ?",
@@ -76,7 +78,7 @@ export const replaceLendenItems = async (
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         await database.runAsync(
-          "INSERT INTO lenden_items (lendenId, position, name, metal, purity, weight, qty, rate, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          `INSERT INTO lenden_items (lendenId, position, name, metal, purity, weight, qty, rate, total, uuid, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ${UUID_SQL}, ?)`,
           lendenId,
           i + 1,
           item.name,
@@ -86,6 +88,7 @@ export const replaceLendenItems = async (
           item.qty ?? 1,
           item.rate ?? null,
           item.total,
+          now,
         );
       }
     });
@@ -116,8 +119,9 @@ export const setLendenBillNo = async (
   try {
     const database = await openDatabase();
     await database.runAsync(
-      "UPDATE lenden SET billNo = ? WHERE id = ?",
+      "UPDATE lenden SET billNo = ?, updatedAt = ? WHERE id = ?",
       billNo,
+      new Date().toISOString(),
       lendenId,
     );
   } catch (error) {
@@ -137,8 +141,9 @@ export const setLendenAmountOverridden = async (
   try {
     const database = await openDatabase();
     await database.runAsync(
-      "UPDATE lenden SET amountOverridden = ? WHERE id = ?",
+      "UPDATE lenden SET amountOverridden = ?, updatedAt = ? WHERE id = ?",
       overridden,
+      new Date().toISOString(),
       lendenId,
     );
   } catch (error) {
