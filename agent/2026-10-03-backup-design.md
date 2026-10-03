@@ -267,6 +267,6 @@ data.
   description (today's behaviour). Analytics use `category ?? itemTypeOf(description)`.
 - **Backup v2:** `RehanRow` and `LendenItemRow` gain `category: string | null`.
   - Serialize, validate and legacy carry it.
-  - The merge planner compares it as part of the rehan and item fields.
+  - The merge planner compares it for rehan. Bill items of an existing bill are matched by uuid only, as in §6.1.
   - The legacy converter reads an optional `category` from refined old files.
 - **Refined old backup:** each rehan gets `category` from the same keyword rules, or "Other" when none matches.
