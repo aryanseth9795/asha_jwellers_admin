@@ -4,11 +4,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Image,
 } from "react-native";
-import { Text, TextInput, Screen, KeyboardArea, FooterBar } from "../ui";
+import { Text, TextInput, Screen, KeyboardArea, FooterBar, notify } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -66,7 +65,7 @@ const AddEditCategoryScreen: React.FC<Props> = ({ navigation, route }) => {
       setDescription(category.description || "");
       setCurrentImageUrl(category.image || "");
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to load category");
+      notify.error("Could not load category", error.message || "Failed to load category");
       navigation.goBack();
     } finally {
       setIsFetching(false);
@@ -79,7 +78,7 @@ const AddEditCategoryScreen: React.FC<Props> = ({ navigation, route }) => {
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      Alert.alert("Permission to access camera roll is required!");
+      notify.error("Permission required", "Permission to access camera roll is required!");
       return;
     }
 
@@ -112,7 +111,7 @@ const AddEditCategoryScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     if (description.length > 500) {
-      Alert.alert("Error", "Description must be 500 characters or less");
+      notify.error("Description too long", "Description must be 500 characters or less");
       return false;
     }
 
@@ -137,17 +136,15 @@ const AddEditCategoryScreen: React.FC<Props> = ({ navigation, route }) => {
 
       if (isEditMode && categoryId) {
         await updateCategory(categoryId, payload);
-        Alert.alert("Success", "Category updated successfully", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ]);
+        notify.success("Category updated");
+        navigation.goBack();
       } else {
         await createCategory(payload);
-        Alert.alert("Success", "Category created successfully", [
-          { text: "OK", onPress: () => navigation.goBack() },
-        ]);
+        notify.success("Category created");
+        navigation.goBack();
       }
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to save category");
+      notify.error("Could not save category", error.message || "Failed to save category");
     } finally {
       setIsLoading(false);
     }

@@ -65,4 +65,9 @@ describe("source audit (UI revamp spec §6)", () => {
   it("opens pop-ups only through BottomSheet; the photo viewer is the one full-screen Modal", () => {
     expect(appFiles.filter((f) => /<Modal\b/.test(read(f)))).toEqual(["src/screen/TransactionDetailScreen.tsx"]);
   });
+
+  it("shows messages through notify / confirm, never the system alert box (notifications spec §4)", () => {
+    const systemAlert = /\bAlert\.alert\(|(^|[^.\w])alert\(/m;
+    expect(appFiles.filter((f) => systemAlert.test(read(f)))).toEqual([]);
+  });
 });

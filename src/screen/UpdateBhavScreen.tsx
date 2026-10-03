@@ -5,10 +5,9 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from "react-native";
-import { Text, TextInput, Screen, KeyboardArea, FooterBar, fontSize } from "../ui";
+import { Text, TextInput, Screen, KeyboardArea, FooterBar, fontSize, notify } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 import {
   getBhavRates,
@@ -122,7 +121,7 @@ const UpdateBhavScreen: React.FC = () => {
     });
 
     if (!hasChanges) {
-      Alert.alert("No Changes", "No values have been modified.");
+      notify.info("No changes", "No values have been modified.");
       return;
     }
 
@@ -139,10 +138,10 @@ const UpdateBhavScreen: React.FC = () => {
       });
       setEditedValues(newValues);
 
-      Alert.alert("Success", response.message);
+      notify.success("Rates updated", response.message);
     } catch (err) {
-      Alert.alert(
-        "Update Failed",
+      notify.error(
+        "Update failed",
         err instanceof Error ? err.message : "Failed to update rates"
       );
     } finally {

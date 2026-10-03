@@ -7,10 +7,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, Screen } from "../ui";
+import { Text, Screen, confirm, notify } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -105,33 +104,30 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
     return true;
   });
 
-  const handleDeleteTransaction = (transaction: Transaction) => {
-    Alert.alert(
-      "Delete Transaction",
-      "Are you sure you want to delete this transaction? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setIsLoading(true);
-            try {
-              if (transaction.type === "rehan") {
-                await deleteRehan(transaction.id);
-              } else {
-                await deleteLenden(transaction.id);
-              }
-              await loadTransactions();
-            } catch (error) {
-              Alert.alert("Error", "Failed to delete transaction");
-            } finally {
-              setIsLoading(false);
-            }
-          },
-        },
-      ],
-    );
+  const handleDeleteTransaction = async (transaction: Transaction) => {
+    if (
+      await confirm({
+        title: "Delete transaction",
+        message:
+          "Are you sure you want to delete this transaction? This action cannot be undone.",
+        confirmLabel: "Delete",
+        tone: "danger",
+      })
+    ) {
+      setIsLoading(true);
+      try {
+        if (transaction.type === "rehan") {
+          await deleteRehan(transaction.id);
+        } else {
+          await deleteLenden(transaction.id);
+        }
+        await loadTransactions();
+      } catch (error) {
+        notify.error("Delete failed", "Failed to delete transaction");
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const renderTransaction = ({ item }: { item: Transaction }) => (

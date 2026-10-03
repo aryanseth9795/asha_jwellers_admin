@@ -5,12 +5,11 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   Image,
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, Screen } from "../ui";
+import { Text, Screen, confirm, notify } from "../ui";
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -42,7 +41,7 @@ const CategoryListScreen: React.FC<Props> = ({ navigation }) => {
       setCategories(response.data);
     } catch (error) {
       console.error("Failed to fetch categories:", error);
-      Alert.alert("Error", "Failed to load categories. Please try again.");
+      notify.error("Could not load categories", "Failed to load categories. Please try again.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -68,32 +67,26 @@ const CategoryListScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate("AddEditCategory", { categoryId });
   };
 
-  const handleDeleteCategory = (category: Category) => {
-    Alert.alert(
-      "Delete Category",
-      `Are you sure you want to delete "${category.name}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteCategory(category._id);
-              setCategories((prev) =>
-                prev.filter((c) => c._id !== category._id),
-              );
-              Alert.alert("Success", "Category deleted successfully");
-            } catch (error: any) {
-              Alert.alert(
-                "Error",
-                error.message || "Failed to delete category",
-              );
-            }
-          },
-        },
-      ],
-    );
+  const handleDeleteCategory = async (category: Category) => {
+    if (
+      await confirm({
+        title: "Delete category",
+        message: `Are you sure you want to delete "${category.name}"?`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      })
+    ) {
+      try {
+        await deleteCategory(category._id);
+        setCategories((prev) => prev.filter((c) => c._id !== category._id));
+        notify.success("Category deleted");
+      } catch (error: any) {
+        notify.error(
+          "Could not delete category",
+          error.message || "Failed to delete category",
+        );
+      }
+    }
   };
 
   const renderCategoryItem = ({ item }: { item: Category }) => (

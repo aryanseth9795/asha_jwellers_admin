@@ -5,12 +5,11 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   Image,
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, Screen, BottomSheet } from "../ui";
+import { Text, Screen, BottomSheet, confirm, notify } from "../ui";
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -59,7 +58,7 @@ const ProductListScreen: React.FC<Props> = ({ navigation, route }) => {
       setCategories(categoriesResponse.data);
     } catch (error) {
       console.error("Failed to fetch data:", error);
-      Alert.alert("Error", "Failed to load products. Please try again.");
+      notify.error("Could not load products", "Failed to load products. Please try again.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -85,27 +84,26 @@ const ProductListScreen: React.FC<Props> = ({ navigation, route }) => {
     navigation.navigate("AddEditProduct", { productId });
   };
 
-  const handleDeleteProduct = (product: Product) => {
-    Alert.alert(
-      "Delete Product",
-      `Are you sure you want to delete "${product.name}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteProduct(product._id);
-              setProducts((prev) => prev.filter((p) => p._id !== product._id));
-              Alert.alert("Success", "Product deleted successfully");
-            } catch (error: any) {
-              Alert.alert("Error", error.message || "Failed to delete product");
-            }
-          },
-        },
-      ],
-    );
+  const handleDeleteProduct = async (product: Product) => {
+    if (
+      await confirm({
+        title: "Delete product",
+        message: `Are you sure you want to delete "${product.name}"?`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      })
+    ) {
+      try {
+        await deleteProduct(product._id);
+        setProducts((prev) => prev.filter((p) => p._id !== product._id));
+        notify.success("Product deleted");
+      } catch (error: any) {
+        notify.error(
+          "Could not delete product",
+          error.message || "Failed to delete product",
+        );
+      }
+    }
   };
 
   const selectedCategoryName = categories.find(

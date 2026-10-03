@@ -4,10 +4,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Switch,
 } from "react-native";
-import { Text, TextInput, Screen } from "../ui";
+import { Text, TextInput, Screen, notify } from "../ui";
 import { WebView } from "react-native-webview";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -104,7 +103,7 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
       setData(billData);
     } catch (error) {
       console.error("Error loading bill:", error);
-      Alert.alert("Error", "Could not load this bill.");
+      notify.error("Could not load bill", "Could not load this bill.");
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +135,7 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
       await sharePdf(html, billNo);
     } catch (error) {
       console.error("Share failed:", error);
-      Alert.alert("Error", "Could not create the PDF.");
+      notify.error("PDF failed", "Could not create the PDF.");
     } finally {
       setIsBusy(false);
     }
@@ -148,7 +147,7 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
       await printBill(html);
     } catch (error) {
       console.error("Print failed:", error);
-      Alert.alert("Error", "Could not open the print dialog.");
+      notify.error("Print failed", "Could not open the print dialog.");
     } finally {
       setIsBusy(false);
     }

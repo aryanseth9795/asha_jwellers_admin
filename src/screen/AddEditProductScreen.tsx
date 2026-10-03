@@ -4,11 +4,19 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Image,
 } from "react-native";
-import { Text, TextInput, Screen, KeyboardArea, FooterBar, BottomSheet } from "../ui";
+import {
+  Text,
+  TextInput,
+  Screen,
+  KeyboardArea,
+  FooterBar,
+  BottomSheet,
+  confirm,
+  notify,
+} from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -108,7 +116,7 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
         );
       }
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to load data");
+      notify.error("Could not load data", error.message || "Failed to load data");
       navigation.goBack();
     } finally {
       setIsFetching(false);
@@ -120,7 +128,7 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
-      Alert.alert("Permission to access camera roll is required!");
+      notify.error("Permission required", "Permission to access camera roll is required!");
       return;
     }
 
@@ -166,7 +174,7 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
     }
 
     if (description.length > 2000) {
-      Alert.alert("Error", "Description must be 2000 characters or less");
+      notify.error("Description too long", "Description must be 2000 characters or less");
       return false;
     }
 
@@ -227,33 +235,29 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const handleDeleteVariant = async (variant: LocalVariant, index: number) => {
-    Alert.alert(
-      "Delete Variant",
-      "Are you sure you want to delete this variant?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            if (
-              isEditMode &&
-              variant._id &&
-              !variant.isNew &&
-              !variant._id.startsWith("local-")
-            ) {
-              try {
-                await deleteVariant(productId!, variant._id);
-              } catch (error: any) {
-                Alert.alert("Error", error.message);
-                return;
-              }
-            }
-            setVariants(variants.filter((_, i) => i !== index));
-          },
-        },
-      ],
-    );
+    if (
+      await confirm({
+        title: "Delete variant",
+        message: "Are you sure you want to delete this variant?",
+        confirmLabel: "Delete",
+        tone: "danger",
+      })
+    ) {
+      if (
+        isEditMode &&
+        variant._id &&
+        !variant.isNew &&
+        !variant._id.startsWith("local-")
+      ) {
+        try {
+          await deleteVariant(productId!, variant._id);
+        } catch (error: any) {
+          notify.error("Could not delete variant", error.message);
+          return;
+        }
+      }
+      setVariants(variants.filter((_, i) => i !== index));
+    }
   };
 
   const handleSubmit = async () => {
@@ -349,14 +353,11 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
         }
       }
 
-      Alert.alert(
-        "Success",
-        `Product ${isEditMode ? "updated" : "created"} successfully`,
-        [{ text: "OK", onPress: () => navigation.goBack() }],
-      );
+      notify.success(`Product ${isEditMode ? "updated" : "created"}`);
+      navigation.goBack();
     } catch (error: any) {
       console.error("Save error:", error);
-      Alert.alert("Error", error.message || "Failed to save product");
+      notify.error("Could not save product", error.message || "Failed to save product");
     } finally {
       setIsLoading(false);
     }

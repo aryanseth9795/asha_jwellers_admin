@@ -6,11 +6,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   Switch,
   Platform,
 } from "react-native";
-import { Text, TextInput, Screen, BottomSheet } from "../ui";
+import { Text, TextInput, Screen, BottomSheet, confirm, notify } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -165,7 +164,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
     if (!editingUser) return;
 
     if (!editName.trim()) {
-      Alert.alert("Validation Error", "Name is required");
+      notify.error("Name required", "Name is required");
       return;
     }
 
@@ -182,41 +181,37 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
       // Refresh list
       await loadUsers();
       closeEditModal();
-      Alert.alert("Success", "Customer details updated successfully!");
+      notify.success("Customer updated", "Customer details updated successfully!");
     } catch (error) {
       console.error("Error updating user:", error);
-      Alert.alert("Error", "Failed to update customer. Please try again.");
+      notify.error("Update failed", "Failed to update customer. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteUser = (user: UserWithCounts) => {
-    Alert.alert(
-      "Delete Customer",
-      `Are you sure you want to delete "${user.name}"${
-        user.nickname ? ` (${user.nickname})` : ""
-      }? This will also delete all ${
-        user.rehanCount + user.lendenCount
-      } associated transactions. This action cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteUser(user.id);
-              await loadUsers();
-              Alert.alert("Success", "Customer and all transactions deleted.");
-            } catch (error) {
-              console.error("Error deleting user:", error);
-              Alert.alert("Error", "Failed to delete customer.");
-            }
-          },
-        },
-      ],
-    );
+  const handleDeleteUser = async (user: UserWithCounts) => {
+    if (
+      await confirm({
+        title: "Delete customer",
+        message: `Are you sure you want to delete "${user.name}"${
+          user.nickname ? ` (${user.nickname})` : ""
+        }? This will also delete all ${
+          user.rehanCount + user.lendenCount
+        } associated transactions. This action cannot be undone.`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      })
+    ) {
+      try {
+        await deleteUser(user.id);
+        await loadUsers();
+        notify.success("Customer deleted", "Customer and all transactions deleted.");
+      } catch (error) {
+        console.error("Error deleting user:", error);
+        notify.error("Delete failed", "Failed to delete customer.");
+      }
+    }
   };
 
   // Get displayed users based on pagination
