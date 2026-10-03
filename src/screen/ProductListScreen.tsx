@@ -8,15 +8,12 @@ import {
   Alert,
   Image,
   ActivityIndicator,
-  Modal,
-  ScrollView,
 } from "react-native";
-import { Text } from "../ui";
+import { Text, Screen, BottomSheet } from "../ui";
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { RootStackParamList } from "../types/entry";
 import {
   getProducts,
@@ -131,7 +128,9 @@ const ProductListScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.productName} numberOfLines={1}>
           {item.name}
         </Text>
-        <Text style={styles.productCategory}>{item.category?.name}</Text>
+        <Text style={styles.productCategory} numberOfLines={1}>
+          {item.category?.name}
+        </Text>
         <View style={styles.productMeta}>
           {item.variants?.[0]?.weight && (
             <View style={styles.metaTag}>
@@ -160,17 +159,17 @@ const ProductListScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <Screen style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading products...</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <Screen style={styles.container}>
       {/* Category Filter */}
       <TouchableOpacity
         style={styles.filterContainer}
@@ -179,7 +178,7 @@ const ProductListScreen: React.FC<Props> = ({ navigation, route }) => {
       >
         <View style={styles.filterButton}>
           <Ionicons name="filter-outline" size={20} color="#666" />
-          <Text style={styles.filterText}>
+          <Text style={styles.filterText} numberOfLines={1}>
             {selectedCategoryName || "All Categories"}
           </Text>
           <Ionicons name="chevron-down" size={20} color="#007AFF" />
@@ -216,74 +215,63 @@ const ProductListScreen: React.FC<Props> = ({ navigation, route }) => {
       </TouchableOpacity>
 
       {/* Filter Modal */}
-      <Modal
+      <BottomSheet
         visible={showFilterModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowFilterModal(false)}
+        onClose={() => setShowFilterModal(false)}
+        title="Filter by Category"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter by Category</Text>
-              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalList}>
-              <TouchableOpacity
-                style={[
-                  styles.modalItem,
-                  selectedCategory === "" && styles.modalItemSelected,
-                ]}
-                onPress={() => {
-                  setSelectedCategory("");
-                  setShowFilterModal(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.modalItemText,
-                    selectedCategory === "" && styles.modalItemTextSelected,
-                  ]}
-                >
-                  All Categories
-                </Text>
-                {selectedCategory === "" && (
-                  <Ionicons name="checkmark" size={20} color="#007AFF" />
-                )}
-              </TouchableOpacity>
-              {categories.map((cat) => (
-                <TouchableOpacity
-                  key={cat._id}
-                  style={[
-                    styles.modalItem,
-                    selectedCategory === cat._id && styles.modalItemSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedCategory(cat._id);
-                    setShowFilterModal(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.modalItemText,
-                      selectedCategory === cat._id &&
-                        styles.modalItemTextSelected,
-                    ]}
-                  >
-                    {cat.name}
-                  </Text>
-                  {selectedCategory === cat._id && (
-                    <Ionicons name="checkmark" size={20} color="#007AFF" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+        <TouchableOpacity
+          style={[
+            styles.modalItem,
+            selectedCategory === "" && styles.modalItemSelected,
+          ]}
+          onPress={() => {
+            setSelectedCategory("");
+            setShowFilterModal(false);
+          }}
+        >
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.modalItemText,
+              selectedCategory === "" && styles.modalItemTextSelected,
+            ]}
+          >
+            All Categories
+          </Text>
+          {selectedCategory === "" && (
+            <Ionicons name="checkmark" size={20} color="#007AFF" />
+          )}
+        </TouchableOpacity>
+        {categories.map((cat) => (
+          <TouchableOpacity
+            key={cat._id}
+            style={[
+              styles.modalItem,
+              selectedCategory === cat._id && styles.modalItemSelected,
+            ]}
+            onPress={() => {
+              setSelectedCategory(cat._id);
+              setShowFilterModal(false);
+            }}
+          >
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.modalItemText,
+                selectedCategory === cat._id &&
+                  styles.modalItemTextSelected,
+              ]}
+            >
+              {cat.name}
+            </Text>
+            {selectedCategory === cat._id && (
+              <Ionicons name="checkmark" size={20} color="#007AFF" />
+            )}
+          </TouchableOpacity>
+        ))}
+      </BottomSheet>
+    </Screen>
   );
 };
 
@@ -357,12 +345,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   productName: {
+    flexShrink: 1,
     fontSize: 16,
     fontWeight: "700",
     color: "#1A1A1A",
     marginBottom: 2,
   },
   productCategory: {
+    flexShrink: 1,
     fontSize: 13,
     color: "#007AFF",
     fontWeight: "500",
@@ -370,6 +360,7 @@ const styles = StyleSheet.create({
   },
   productMeta: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   metaTag: {
@@ -428,35 +419,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "60%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1A1A1A",
-  },
-  modalList: {
-    padding: 8,
-  },
   modalItem: {
+    gap: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -468,6 +432,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E6F2FF",
   },
   modalItemText: {
+    flexShrink: 1,
     fontSize: 16,
     color: "#333",
   },

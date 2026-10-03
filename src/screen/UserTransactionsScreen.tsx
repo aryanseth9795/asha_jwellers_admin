@@ -9,8 +9,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { Text } from "../ui";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Text, Screen } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -237,13 +236,13 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={styles.amountDateRow}>
           <View style={styles.amountHighlight}>
             <Ionicons name="cash" size={20} color="#2E7D32" />
-            <Text style={styles.highlightedAmount}>
+            <Text style={styles.highlightedAmount} numberOfLines={1}>
               ₹{item.amount.toLocaleString()}
             </Text>
           </View>
           <View style={styles.dateHighlightBadge}>
             <Ionicons name="calendar" size={14} color="#007AFF" />
-            <Text style={styles.dateHighlightText}>
+            <Text style={styles.dateHighlightText} numberOfLines={1}>
               {formatDate(item.date)}
             </Text>
           </View>
@@ -257,7 +256,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
             {item.discount ? (
               <View style={styles.summaryChip}>
                 <Ionicons name="pricetag" size={12} color="#666" />
-                <Text style={styles.summaryChipText}>
+                <Text style={styles.summaryChipText} numberOfLines={1}>
                   -₹{item.discount.toLocaleString()}
                 </Text>
               </View>
@@ -265,7 +264,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
             {item.remaining ? (
               <View style={styles.summaryChip}>
                 <Ionicons name="wallet" size={12} color="#666" />
-                <Text style={styles.summaryChipText}>
+                <Text style={styles.summaryChipText} numberOfLines={1}>
                   ₹{item.remaining.toLocaleString()}
                 </Text>
               </View>
@@ -275,7 +274,10 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={[styles.summaryChip, { backgroundColor: "#E8F5E9" }]}
               >
                 <Ionicons name="arrow-down-circle" size={12} color="#2E7D32" />
-                <Text style={[styles.summaryChipText, { color: "#2E7D32" }]}>
+                <Text
+                  style={[styles.summaryChipText, { color: "#2E7D32" }]}
+                  numberOfLines={1}
+                >
                   ₹{item.jama.toLocaleString()}
                 </Text>
               </View>
@@ -285,7 +287,10 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
                 style={[styles.summaryChip, { backgroundColor: "#FFEBEE" }]}
               >
                 <Ionicons name="arrow-up-circle" size={12} color="#C62828" />
-                <Text style={[styles.summaryChipText, { color: "#C62828" }]}>
+                <Text
+                  style={[styles.summaryChipText, { color: "#C62828" }]}
+                  numberOfLines={1}
+                >
                   ₹{item.baki.toLocaleString()}
                 </Text>
               </View>
@@ -298,14 +303,18 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
         {item.type === "rehan" && item.productName && (
           <View style={styles.infoRow}>
             <Ionicons name="cube-outline" size={16} color="#666" />
-            <Text style={styles.infoText}>{item.productName}</Text>
+            <Text style={styles.infoText} numberOfLines={1}>
+              {item.productName}
+            </Text>
           </View>
         )}
 
         {item.type === "rehan" && (
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={16} color="#666" />
-            <Text style={styles.infoText}>Opened: {formatDate(item.date)}</Text>
+            <Text style={styles.infoText} numberOfLines={1}>
+              Opened: {formatDate(item.date)}
+            </Text>
           </View>
         )}
       </View>
@@ -350,10 +359,10 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <Screen style={styles.container}>
       {/* Summary Header */}
       <View style={styles.summaryHeader}>
-        <Text style={styles.summaryTitle}>
+        <Text style={styles.summaryTitle} numberOfLines={2}>
           {user ? user.name : userName}
           {user?.nickname ? ` (${user.nickname})` : ""}
           's Transactions
@@ -370,14 +379,14 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
         {/* Transaction Counts Row */}
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryCount}>
+            <Text style={styles.summaryCount} numberOfLines={1} adjustsFontSizeToFit>
               {transactions.filter((t) => t.type === "rehan").length}
             </Text>
             <Text style={styles.summaryLabel}>Rehan</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryCount}>
+            <Text style={styles.summaryCount} numberOfLines={1} adjustsFontSizeToFit>
               {transactions.filter((t) => t.type === "lenden").length}
             </Text>
             <Text style={styles.summaryLabel}>Len-Den</Text>
@@ -391,7 +400,10 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
               <Ionicons name="document-text" size={16} color="#2E7D32" />
             </View>
             <View>
-              <Text style={[styles.statAmount, styles.openRehanAmount]}>
+              <Text
+                style={[styles.statAmount, styles.openRehanAmount]}
+                numberOfLines={1}
+              >
                 ₹{totalOpenRehanAmount.toLocaleString()}
               </Text>
               <Text style={styles.statLabel}>Open Rehan</Text>
@@ -402,7 +414,10 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
               <Ionicons name="arrow-up-circle" size={16} color="#C62828" />
             </View>
             <View>
-              <Text style={[styles.statAmount, styles.bakiAmount]}>
+              <Text
+                style={[styles.statAmount, styles.bakiAmount]}
+                numberOfLines={1}
+              >
                 ₹{totalBaki.toLocaleString()}
               </Text>
               <Text style={styles.statLabel}>Total Baki</Text>
@@ -549,7 +564,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
-    </SafeAreaView>
+    </Screen>
   );
 };
 
@@ -594,6 +609,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   amountDateRow: {
+    gap: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -604,13 +620,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    flexShrink: 1,
   },
   highlightedAmount: {
+    flexShrink: 1,
     fontSize: 20,
     fontWeight: "800",
     color: "#1A1A1A",
   },
   dateHighlightBadge: {
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -655,6 +674,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
   },
   statItem: {
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -689,7 +709,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 88,
   },
   card: {
     backgroundColor: "#fff",
@@ -793,6 +813,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   infoText: {
+    flexShrink: 1,
     fontSize: 14,
     color: "#666",
   },
@@ -829,7 +850,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    bottom: 100,
+    bottom: 16,
     right: 26,
     width: 60,
     height: 60,

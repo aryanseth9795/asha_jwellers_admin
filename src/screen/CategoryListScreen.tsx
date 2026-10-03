@@ -9,11 +9,10 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
-import { Text } from "../ui";
+import { Text, Screen } from "../ui";
 import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { RootStackParamList } from "../types/entry";
 import {
   getCategories,
@@ -110,7 +109,9 @@ const CategoryListScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       )}
       <View style={styles.categoryInfo}>
-        <Text style={styles.categoryName}>{item.name}</Text>
+        <Text style={styles.categoryName} numberOfLines={1}>
+          {item.name}
+        </Text>
         {item.description && (
           <Text style={styles.categoryDescription} numberOfLines={2}>
             {item.description}
@@ -129,17 +130,17 @@ const CategoryListScreen: React.FC<Props> = ({ navigation }) => {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <Screen style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading categories...</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
+    <Screen style={styles.container}>
       <FlatList
         data={categories}
         keyExtractor={(item) => item._id}
@@ -170,7 +171,7 @@ const CategoryListScreen: React.FC<Props> = ({ navigation }) => {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
-    </SafeAreaView>
+    </Screen>
   );
 };
 
@@ -221,6 +222,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryName: {
+    flexShrink: 1,
     fontSize: 18,
     fontWeight: "700",
     color: "#1A1A1A",

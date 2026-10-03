@@ -6,12 +6,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Modal,
   Alert,
   Switch,
   Platform,
 } from "react-native";
-import { Text, TextInput } from "../ui";
+import { Text, TextInput, Screen, BottomSheet } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -242,7 +241,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </View>
         <View style={styles.userInfo}>
-          <Text style={styles.userName}>
+          <Text style={styles.userName} numberOfLines={1}>
             {item.name}
             {item.nickname ? (
               <Text style={styles.userNickname}> ({item.nickname})</Text>
@@ -259,7 +258,9 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           {item.mobileNumber && (
             <View style={styles.infoRow}>
               <Ionicons name="call-outline" size={14} color="#666" />
-              <Text style={styles.infoText}>{item.mobileNumber}</Text>
+              <Text style={styles.infoText} numberOfLines={1}>
+                {item.mobileNumber}
+              </Text>
             </View>
           )}
         </View>
@@ -282,13 +283,17 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.countsContainer}>
         <View style={styles.countItem}>
           <View style={[styles.countBadge, styles.rehanBadge]}>
-            <Text style={styles.countNumber}>{item.rehanCount}</Text>
+            <Text style={styles.countNumber} numberOfLines={1}>
+              {item.rehanCount}
+            </Text>
           </View>
           <Text style={styles.countLabel}>Rehan</Text>
         </View>
         <View style={styles.countItem}>
           <View style={[styles.countBadge, styles.lendenBadge]}>
-            <Text style={styles.countNumber}>{item.lendenCount}</Text>
+            <Text style={styles.countNumber} numberOfLines={1}>
+              {item.lendenCount}
+            </Text>
           </View>
           <Text style={styles.countLabel}>Len-Den</Text>
         </View>
@@ -318,7 +323,7 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       {/* Name Search Bar - Always Visible */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputWrapper}>
@@ -634,101 +639,88 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
       )}
 
       {/* Edit Customer Modal */}
-      <Modal
+      <BottomSheet
         visible={isEditModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={closeEditModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Customer</Text>
-              <TouchableOpacity onPress={closeEditModal}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalBody}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>
-                  Name <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={editName}
-                  onChangeText={setEditName}
-                  placeholder="Customer name"
-                  placeholderTextColor="#999"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Nick Name</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={editNickname}
-                  onChangeText={setEditNickname}
-                  placeholder="Nick name (optional)"
-                  placeholderTextColor="#999"
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Address</Text>
-                <TextInput
-                  style={[styles.modalInput, styles.textArea]}
-                  value={editAddress}
-                  onChangeText={setEditAddress}
-                  placeholder="Customer address"
-                  placeholderTextColor="#999"
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Mobile Number</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={editMobile}
-                  onChangeText={setEditMobile}
-                  placeholder="Mobile number"
-                  placeholderTextColor="#999"
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </View>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={closeEditModal}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  isSaving && styles.saveButtonDisabled,
-                ]}
-                onPress={handleSaveEdit}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark" size={20} color="#fff" />
-                    <Text style={styles.saveButtonText}>Save</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+        onClose={closeEditModal}
+        title="Edit Customer"
+        footer={
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={closeEditModal}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                isSaving && styles.saveButtonDisabled,
+              ]}
+              onPress={handleSaveEdit}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={20} color="#fff" />
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
+        }
+      >
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>
+            Name <Text style={styles.required}>*</Text>
+          </Text>
+          <TextInput
+            style={styles.modalInput}
+            value={editName}
+            onChangeText={setEditName}
+            placeholder="Customer name"
+            placeholderTextColor="#999"
+          />
         </View>
-      </Modal>
-    </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Nick Name</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={editNickname}
+            onChangeText={setEditNickname}
+            placeholder="Nick name (optional)"
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Address</Text>
+          <TextInput
+            style={[styles.modalInput, styles.textArea]}
+            value={editAddress}
+            onChangeText={setEditAddress}
+            placeholder="Customer address"
+            placeholderTextColor="#999"
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Mobile Number</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={editMobile}
+            onChangeText={setEditMobile}
+            placeholder="Mobile number"
+            placeholderTextColor="#999"
+            keyboardType="phone-pad"
+          />
+        </View>
+      </BottomSheet>
+    </Screen>
   );
 };
 
@@ -761,6 +753,7 @@ const styles = StyleSheet.create({
   // Filter styles
   filterHeader: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     backgroundColor: "#fff",
     paddingHorizontal: 16,
@@ -990,6 +983,7 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
+    flexShrink: 1,
   },
   userName: {
     fontSize: 17,
@@ -1088,34 +1082,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: "center",
   },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F2F5",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1A1A1A",
-  },
-  modalBody: {
-    padding: 20,
-  },
   inputGroup: {
     marginBottom: 20,
   },
@@ -1143,10 +1109,7 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     flexDirection: "row",
-    padding: 20,
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F2F5",
   },
   cancelButton: {
     flex: 1,

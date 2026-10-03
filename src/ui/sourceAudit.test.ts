@@ -46,4 +46,23 @@ describe("source audit (UI revamp spec §6)", () => {
     ];
     expect(forms.filter((f) => !read(f).includes("<KeyboardArea"))).toEqual([]);
   });
+
+  const screens = tsxUnder("src/screen");
+
+  it("roots every screen in Screen (spec §6 rule 1)", () => {
+    expect(screens.filter((f) => !read(f).includes("<Screen"))).toEqual([]);
+  });
+
+  it("never uses SafeAreaView or KeyboardAvoidingView directly outside the UI layer", () => {
+    expect(appFiles.filter((f) => /\bSafeAreaView\b/.test(read(f)))).toEqual([]);
+    expect(appFiles.filter((f) => rnImports(read(f)).includes("KeyboardAvoidingView"))).toEqual([]);
+  });
+
+  it("reads the window size through useLayout, never Dimensions (spec §6 rule 3)", () => {
+    expect(appFiles.filter((f) => rnImports(read(f)).includes("Dimensions"))).toEqual([]);
+  });
+
+  it("opens pop-ups only through BottomSheet; the photo viewer is the one full-screen Modal", () => {
+    expect(appFiles.filter((f) => /<Modal\b/.test(read(f)))).toEqual(["src/screen/TransactionDetailScreen.tsx"]);
+  });
 });
