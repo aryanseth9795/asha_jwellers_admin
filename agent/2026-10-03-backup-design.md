@@ -252,3 +252,21 @@ All units are pure and Jest-tested unless marked otherwise.
 
 External database and sync, deletion tombstones, encrypting the backup, scheduled automatic backups, and SSJ catalog
 data.
+
+## 11. Item category (owner request, 2026-10-03)
+
+- **Description stays free text.** `rehan.productName` and the bill item `lenden_items.name` are unchanged.
+- **New optional field `category TEXT`** on `rehan` and `lenden_items`.
+- **The value comes from a dropdown:**
+  - the 28 item types of the analytics keyword rules (`src/utils/analytics/report/items.ts`, in rule order)
+  - "Other"
+  - any custom category already stored on a record
+  - A new category the admin types is kept as typed (trimmed, first letter capitalised) and reused from then on.
+- **Saving:** when nothing is chosen, the record is saved with category "Other".
+- **Records saved before this change** have `category` NULL. For those, analytics fall back to the keyword rule on the
+  description (today's behaviour). Analytics use `category ?? itemTypeOf(description)`.
+- **Backup v2:** `RehanRow` and `LendenItemRow` gain `category: string | null`.
+  - Serialize, validate and legacy carry it.
+  - The merge planner compares it as part of the rehan and item fields.
+  - The legacy converter reads an optional `category` from refined old files.
+- **Refined old backup:** each rehan gets `category` from the same keyword rules, or "Other" when none matches.

@@ -359,3 +359,51 @@ The customer's `address` field holds the village name. No schema change is neede
 - **Screens:** replace the address `TextInput` in NewCustomer and in the Edit Customer sheet with `<VillagePicker>`.
   The label becomes "Village" and the placeholder "Choose or type a village". Keep the state variables and the
   duplicate check (NewCustomer resets `hasDuplicateCheckRun` on change, as today).
+
+## Wave 2
+
+### Unit H1 — item category in the data layer (runs first; Unit F and Unit H2 depend on it)
+
+**Files:**
+- `src/backup/format.ts`: add `category: string | null` to `RehanRow` and `LendenItemRow`. The Local types follow
+  automatically.
+- `src/backup/serialize.ts`, `src/backup/validate.ts`, `src/backup/legacy.ts` and `src/backup/plan.ts`: carry,
+  validate (string or null) and compare `category`. In legacy, read an optional `category` string from v1 rehan rows,
+  defaulting to null.
+- The matching tests: update the fixtures and add one test per module for `category`.
+- `src/database/entryDatabase.ts`: in the migration, add `category TEXT` to `rehan` when it is missing. Also add it in
+  `CREATE TABLE`. `createRehan` and `updateRehanDetails` accept and store `category`.
+- `src/database/lendenItems.ts`: add `category TEXT` to `lenden_items` (the migration lives in `initDatabase`).
+  `replaceLendenItems` stores it, and `toLendenItem` returns it. Also make `toLendenItem` and `toOldJewelleryItem`
+  return `uuid` and `updatedAt`, a Unit D follow-up.
+- `src/types/entry.ts`: add `category?: string | null` to Rehan, NewRehan, LendenItem and NewLendenItem.
+- `App.tsx`: await `initDatabase()` before leaving the splash. `isLoading` becomes false only after both the timer and
+  the init have finished. If init throws, show the existing splash with "Could not open data. Restart the app." and
+  stay there.
+
+### Unit F — see "Wave 2 (one agent, after Wave 1 is committed)" above. It runs after H1, in parallel with H2.
+
+### Unit H2 — category picker and analytics (in parallel with F)
+
+**Files:**
+- Create `src/utils/itemCategories.ts` and its `.test.ts`, `src/database/itemCategories.ts`, and
+  `src/components/CategoryPicker.tsx`.
+- Modify `src/screen/AddTransactionScreen.tsx` (rehan), `src/components/AddLendenItemModal.tsx` (bill item),
+  `src/screen/TransactionDetailScreen.tsx` (rehan edit), and `src/utils/analytics/report/pledges.ts` and its test.
+
+- **`itemCategories.ts` (pure):**
+  - `BASE_CATEGORIES`: the item-rule labels in rule order, then "Other". Import the labels from `items.ts`; do not
+    copy them.
+  - `categoryOptions(stored: (string | null)[])`: the base list, followed by custom stored categories ordered by count.
+  - `resolveCategory(input)`: empty gives "Other". A match on the case-insensitive key gives the canonical name.
+    Otherwise trim it and capitalise the first letter.
+  - Tests.
+- **`src/database/itemCategories.ts`:** `getStoredCategories()` returns `SELECT category FROM rehan UNION ALL SELECT
+  category FROM lenden_items`, using its own connection.
+- **`CategoryPicker`:** works like `VillagePicker`. Label "Category (optional)", placeholder "Choose a category —
+  Other if left empty". When the field is focused and empty it shows the whole list, not only matches. Saving passes
+  the value through `resolveCategory`.
+- **Screens:** rehan add and edit, and the bill item modal, pass `category` into the database calls. The existing
+  description field stays.
+- **Analytics:** `buildPledgeRows` uses `rehan.category ?? itemTypeOf(productName)` for the item type. Add a test that
+  a stored category wins over the description keyword.
