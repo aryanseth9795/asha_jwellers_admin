@@ -56,3 +56,7 @@ export const resolveVillage = (input: string, villages: { name: string }[]): str
   const tidy = collapse(input);
   return tidy.charAt(0).toUpperCase() + tidy.slice(1);
 };
+
+/** The address to store on Save: null when blank or punctuation-only, otherwise the resolved village name. */
+export const normaliseVillageForSave = (input: string, villages: { name: string }[]): string | null =>
+  villageKey(input) ? resolveVillage(input, villages) : null;

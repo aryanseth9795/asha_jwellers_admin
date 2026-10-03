@@ -21,6 +21,7 @@ const VillagePicker: React.FC<Props> = ({ value, onChange, placeholder }) => {
   const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
   const latest = useRef(value);
   latest.current = value;
+  const edited = useRef(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -35,20 +36,24 @@ const VillagePicker: React.FC<Props> = ({ value, onChange, placeholder }) => {
   }, []);
 
   const typed = value.trim();
-  const needle = typed.toLowerCase();
-  const suggestions = villages.filter((v) => v.name.toLowerCase().includes(needle)).slice(0, MAX_SUGGESTIONS);
+  const needle = villageKey(typed);
+  const suggestions = villages.filter((v) => villageKey(v.name).includes(needle)).slice(0, MAX_SUGGESTIONS);
   const isNew = typed.length > 0 && !villages.some((v) => villageKey(v.name) === villageKey(typed));
 
   const handleFocus = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
+    edited.current = false;
     setOpen(true);
   };
 
   const handleBlur = () => {
-    const resolved = resolveVillage(latest.current, villages);
-    if (resolved !== latest.current) {
-      latest.current = resolved;
-      onChange(resolved);
+    // Only tidy what the user typed this time; merely opening a field must not rewrite a stored address.
+    if (edited.current) {
+      const resolved = resolveVillage(latest.current, villages);
+      if (resolved !== latest.current) {
+        latest.current = resolved;
+        onChange(resolved);
+      }
     }
     if (closeTimer.current) clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(() => setOpen(false), BLUR_CLOSE_DELAY_MS);
@@ -71,7 +76,10 @@ const VillagePicker: React.FC<Props> = ({ value, onChange, placeholder }) => {
         placeholder={placeholder}
         placeholderTextColor="#999"
         value={value}
-        onChangeText={onChange}
+        onChangeText={(text) => {
+          edited.current = true;
+          onChange(text);
+        }}
         onFocus={handleFocus}
         onBlur={handleBlur}
         autoCapitalize="words"

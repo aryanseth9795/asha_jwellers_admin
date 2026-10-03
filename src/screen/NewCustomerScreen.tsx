@@ -24,6 +24,8 @@ import CustomDatePicker from "../components/CustomDatePicker";
 import BillTable from "../components/BillTable";
 import AddJamaModal from "../components/AddJamaModal";
 import VillagePicker from "../components/VillagePicker";
+import { getVillages } from "../database/villages";
+import { normaliseVillageForSave } from "../utils/villageNames";
 
 type NewCustomerScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -205,10 +207,15 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
     setIsLoading(true);
 
     try {
+      // Save may be pressed while the village field is still focused (no blur), so normalise here.
+      const villages = await getVillages().catch(() => []);
+      const village = normaliseVillageForSave(address, villages);
+      setAddress(village ?? "");
+
       // Check for duplicate user
       const isDuplicate = await checkDuplicateUser(
         name.trim(),
-        address.trim() || undefined,
+        village || undefined,
         mobileNumber.trim() || undefined,
       );
 
@@ -228,7 +235,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       const userId = await createUser({
         name: name.trim(),
         nickname: nickname.trim() || undefined,
-        address: address.trim() || undefined,
+        address: village || undefined,
         mobileNumber: mobileNumber.trim() || undefined,
       });
 

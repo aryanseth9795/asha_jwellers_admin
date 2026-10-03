@@ -1,4 +1,4 @@
-import { canonicalVillages, resolveVillage, villageKey } from "./villageNames";
+import { canonicalVillages, normaliseVillageForSave, resolveVillage, villageKey } from "./villageNames";
 
 const times = (s: string, n: number): string[] => Array(n).fill(s);
 
@@ -65,5 +65,27 @@ describe("resolveVillage", () => {
 
   it("returns an empty string for blank input", () => {
     expect(resolveVillage("   ", villages)).toBe("");
+  });
+});
+
+describe("normaliseVillageForSave", () => {
+  const villages = [{ name: "Manwal" }, { name: "मनवाल" }];
+
+  it("resolves a raw spelling to the canonical village", () => {
+    expect(normaliseVillageForSave("manwal .", villages)).toBe("Manwal");
+  });
+
+  it("resolves a Hindi village", () => {
+    expect(normaliseVillageForSave(" मनवाल। ", villages)).toBe("मनवाल");
+  });
+
+  it("returns null for empty or punctuation-only input", () => {
+    expect(normaliseVillageForSave("", villages)).toBeNull();
+    expect(normaliseVillageForSave("   ", villages)).toBeNull();
+    expect(normaliseVillageForSave(".", villages)).toBeNull();
+  });
+
+  it("tidies a new village", () => {
+    expect(normaliseVillageForSave("  new   place ", villages)).toBe("New place");
   });
 });

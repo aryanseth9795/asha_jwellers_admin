@@ -24,6 +24,8 @@ import {
   UserFilterOptions,
 } from "../database/entryDatabase";
 import VillagePicker from "../components/VillagePicker";
+import { getVillages } from "../database/villages";
+import { normaliseVillageForSave } from "../utils/villageNames";
 
 type ExistingCustomersScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -171,10 +173,13 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
 
     setIsSaving(true);
     try {
+      // Save does not blur the focused village field, so normalise here against the current village list.
+      const villages = await getVillages().catch(() => []);
+      const village = normaliseVillageForSave(editAddress, villages);
       await updateUser(
         editingUser.id,
         editName.trim(),
-        editAddress.trim() || undefined,
+        village || undefined,
         editMobile.trim() || undefined,
         editNickname.trim() || undefined,
       );
