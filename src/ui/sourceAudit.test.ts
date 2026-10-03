@@ -66,6 +66,18 @@ describe("source audit (UI revamp spec §6)", () => {
     expect(appFiles.filter((f) => /<Modal\b/.test(read(f)))).toEqual(["src/screen/TransactionDetailScreen.tsx"]);
   });
 
+  it("exports through BackupExportService; the old ExportService is gone (backup spec §8)", () => {
+    const codeUnder = (dir: string): string[] =>
+      fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+        const rel = `${dir}/${e.name}`;
+        if (e.isDirectory()) return codeUnder(rel);
+        return /\.tsx?$/.test(rel) ? [rel] : [];
+      });
+    const importsOld = /from\s*["'][^"']*services\/ExportService["']|require\(\s*["'][^"']*services\/ExportService["']\s*\)/;
+    expect(["App.tsx", ...codeUnder("src")].filter((f) => importsOld.test(read(f)))).toEqual([]);
+    expect(fs.existsSync(path.join(ROOT, "src/services/ExportService.ts"))).toBe(false);
+  });
+
   it("shows messages through notify / confirm, never the system alert box (notifications spec §4)", () => {
     const systemAlert = /\bAlert\.alert\(|(^|[^.\w])alert\(/m;
     expect(appFiles.filter((f) => systemAlert.test(read(f)))).toEqual([]);

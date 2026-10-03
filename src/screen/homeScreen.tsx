@@ -5,9 +5,17 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useIsFocused } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../types/entry";
-import { exportData } from "../services/ExportService";
+import { exportBackup } from "../services/BackupExportService";
+import {
+  StagedImport,
+  applyImport,
+  discardStagedImport,
+  pickAndStageBackup,
+} from "../services/BackupImportService";
+import { BackupError, ImportMode } from "../backup/format";
+import ImportBackupSheet from "../components/ImportBackupSheet";
 import { BUSINESSES, BusinessId } from "../navigation/menus";
-import { ALL_EDGES, MenuCard, Screen, Text, colors, fontSize, notify, radius, space } from "../ui";
+import { ALL_EDGES, MenuCard, Screen, Text, colors, confirm, fontSize, notify, radius, space, useLayout } from "../ui";
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, "Home">;
 
@@ -15,21 +23,85 @@ interface Props {
   navigation: HomeScreenNavigationProp;
 }
 
+/** The service turns every failure into a BackupError with a message meant for the owner. */
+const errorText = (error: unknown): string =>
+  error instanceof BackupError && error.message ? error.message : "Please try again.";
+
 /** Business picker: Asha Jewellers or SSJ (spec §4). */
 const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const isFocused = useIsFocused();
+  // Below 340 dp the two buttons stack, so the greeting and the date keep their width.
+  const { narrow } = useLayout();
   const [isExporting, setIsExporting] = React.useState(false);
+  const [isImporting, setIsImporting] = React.useState(false);
+  /** Full-screen progress text while a picked backup is read and checked (backup spec §7). */
+  const [phase, setPhase] = React.useState<string | null>(null);
+  const [staged, setStaged] = React.useState<StagedImport | null>(null);
+  const [applying, setApplying] = React.useState(false);
+  const busy = isExporting || isImporting || applying;
 
   const handleExport = async () => {
+    if (busy) return;
     try {
       setIsExporting(true);
-      await exportData();
+      await exportBackup();
     } catch (error) {
       console.error("Export failed:", error);
-      notify.error("Export failed", "Please try again.");
+      notify.error("Export failed", errorText(error));
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleImport = async () => {
+    if (busy) return;
+    setIsImporting(true);
+    try {
+      const next = await pickAndStageBackup((p) => setPhase(p === "reading" ? "Reading backup…" : "Checking…"));
+      // The sheet opens only once there is a preview to show.
+      if (next) setStaged(next);
+    } catch (error) {
+      notify.error("Import failed", errorText(error));
+    } finally {
+      setPhase(null);
+      setIsImporting(false);
+    }
+  };
+
+  const runImport = async (mode: ImportMode) => {
+    if (!staged || applying) return;
+    if (mode === "replace") {
+      const ok = await confirm({
+        tone: "danger",
+        title: "Replace all data?",
+        message:
+          "Everything on this phone is replaced by the backup. An automatic backup of the current data is saved first.",
+        confirmLabel: "Replace",
+      });
+      if (!ok) return;
+    }
+    setApplying(true);
+    let announce: () => void;
+    try {
+      const result = await applyImport(staged, mode);
+      announce = () =>
+        notify.success(
+          "Backup imported",
+          `${result.inserted} added · ${result.skipped} already here · ${result.conflicts} kept as on this phone`,
+        );
+    } catch (error) {
+      announce = () => notify.error("Import failed", errorText(error));
+    }
+    // applyImport has deleted the staging folder either way; close the sheet, then tell the owner.
+    setApplying(false);
+    setStaged(null);
+    announce();
+  };
+
+  const closeSheet = () => {
+    if (applying || !staged) return;
+    discardStagedImport(staged);
+    setStaged(null);
   };
 
   const openBusiness = (id: BusinessId) =>
@@ -60,19 +132,36 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               </Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.exportButton}
-            onPress={handleExport}
-            disabled={isExporting}
-            accessibilityLabel="Export data"
-          >
-            {isExporting ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
-            )}
-            <Text style={styles.exportText}>Export</Text>
-          </TouchableOpacity>
+          <View style={[styles.actions, narrow && styles.actionsStacked]}>
+            <TouchableOpacity
+              style={[styles.actionButton, busy && !isExporting && styles.dimmed]}
+              onPress={handleExport}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Export data"
+            >
+              {isExporting ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
+              )}
+              <Text style={styles.actionText}>Export</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, busy && !isImporting && styles.dimmed]}
+              onPress={handleImport}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Import backup"
+            >
+              {isImporting ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="cloud-download-outline" size={22} color={colors.primary} />
+              )}
+              <Text style={styles.actionText}>Import</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Text style={styles.sectionTitle}>Choose business</Text>
@@ -91,6 +180,26 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
       </ScrollView>
+
+      {phase ? (
+        <View style={styles.progress} accessibilityLiveRegion="polite">
+          <View style={styles.progressCard}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.progressText} numberOfLines={2}>
+              {phase}
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      <ImportBackupSheet
+        visible={staged !== null}
+        preview={staged?.preview ?? null}
+        busy={applying}
+        onMerge={() => runImport("merge")}
+        onReplace={() => runImport("replace")}
+        onClose={closeSheet}
+      />
     </Screen>
   );
 };
@@ -129,7 +238,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F2F5",
   },
   dateText: { flexShrink: 1, fontSize: fontSize.caption + 1, color: colors.textDim, fontWeight: "600" },
-  exportButton: {
+  actions: { flexDirection: "row", gap: space.sm, flexShrink: 0 },
+  actionsStacked: { flexDirection: "column" },
+  actionButton: {
     alignItems: "center",
     justifyContent: "center",
     minWidth: 64,
@@ -141,7 +252,8 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     gap: 2,
   },
-  exportText: { fontSize: fontSize.caption, fontWeight: "700", color: colors.primary },
+  actionText: { fontSize: fontSize.caption, fontWeight: "700", color: colors.primary },
+  dimmed: { opacity: 0.5 },
   sectionTitle: {
     fontSize: fontSize.title,
     fontWeight: "700",
@@ -151,6 +263,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xl,
   },
   list: { gap: space.lg, paddingHorizontal: space.xl },
+  progress: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.backdrop,
+    padding: space.xl,
+  },
+  progressCard: {
+    alignItems: "center",
+    gap: space.md,
+    minWidth: 200,
+    maxWidth: "100%",
+    paddingVertical: space.xl,
+    paddingHorizontal: space.xxl,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
+  progressText: { fontSize: fontSize.bodyLg, fontWeight: "700", color: colors.text, textAlign: "center" },
 });
 
 export default HomeScreen;
