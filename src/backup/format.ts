@@ -51,9 +51,12 @@ export interface RehanRow {
   /** null = the customer was not on file when exported. */
   customerUuid: string | null;
   productName: string | null;
+  /** Item category (spec section 11); null for records saved before categories existed. */
+  category: string | null;
   /** Running balance as stored (principal ± diya/jama). */
   amount: number | null;
-  status: number;
+  /** null is accepted: a few old rows have no status. */
+  status: number | null;
   openDate: string;
   closedDate: string | null;
   /** Relative paths inside the zip: media/<uuid>/<n>-<name>. */
@@ -91,6 +94,8 @@ export interface LendenItemRow {
   lendenUuid: string;
   position: number;
   name: string;
+  /** Item category (spec section 11); null for items saved before categories existed. */
+  category: string | null;
   metal: string | null;
   purity: string | null;
   weight: number | null;

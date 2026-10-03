@@ -33,8 +33,9 @@ const SPECS: Record<TableKey, Spec> = {
   },
   rehan: {
     productName: "strN",
+    category: "strN",
     amount: "numN",
-    status: "num",
+    status: "numN",
     openDate: "str",
     closedDate: "strN",
     media: "media",
@@ -57,6 +58,7 @@ const SPECS: Record<TableKey, Spec> = {
   lendenItems: {
     position: "num",
     name: "text",
+    category: "strN",
     metal: "strN",
     purity: "strN",
     weight: "numN",

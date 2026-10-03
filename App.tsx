@@ -35,6 +35,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  // The splash is left only when both the 1 s minimum and the database setup are done.
+  const [timerDone, setTimerDone] = useState(false);
+  const [dbReady, setDbReady] = useState(false);
+  const [dbFailed, setDbFailed] = useState(false);
   const fadeAnim = useState(new Animated.Value(1))[0];
 
   // Check for OTA updates
@@ -66,26 +70,41 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Initialize database on app start
-    initDatabase();
+    // Initialize database on app start. Screens read it as soon as they mount,
+    // so the app must not leave the splash until the migrations have finished.
+    let cancelled = false;
+    initDatabase()
+      .then(() => {
+        if (!cancelled) setDbReady(true);
+      })
+      .catch((error) => {
+        console.error("Database init failed:", error);
+        if (!cancelled) setDbFailed(true);
+      });
 
     // Check for updates
     checkForUpdates();
 
-    // Show splash screen for 1 second
-    const timer = setTimeout(() => {
-      // Fade out animation
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
-        setIsLoading(false);
-      });
-    }, 1000);
+    // Show splash screen for at least 1 second
+    const timer = setTimeout(() => setTimerDone(true), 1000);
 
-    return () => clearTimeout(timer);
-  }, [fadeAnim]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!timerDone || !dbReady) return;
+    // Fade out animation
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setIsLoading(false);
+    });
+  }, [timerDone, dbReady, fadeAnim]);
 
   if (isLoading) {
     return (
@@ -96,7 +115,14 @@ export default function App() {
           style={styles.splashIcon}
           resizeMode="stretch"
         />
-        {isUpdating && (
+        {dbFailed && (
+          <View style={styles.updateContainer}>
+            <Text style={styles.updateText}>
+              Could not open data. Restart the app.
+            </Text>
+          </View>
+        )}
+        {isUpdating && !dbFailed && (
           <View style={styles.updateContainer}>
             <ActivityIndicator size="small" color="#fff" />
             <Text style={styles.updateText}>Downloading update...</Text>

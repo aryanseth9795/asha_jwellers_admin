@@ -82,6 +82,7 @@ describe("convertLegacy", () => {
         uuid: "00000000-0000-4000-8000-000000000003",
         customerUuid: "00000000-0000-4000-8000-000000000002",
         productName: "Ring",
+        category: null,
         amount: 5000,
         status: 1,
         openDate: "2024-03-01T00:00:00.000Z",
@@ -107,6 +108,45 @@ describe("convertLegacy", () => {
         updatedAt: "2024-05-01T00:00:00.000Z",
       },
     ]);
+  });
+
+  it("reads an optional category string from rehan rows, defaulting to null", () => {
+    const { data } = convertLegacy(
+      {
+        users: [],
+        rehan: [
+          { id: 1, userId: 1, media: "[]", openDate: "2024-03-01T00:00:00.000Z", category: "Ring" },
+          { id: 2, userId: 1, media: "[]", openDate: "2024-03-01T00:00:00.000Z", category: "" },
+          { id: 3, userId: 1, media: "[]", openDate: "2024-03-01T00:00:00.000Z", category: 7 },
+          { id: 4, userId: 1, media: "[]", openDate: "2024-03-01T00:00:00.000Z" },
+        ],
+        lenden: [],
+      },
+      counter(),
+    );
+    expect(data.rehan.map((r) => r.category)).toEqual(["Ring", null, null, null]);
+  });
+
+  it("names a customer with a missing or empty name '(no name)' and warns once with the count", () => {
+    const { data, warnings } = convertLegacy(
+      {
+        users: [
+          { id: 1, name: "", createdAt: "2024-01-01T00:00:00.000Z" },
+          { id: 2, createdAt: "2024-01-01T00:00:00.000Z" },
+          users[0],
+        ],
+        rehan: [],
+        lenden: [],
+      },
+      counter(),
+    );
+    expect(data.customers.map((c) => c.name)).toEqual(["(no name)", "(no name)", "Ram"]);
+    expect(warnings).toEqual([WARNING, "2 customers had no name and were saved as (no name)"]);
+  });
+
+  it("does not warn about names when every customer has one", () => {
+    const { warnings } = convertLegacy({ users, rehan: [], lenden: [] }, counter());
+    expect(warnings).toEqual([WARNING]);
   });
 
   it("leaves the child tables empty", () => {

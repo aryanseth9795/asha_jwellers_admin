@@ -5,7 +5,7 @@ import {
   OldJewelleryItem,
   Purity,
 } from "../types/entry";
-import { UUID_SQL } from "./uuidSql";
+import { UUID_SQL, reusableUuid } from "./uuidSql";
 
 // entryDatabase.ts owns schema creation; this module only reads and writes rows.
 let db: SQLite.SQLiteDatabase | null = null;
@@ -25,6 +25,8 @@ interface OldJewelleryItemRow {
   purity: string | null;
   weight: number | null;
   value: number;
+  uuid: string;
+  updatedAt: string;
 }
 
 // Anything other than a known metal is treated as untracked, never guessed.
@@ -40,6 +42,8 @@ const toOldJewelleryItem = (row: OldJewelleryItemRow): OldJewelleryItem => ({
   purity: (row.purity as Purity | null) ?? null,
   weight: row.weight,
   value: row.value,
+  uuid: row.uuid,
+  updatedAt: row.updatedAt,
 });
 
 export const getLendenOldJewelleryItems = async (
@@ -66,6 +70,9 @@ export const replaceLendenOldJewelleryItems = async (
   try {
     const database = await openDatabase();
     const now = new Date().toISOString();
+    // An item passed in with a uuid keeps it (its identity survives an edit);
+    // anything else, or a uuid repeated in this call, gets a fresh one.
+    const taken = new Set<string>();
     await database.withTransactionAsync(async () => {
       await database.runAsync(
         "DELETE FROM lenden_old_jewellery_items WHERE lendenId = ?",
@@ -74,8 +81,9 @@ export const replaceLendenOldJewelleryItems = async (
 
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
+        const keepUuid = reusableUuid(item.uuid, taken);
         await database.runAsync(
-          `INSERT INTO lenden_old_jewellery_items (lendenId, position, description, metal, purity, weight, value, uuid, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ${UUID_SQL}, ?)`,
+          `INSERT INTO lenden_old_jewellery_items (lendenId, position, description, metal, purity, weight, value, uuid, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, ${UUID_SQL}), ?)`,
           lendenId,
           i + 1,
           item.description.trim(),
@@ -83,6 +91,7 @@ export const replaceLendenOldJewelleryItems = async (
           item.purity ?? null,
           item.weight ?? null,
           item.value,
+          keepUuid,
           now,
         );
       }

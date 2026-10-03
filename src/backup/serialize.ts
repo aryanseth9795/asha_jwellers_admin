@@ -38,7 +38,8 @@ const TABLE_LABEL: Record<TableKey, string> = {
 };
 
 const baseName = (path: string): string => {
-  const parts = path.split(/[\\/]/);
+  // A photo path can carry a ?query or #hash (cache busters); they are not part of the file name.
+  const parts = path.replace(/[?#][\s\S]*$/, "").split(/[\\/]/);
   return parts[parts.length - 1] || "photo";
 };
 
@@ -86,6 +87,7 @@ export const serializeSnapshot = (
     uuid: r.uuid,
     customerUuid: customerUuid.get(r.userId) ?? null,
     productName: r.productName,
+    category: r.category,
     amount: r.amount,
     status: r.status,
     openDate: r.openDate,
@@ -139,6 +141,7 @@ export const serializeSnapshot = (
       lendenUuid: parent,
       position: i.position,
       name: i.name,
+      category: i.category,
       metal: i.metal,
       purity: i.purity,
       weight: i.weight,

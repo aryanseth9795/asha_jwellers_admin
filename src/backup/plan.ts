@@ -86,6 +86,7 @@ export const planMerge = (backup: BackupData, local: LocalSnapshot): MergePlan =
     } else if (
       eq(localRehanCustomer(l), r.customerUuid) &&
       eq(l.productName, r.productName) &&
+      eq(l.category, r.category) &&
       eq(l.status, r.status) &&
       eq(l.openDate, r.openDate) &&
       eq(l.closedDate, r.closedDate)

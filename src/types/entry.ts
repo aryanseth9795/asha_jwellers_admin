@@ -26,6 +26,7 @@ export interface Rehan {
   openDate: string;
   closedDate: string | null;
   productName?: string;
+  category?: string | null; // item category; null/absent for records saved before categories
   amount?: number;
   uuid?: string;
   updatedAt?: string;
@@ -36,6 +37,7 @@ export interface NewRehan {
   media?: string[];
   openDate?: string; // Optional - defaults to current date if not provided
   productName?: string;
+  category?: string | null;
   amount?: number; // Initial amount / Current balance
 }
 
@@ -106,6 +108,7 @@ export interface LendenItem {
   lendenId: number;
   position: number; // 1-based, kept contiguous
   name: string;
+  category?: string | null; // item category; null/absent for items saved before categories
   metal: JewelleryMetal | null;
   purity: Purity | null;
   weight: number | null; // grams
@@ -117,7 +120,10 @@ export interface LendenItem {
 }
 
 export interface NewLendenItem {
+  /** Pass an existing item's uuid back on edit so its identity survives; omit for a new item. */
+  uuid?: string;
   name: string;
+  category?: string | null;
   metal?: JewelleryMetal | null;
   purity?: Purity | null;
   weight?: number | null;
@@ -142,6 +148,8 @@ export interface OldJewelleryItem {
 }
 
 export interface NewOldJewelleryItem {
+  /** Pass an existing item's uuid back on edit so its identity survives; omit for a new item. */
+  uuid?: string;
   description: string;
   metal?: JewelleryMetal | null;
   purity?: Purity | null;

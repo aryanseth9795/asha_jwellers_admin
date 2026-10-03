@@ -8,6 +8,7 @@ export const LEGACY_WARNING =
   "This is an old backup: jama payments, rehan diya/jama, bill items and old jewellery are not in it and cannot be restored.";
 
 const EPOCH = "1970-01-01T00:00:00.000Z";
+const NO_NAME = "(no name)";
 
 type Raw = Record<string, unknown>;
 
@@ -57,6 +58,7 @@ export const convertLegacy = (
     return parsed.filter((p): p is string => typeof p === "string" && p !== "");
   };
 
+  let unnamed = 0;
   const customers: CustomerRow[] = [];
   const byId = new Map<number, string>();
   const customerUuids = new Set<string>();
@@ -64,9 +66,10 @@ export const convertLegacy = (
     if (!isRecord(u)) continue;
     const uuid = uuidFor(u);
     const createdAt = str(u.createdAt) ?? EPOCH;
+    if (str(u.name) === null) unnamed++;
     customers.push({
       uuid,
-      name: str(u.name) ?? "",
+      name: str(u.name) ?? NO_NAME,
       address: str(u.address),
       mobileNumber: str(u.mobileNumber),
       nickname: str(u.nickname),
@@ -92,6 +95,7 @@ export const convertLegacy = (
       uuid: uuidFor(r),
       customerUuid: customerOf(r),
       productName: str(r.productName),
+      category: str(r.category),
       amount: num(r.amount),
       status: num(r.status) ?? 0,
       openDate,
@@ -130,6 +134,10 @@ export const convertLegacy = (
         badMedia === 1 ? "was" : "were"
       } restored without photos`,
     );
+  }
+
+  if (unnamed > 0) {
+    warnings.push(`${unnamed} ${unnamed === 1 ? "customer had" : "customers had"} no name and ${unnamed === 1 ? "was" : "were"} saved as ${NO_NAME}`);
   }
 
   return {

@@ -12,11 +12,11 @@ const snapshot = (): LocalSnapshot => ({
   ],
   rehan: [
     {
-      id: 10, uuid: U(10), userId: 1, productName: "Chain", amount: 5000, status: 1, openDate: T, closedDate: null,
+      id: 10, uuid: U(10), userId: 1, productName: "Chain", category: "Chain", amount: 5000, status: 1, openDate: T, closedDate: null,
       media: ["/data/photos/a.jpg", "/data/photos/gone.jpg", "C:\\photos\\b.png"], updatedAt: T,
     },
     {
-      id: 11, uuid: U(11), userId: 999, productName: "Ring", amount: 100, status: 1, openDate: T, closedDate: null,
+      id: 11, uuid: U(11), userId: 999, productName: "Ring", category: null, amount: 100, status: 1, openDate: T, closedDate: null,
       media: [], updatedAt: T,
     },
   ],
@@ -28,7 +28,7 @@ const snapshot = (): LocalSnapshot => ({
     },
   ],
   lendenItems: [
-    { id: 40, uuid: U(40), lendenId: 30, position: 0, name: "Ring", metal: "gold", purity: "22k", weight: 5.5, qty: 1, rate: 6000, total: 9000, updatedAt: T },
+    { id: 40, uuid: U(40), lendenId: 30, position: 0, name: "Ring", category: "Ring", metal: "gold", purity: "22k", weight: 5.5, qty: 1, rate: 6000, total: 9000, updatedAt: T },
   ],
   oldJewellery: [
     { id: 50, uuid: U(50), lendenId: 30, position: 0, description: "Old bangle", metal: "silver", purity: null, weight: 20, value: 300, updatedAt: T },
@@ -57,11 +57,11 @@ describe("serializeSnapshot", () => {
   it("uses a null customerUuid when no customer has the id", () => {
     expect(rows("rehan")).toEqual([
       {
-        uuid: U(10), customerUuid: U(1), productName: "Chain", amount: 5000, status: 1, openDate: T, closedDate: null,
+        uuid: U(10), customerUuid: U(1), productName: "Chain", category: "Chain", amount: 5000, status: 1, openDate: T, closedDate: null,
         media: [`media/${U(10)}/1-a.jpg`, `media/${U(10)}/2-b.png`], updatedAt: T,
       },
       {
-        uuid: U(11), customerUuid: null, productName: "Ring", amount: 100, status: 1, openDate: T, closedDate: null,
+        uuid: U(11), customerUuid: null, productName: "Ring", category: null, amount: 100, status: 1, openDate: T, closedDate: null,
         media: [], updatedAt: T,
       },
     ]);
@@ -72,10 +72,28 @@ describe("serializeSnapshot", () => {
       { uuid: U(20), rehanUuid: U(10), type: "diya", amount: 500, date: T, updatedAt: T },
     ]);
     expect(rows("lenden")[0]).toMatchObject({ uuid: U(30), customerUuid: U(2), billNo: 7, media: [`media/${U(30)}/1-bill.jpg`] });
-    expect(rows("lendenItems")[0]).toMatchObject({ uuid: U(40), lendenUuid: U(30), name: "Ring", total: 9000 });
+    expect(rows("lendenItems")[0]).toMatchObject({ uuid: U(40), lendenUuid: U(30), name: "Ring", category: "Ring", total: 9000 });
     expect(rows("oldJewellery")[0]).toMatchObject({ uuid: U(50), lendenUuid: U(30), description: "Old bangle" });
     expect(rows("jamaEntries")).toEqual([{ uuid: U(60), lendenUuid: U(30), amount: 5000, date: T, updatedAt: T }]);
     expect(result.manifest.warnings).toContain("1 jama_entries rows had no parent record and were left out");
+  });
+
+  it("carries category on rehan and bill items, null included", () => {
+    expect(rows("rehan").map((r: { category: string | null }) => r.category)).toEqual(["Chain", null]);
+    expect(rows("lendenItems").map((i: { category: string | null }) => i.category)).toEqual(["Ring"]);
+  });
+
+  it("strips ?query and #hash from photo base names", () => {
+    const s = snapshot();
+    s.rehan[0].media = ["file:///data/photos/c.jpg?t=123/4", "/data/photos/d.jpg#frag", "/data/photos/e.jpg?x=1#y"];
+    const r = serializeSnapshot(s, { createdAt: T, mediaExists: () => true });
+    expect(r.mediaCopies.slice(0, 3).map((m) => m.to)).toEqual([
+      `media/${U(10)}/1-c.jpg`,
+      `media/${U(10)}/2-d.jpg`,
+      `media/${U(10)}/3-e.jpg`,
+    ]);
+    // the copy still reads the original path
+    expect(r.mediaCopies[0].from).toBe("file:///data/photos/c.jpg?t=123/4");
   });
 
   it("lists photos for copying and counts missing ones", () => {

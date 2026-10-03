@@ -31,6 +31,7 @@ const goodData = (): BackupData => ({
       uuid: U.rehan,
       customerUuid: U.cust,
       productName: "Ring",
+      category: "Ring",
       amount: 5000,
       status: 0,
       openDate: T,
@@ -63,6 +64,7 @@ const goodData = (): BackupData => ({
       lendenUuid: U.lenden,
       position: 0,
       name: "Chain",
+      category: null,
       metal: "gold",
       purity: "22k",
       weight: 10.5,
@@ -290,6 +292,25 @@ describe("validateData", () => {
     data.lenden[0].billNo = null;
     data.lenden[0].status = null;
     expect(validateData(data, mediaSet())).toEqual([]);
+  });
+
+  it("allows a null rehan status", () => {
+    const data = goodData();
+    data.rehan[0].status = null;
+    expect(validateData(data, mediaSet())).toEqual([]);
+  });
+
+  it("accepts a string or null category and flags anything else", () => {
+    const data = goodData();
+    data.rehan[0].category = null;
+    data.lendenItems[0].category = "Other";
+    expect(validateData(data, mediaSet())).toEqual([]);
+    (data.rehan[0] as unknown as Record<string, unknown>).category = 5;
+    delete (data.lendenItems[0] as unknown as Record<string, unknown>).category;
+    expect(validateData(data, mediaSet())).toEqual([
+      "rehan row 1: category is missing",
+      "lendenItems row 1: category is missing",
+    ]);
   });
 
   it("flags a non-finite or non-numeric number", () => {

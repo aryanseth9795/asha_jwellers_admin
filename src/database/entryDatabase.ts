@@ -75,6 +75,23 @@ const ensureIdentityColumns = async (database: SQLite.SQLiteDatabase) => {
   }
 };
 
+// Item category (backup spec section 11). Records saved before this column existed
+// keep NULL; analytics fall back to the keyword rule for them. Like the identity
+// columns, this is deliberately NOT inside the swallowing migration try/catch: a
+// single ALTER ... ADD COLUMN is atomic, and a swallowed failure would let the app
+// run with INSERTs that name a column that does not exist.
+const ensureCategoryColumns = async (database: SQLite.SQLiteDatabase) => {
+  for (const table of ["rehan", "lenden_items"]) {
+    const columns = (
+      await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`)
+    ).map((c) => c.name);
+    if (!columns.includes("category")) {
+      await database.execAsync(`ALTER TABLE ${table} ADD COLUMN category TEXT`);
+      console.log(`Added category to ${table} table`);
+    }
+  }
+};
+
 // Initialize database (create tables if not exist)
 export const initDatabase = async () => {
   try {
@@ -104,6 +121,7 @@ export const initDatabase = async () => {
         openDate TEXT NOT NULL,
         closedDate TEXT,
         productName TEXT,
+        category TEXT,
         amount INTEGER,
         uuid TEXT,
         updatedAt TEXT,
@@ -149,6 +167,7 @@ export const initDatabase = async () => {
         lendenId INTEGER NOT NULL,
         position INTEGER NOT NULL,
         name TEXT NOT NULL,
+        category TEXT,
         metal TEXT,
         purity TEXT,
         weight REAL,
@@ -346,6 +365,8 @@ export const initDatabase = async () => {
       console.error("Error migrating users table:", error);
     }
 
+    await ensureCategoryColumns(database);
+
     // Permanent identity (uuid) + updatedAt on every table. Deliberately NOT
     // wrapped in a swallowing try/catch: each table migrates atomically, so a
     // failure leaves that table untouched and throws to the outer catch. The
@@ -528,11 +549,12 @@ export const createRehan = async (rehan: NewRehan): Promise<number> => {
     const media = JSON.stringify(rehan.media || []);
 
     const result = await database.runAsync(
-      `INSERT INTO rehan (userId, media, status, openDate, productName, amount, uuid, updatedAt) VALUES (?, ?, 0, ?, ?, ?, ${UUID_SQL}, ?)`,
+      `INSERT INTO rehan (userId, media, status, openDate, productName, category, amount, uuid, updatedAt) VALUES (?, ?, 0, ?, ?, ?, ?, ${UUID_SQL}, ?)`,
       rehan.userId,
       media,
       openDate,
       rehan.productName || null,
+      rehan.category || null,
       rehan.amount || null,
       new Date().toISOString(),
     );
@@ -588,24 +610,40 @@ export const getAllRehan = async (): Promise<Rehan[]> => {
   }
 };
 
-// Update Rehan details (media, productName, amount)
+// Update Rehan details (media, productName, amount, category).
+// category undefined = leave the stored category alone (callers that do not know
+// about categories must not wipe it); a string or null sets it.
 export const updateRehanDetails = async (
   id: number,
   media: string[],
   productName?: string,
   amount?: number,
+  category?: string | null,
 ): Promise<void> => {
   try {
     const database = await openDatabase();
     const mediaJson = JSON.stringify(media);
-    await database.runAsync(
-      "UPDATE rehan SET media = ?, productName = ?, amount = ?, updatedAt = ? WHERE id = ?",
-      mediaJson,
-      productName || null,
-      amount || null,
-      new Date().toISOString(),
-      id,
-    );
+    const now = new Date().toISOString();
+    if (category === undefined) {
+      await database.runAsync(
+        "UPDATE rehan SET media = ?, productName = ?, amount = ?, updatedAt = ? WHERE id = ?",
+        mediaJson,
+        productName || null,
+        amount || null,
+        now,
+        id,
+      );
+    } else {
+      await database.runAsync(
+        "UPDATE rehan SET media = ?, productName = ?, amount = ?, category = ?, updatedAt = ? WHERE id = ?",
+        mediaJson,
+        productName || null,
+        amount || null,
+        category || null,
+        now,
+        id,
+      );
+    }
   } catch (error) {
     console.error("Error updating Rehan details:", error);
     throw error;
