@@ -23,6 +23,7 @@ import {
   filterUsersWithCounts,
   UserFilterOptions,
 } from "../database/entryDatabase";
+import VillagePicker from "../components/VillagePicker";
 
 type ExistingCustomersScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -691,15 +692,11 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Address</Text>
-          <TextInput
-            style={[styles.modalInput, styles.textArea]}
+          <Text style={styles.inputLabel}>Village</Text>
+          <VillagePicker
             value={editAddress}
-            onChangeText={setEditAddress}
-            placeholder="Customer address"
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={3}
+            onChange={setEditAddress}
+            placeholder="Choose or type a village"
           />
         </View>
 

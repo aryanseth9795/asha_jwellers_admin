@@ -23,6 +23,7 @@ import { saveImages } from "../storage/fileStorage";
 import CustomDatePicker from "../components/CustomDatePicker";
 import BillTable from "../components/BillTable";
 import AddJamaModal from "../components/AddJamaModal";
+import VillagePicker from "../components/VillagePicker";
 
 type NewCustomerScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -316,18 +317,14 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Address</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Enter address (optional)"
-                placeholderTextColor="#999"
+              <Text style={styles.label}>Village</Text>
+              <VillagePicker
+                placeholder="Choose or type a village"
                 value={address}
-                onChangeText={(text) => {
+                onChange={(text) => {
                   setAddress(text);
                   setHasDuplicateCheckRun(false); // Reset duplicate check when address changes
                 }}
-                multiline
-                numberOfLines={2}
               />
             </View>
 
