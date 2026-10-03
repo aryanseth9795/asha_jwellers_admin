@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./Text";
+import ToastHost from "./notify/ToastHost";
 import { colors, fontSize, radius, space } from "./theme";
 
 export interface BottomSheetProps {
@@ -79,6 +80,7 @@ const BottomSheet: React.FC<BottomSheetProps> = ({ visible, onClose, title, subt
           )}
           {footer ? <View style={[styles.footer, { paddingBottom: bottomPad }]}>{footer}</View> : null}
         </View>
+        <ToastHost />
       </KeyboardAvoidingView>
     </Modal>
   );

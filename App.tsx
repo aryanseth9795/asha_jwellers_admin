@@ -11,7 +11,7 @@ import {
   Animated,
   Alert,
 } from "react-native";
-import { Text, colors } from "./src/ui";
+import { NotifyRoot, Text, colors } from "./src/ui";
 import * as Updates from "expo-updates";
 import HomeScreen from "./src/screen/homeScreen";
 import BusinessMenuScreen from "./src/screen/BusinessMenuScreen";
@@ -203,6 +203,7 @@ export default function App() {
           />
         </Stack.Navigator>
       </NavigationContainer>
+      <NotifyRoot />
     </SafeAreaProvider>
   );
 }
