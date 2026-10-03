@@ -6,15 +6,12 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Image,
 } from "react-native";
-import { Text, TextInput } from "../ui";
+import { Text, TextInput, Screen, KeyboardArea, FooterBar } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { RootStackParamList } from "../types/entry";
 import {
@@ -158,12 +155,12 @@ const AddEditCategoryScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (isFetching) {
     return (
-      <SafeAreaView style={styles.container}>
+      <Screen style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading category...</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -171,11 +168,8 @@ const AddEditCategoryScreen: React.FC<Props> = ({ navigation, route }) => {
   const displayImageUri = selectedImage ? selectedImage.uri : currentImageUrl;
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+    <Screen style={styles.container}>
+      <KeyboardArea>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -250,7 +244,7 @@ const AddEditCategoryScreen: React.FC<Props> = ({ navigation, route }) => {
         </ScrollView>
 
         {/* Submit Button */}
-        <View style={styles.buttonContainer}>
+        <FooterBar>
           <TouchableOpacity
             style={[styles.submitButton, isLoading && styles.buttonDisabled]}
             onPress={handleSubmit}
@@ -272,9 +266,9 @@ const AddEditCategoryScreen: React.FC<Props> = ({ navigation, route }) => {
               </>
             )}
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </FooterBar>
+      </KeyboardArea>
+    </Screen>
   );
 };
 
@@ -282,9 +276,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8F9FA",
-  },
-  keyboardView: {
-    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -298,7 +289,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 24,
   },
   imagePickerTouchable: {
     marginBottom: 24,
@@ -391,12 +382,6 @@ const styles = StyleSheet.create({
     color: "#999",
     textAlign: "right",
     marginTop: 4,
-  },
-  buttonContainer: {
-    padding: 16,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
   },
   submitButton: {
     flexDirection: "row",

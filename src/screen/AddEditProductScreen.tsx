@@ -6,16 +6,12 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Image,
-  Modal,
 } from "react-native";
-import { Text, TextInput } from "../ui";
+import { Text, TextInput, Screen, KeyboardArea, FooterBar, BottomSheet } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { RootStackParamList } from "../types/entry";
 import {
@@ -377,21 +373,18 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (isFetching) {
     return (
-      <SafeAreaView style={styles.container}>
+      <Screen style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+    <Screen style={styles.container}>
+      <KeyboardArea>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -557,7 +550,7 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
         </ScrollView>
 
         {/* Submit Button */}
-        <View style={styles.buttonContainer}>
+        <FooterBar>
           <TouchableOpacity
             style={[styles.submitButton, isLoading && styles.buttonDisabled]}
             onPress={handleSubmit}
@@ -579,148 +572,120 @@ const AddEditProductScreen: React.FC<Props> = ({ navigation, route }) => {
               </>
             )}
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+        </FooterBar>
+      </KeyboardArea>
 
       {/* Category Selection Modal */}
-      <Modal
+      <BottomSheet
         visible={showCategoryModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowCategoryModal(false)}
+        onClose={() => setShowCategoryModal(false)}
+        title="Select Category"
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
-              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalList}>
-              {categories.map((cat) => (
-                <TouchableOpacity
-                  key={cat._id}
-                  style={[
-                    styles.modalItem,
-                    categoryId === cat._id && styles.modalItemSelected,
-                  ]}
-                  onPress={() => {
-                    setCategoryId(cat._id);
-                    setShowCategoryModal(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.modalItemText,
-                      categoryId === cat._id && styles.modalItemTextSelected,
-                    ]}
-                  >
-                    {cat.name}
-                  </Text>
-                  {categoryId === cat._id && (
-                    <Ionicons name="checkmark" size={20} color="#007AFF" />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        {categories.map((cat) => (
+          <TouchableOpacity
+            key={cat._id}
+            style={[
+              styles.modalItem,
+              categoryId === cat._id && styles.modalItemSelected,
+            ]}
+            onPress={() => {
+              setCategoryId(cat._id);
+              setShowCategoryModal(false);
+            }}
+          >
+            <Text
+              style={[
+                styles.modalItemText,
+                categoryId === cat._id && styles.modalItemTextSelected,
+              ]}
+            >
+              {cat.name}
+            </Text>
+            {categoryId === cat._id && (
+              <Ionicons name="checkmark" size={20} color="#007AFF" />
+            )}
+          </TouchableOpacity>
+        ))}
+      </BottomSheet>
 
       {/* Variant Modal */}
-      <Modal
+      <BottomSheet
         visible={showVariantModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowVariantModal(false)}
+        onClose={() => setShowVariantModal(false)}
+        title={editingVariant ? "Edit Variant" : "Add Variant"}
+        footer={
+          <TouchableOpacity
+            style={styles.modalSaveButton}
+            onPress={handleSaveVariant}
+          >
+            <Text style={styles.modalSaveText}>
+              {editingVariant ? "Update Variant" : "Add Variant"}
+            </Text>
+          </TouchableOpacity>
+        }
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingVariant ? "Edit Variant" : "Add Variant"}
-              </Text>
-              <TouchableOpacity onPress={() => setShowVariantModal(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Size</Text>
+          <TextInput
+            style={styles.input}
+            value={variantSize}
+            onChangeText={setVariantSize}
+            placeholder="e.g., 7, 8, 9"
+            placeholderTextColor="#999"
+          />
+        </View>
 
-            <View style={styles.modalBody}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Size</Text>
-                <TextInput
-                  style={styles.input}
-                  value={variantSize}
-                  onChangeText={setVariantSize}
-                  placeholder="e.g., 7, 8, 9"
-                  placeholderTextColor="#999"
-                />
-              </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Weight</Text>
+          <TextInput
+            style={styles.input}
+            value={variantWeight}
+            onChangeText={setVariantWeight}
+            placeholder="e.g., 5g, 10g"
+            placeholderTextColor="#999"
+          />
+        </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Weight</Text>
-                <TextInput
-                  style={styles.input}
-                  value={variantWeight}
-                  onChangeText={setVariantWeight}
-                  placeholder="e.g., 5g, 10g"
-                  placeholderTextColor="#999"
-                />
-              </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Variant Images</Text>
+          <View style={styles.addImageRow}>
+            <TouchableOpacity
+              style={styles.addImageButton}
+              onPress={() => pickImage("variant")}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+              <Text style={styles.addImageText}>Add Image</Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Variant Images</Text>
-                <View style={styles.addImageRow}>
+          {variantImages.length > 0 && (
+            <View style={styles.imageList}>
+              {variantImages.map((img, index) => (
+                <View key={index} style={styles.imageItem}>
+                  <Image
+                    source={renderImageSource(img)}
+                    style={styles.imageThumbnail}
+                  />
+                  <Text style={styles.imageUrl} numberOfLines={1}>
+                    {typeof img === "string" ? "Remote Image" : img.name}
+                  </Text>
                   <TouchableOpacity
-                    style={styles.addImageButton}
-                    onPress={() => pickImage("variant")}
+                    onPress={() => handleRemoveImage(index)}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Ionicons name="add" size={24} color="#fff" />
-                    <Text style={styles.addImageText}>Add Image</Text>
+                    <Ionicons
+                      name="close-circle"
+                      size={22}
+                      color="#FF3B30"
+                    />
                   </TouchableOpacity>
                 </View>
-
-                {variantImages.length > 0 && (
-                  <View style={styles.imageList}>
-                    {variantImages.map((img, index) => (
-                      <View key={index} style={styles.imageItem}>
-                        <Image
-                          source={renderImageSource(img)}
-                          style={styles.imageThumbnail}
-                        />
-                        <Text style={styles.imageUrl} numberOfLines={1}>
-                          {typeof img === "string" ? "Remote Image" : img.name}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => handleRemoveImage(index)}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                          <Ionicons
-                            name="close-circle"
-                            size={22}
-                            color="#FF3B30"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              <TouchableOpacity
-                style={styles.modalSaveButton}
-                onPress={handleSaveVariant}
-              >
-                <Text style={styles.modalSaveText}>
-                  {editingVariant ? "Update Variant" : "Add Variant"}
-                </Text>
-              </TouchableOpacity>
+              ))}
             </View>
-          </View>
+          )}
         </View>
-      </Modal>
-    </SafeAreaView>
+      </BottomSheet>
+    </Screen>
   );
 };
 
@@ -728,9 +693,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8F9FA",
-  },
-  keyboardView: {
-    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -744,7 +706,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 24,
   },
   section: {
     backgroundColor: "#fff",
@@ -971,12 +933,6 @@ const styles = StyleSheet.create({
   variantActionButton: {
     padding: 4,
   },
-  buttonContainer: {
-    padding: 16,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
-  },
   submitButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -995,36 +951,6 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1A1A1A",
-  },
-  modalList: {
-    padding: 8,
-  },
-  modalBody: {
-    padding: 24,
-  },
   modalItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -1049,7 +975,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
-    marginTop: 16,
   },
   modalSaveText: {
     color: "#fff",

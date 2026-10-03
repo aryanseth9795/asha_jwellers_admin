@@ -8,11 +8,10 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { Text, TextInput } from "../ui";
+import { Text, TextInput, Screen, KeyboardArea, FooterBar, fontSize } from "../ui";
 import * as ImagePicker from "expo-image-picker";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { RootStackParamList, EntryType } from "../types/entry";
 import {
   checkDuplicateUser,
@@ -279,295 +278,298 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Header */}
-        <Text style={styles.title}>New Customer</Text>
-        <Text style={styles.subtitle}>Create a new customer entry</Text>
+    <Screen style={styles.container}>
+      <KeyboardArea>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <Text style={styles.title}>New Customer</Text>
+          <Text style={styles.subtitle}>Create a new customer entry</Text>
 
-        {/* Customer Info Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Customer Information</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>
-              Name <Text style={styles.required}>*</Text>
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter customer name"
-              placeholderTextColor="#999"
-              value={name}
-              onChangeText={(text) => {
-                setName(text);
-                setHasDuplicateCheckRun(false); // Reset duplicate check when name changes
-              }}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nick Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter nickname (optional)"
-              placeholderTextColor="#999"
-              value={nickname}
-              onChangeText={setNickname}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Address</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Enter address (optional)"
-              placeholderTextColor="#999"
-              value={address}
-              onChangeText={(text) => {
-                setAddress(text);
-                setHasDuplicateCheckRun(false); // Reset duplicate check when address changes
-              }}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Mobile Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter mobile number (optional)"
-              placeholderTextColor="#999"
-              value={mobileNumber}
-              onChangeText={setMobileNumber}
-              keyboardType="phone-pad"
-            />
-          </View>
-        </View>
-
-        {/* Entry Type Section */}
-        <View style={styles.section} onTouchStart={handleEntryTypeFocus}>
-          <Text style={styles.sectionTitle}>
-            Entry Type <Text style={styles.required}>*</Text>
-          </Text>
-
-          <View style={styles.typeSelector}>
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                entryType === "rehan" && styles.typeButtonActive,
-              ]}
-              onPress={() => setEntryType("rehan")}
-            >
-              <Ionicons
-                name="document-text"
-                size={24}
-                color={entryType === "rehan" ? "#fff" : "#007AFF"}
-              />
-              <Text
-                style={[
-                  styles.typeButtonText,
-                  entryType === "rehan" && styles.typeButtonTextActive,
-                ]}
-              >
-                Rehan
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                entryType === "lenden" && styles.typeButtonActive,
-              ]}
-              onPress={() => setEntryType("lenden")}
-            >
-              <Ionicons
-                name="swap-horizontal"
-                size={24}
-                color={entryType === "lenden" ? "#fff" : "#007AFF"}
-              />
-              <Text
-                style={[
-                  styles.typeButtonText,
-                  entryType === "lenden" && styles.typeButtonTextActive,
-                ]}
-              >
-                Len-Den
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Date Selection - Only show if entry type is selected */}
-        {entryType && (
+          {/* Customer Info Section */}
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Customer Information</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>
+                Name <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter customer name"
+                placeholderTextColor="#999"
+                value={name}
+                onChangeText={(text) => {
+                  setName(text);
+                  setHasDuplicateCheckRun(false); // Reset duplicate check when name changes
+                }}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Nick Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter nickname (optional)"
+                placeholderTextColor="#999"
+                value={nickname}
+                onChangeText={setNickname}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Address</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Enter address (optional)"
+                placeholderTextColor="#999"
+                value={address}
+                onChangeText={(text) => {
+                  setAddress(text);
+                  setHasDuplicateCheckRun(false); // Reset duplicate check when address changes
+                }}
+                multiline
+                numberOfLines={2}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Mobile Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter mobile number (optional)"
+                placeholderTextColor="#999"
+                value={mobileNumber}
+                onChangeText={setMobileNumber}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </View>
+
+          {/* Entry Type Section */}
+          <View style={styles.section} onTouchStart={handleEntryTypeFocus}>
             <Text style={styles.sectionTitle}>
-              Date <Text style={styles.required}>*</Text>
+              Entry Type <Text style={styles.required}>*</Text>
             </Text>
 
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Ionicons name="calendar" size={20} color="#007AFF" />
-              <Text style={styles.dateButtonText}>
-                {formatDisplayDate(selectedDate)}
+            <View style={styles.typeSelector}>
+              <TouchableOpacity
+                style={[
+                  styles.typeButton,
+                  entryType === "rehan" && styles.typeButtonActive,
+                ]}
+                onPress={() => setEntryType("rehan")}
+              >
+                <Ionicons
+                  name="document-text"
+                  size={24}
+                  color={entryType === "rehan" ? "#fff" : "#007AFF"}
+                />
+                <Text
+                  style={[
+                    styles.typeButtonText,
+                    entryType === "rehan" && styles.typeButtonTextActive,
+                  ]}
+                >
+                  Rehan
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.typeButton,
+                  entryType === "lenden" && styles.typeButtonActive,
+                ]}
+                onPress={() => setEntryType("lenden")}
+              >
+                <Ionicons
+                  name="swap-horizontal"
+                  size={24}
+                  color={entryType === "lenden" ? "#fff" : "#007AFF"}
+                />
+                <Text
+                  style={[
+                    styles.typeButtonText,
+                    entryType === "lenden" && styles.typeButtonTextActive,
+                  ]}
+                >
+                  Len-Den
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Date Selection - Only show if entry type is selected */}
+          {entryType && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Date <Text style={styles.required}>*</Text>
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#999" />
-            </TouchableOpacity>
-          </View>
-        )}
 
-        {/* Rehan-specific Fields */}
-        {entryType === "rehan" && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Rehan Details</Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Product Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter product name (optional)"
-                placeholderTextColor="#999"
-                value={productName}
-                onChangeText={setProductName}
-              />
+              <TouchableOpacity
+                style={styles.dateButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Ionicons name="calendar" size={20} color="#007AFF" />
+                <Text style={styles.dateButtonText}>
+                  {formatDisplayDate(selectedDate)}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#999" />
+              </TouchableOpacity>
             </View>
+          )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Amount (₹)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter amount (optional)"
-                placeholderTextColor="#999"
-                value={rehanAmount}
-                onChangeText={setRehanAmount}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-        )}
+          {/* Rehan-specific Fields */}
+          {entryType === "rehan" && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Rehan Details</Text>
 
-        {/* Lenden-specific Fields */}
-        {entryType === "lenden" && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Len-Den Details</Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Amount (₹)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter amount"
-                placeholderTextColor="#999"
-                value={lendenAmount}
-                onChangeText={setLendenAmount}
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Discount (₹)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter discount (optional)"
-                placeholderTextColor="#999"
-                value={discount}
-                onChangeText={setDiscount}
-                keyboardType="numeric"
-              />
-            </View>
-
-            {/* Bill Table with Jama Entries */}
-            {parseInt(lendenAmount, 10) > 0 && (
               <View style={styles.inputGroup}>
-                <BillTable
-                  amount={parseInt(lendenAmount, 10) || 0}
-                  discount={parseInt(discount, 10) || 0}
-                  jamaEntries={jamaEntries}
-                  editable={true}
-                  onAddJama={() => setShowAddJamaModal(true)}
-                  onDeleteJama={(index) => {
-                    setJamaEntries((prev) =>
-                      prev.filter((_, i) => i !== index),
-                    );
-                  }}
+                <Text style={styles.label}>Product Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter product name (optional)"
+                  placeholderTextColor="#999"
+                  value={productName}
+                  onChangeText={setProductName}
                 />
               </View>
-            )}
-          </View>
-        )}
 
-        {/* Add Jama Modal */}
-        <AddJamaModal
-          visible={showAddJamaModal}
-          onClose={() => setShowAddJamaModal(false)}
-          onAdd={(amount, date) => {
-            setJamaEntries((prev) => [
-              ...prev,
-              { amount, date: date.toISOString() },
-            ]);
-          }}
-        />
-
-        {/* Bill Section - Only show if entry type is selected */}
-        {entryType && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Bill (Optional){" "}
-              <Text style={styles.mediaCount}>({selectedImages.length})</Text>
-            </Text>
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}>
-                <Ionicons name="camera" size={20} color="#007AFF" />
-                <Text style={styles.mediaButtonText}>Take Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.mediaButton} onPress={pickImages}>
-                <Ionicons name="images" size={20} color="#007AFF" />
-                <Text style={styles.mediaButtonText}>Gallery</Text>
-              </TouchableOpacity>
-            </View>
-
-            {selectedImages.length > 0 && (
-              <View style={styles.imageGrid}>
-                {selectedImages.map((uri, index) => (
-                  <View key={index} style={styles.imageWrapper}>
-                    <Image source={{ uri }} style={styles.image} />
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => removeImage(index)}
-                    >
-                      <Ionicons name="close" size={16} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Amount (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter amount (optional)"
+                  placeholderTextColor="#999"
+                  value={rehanAmount}
+                  onChangeText={setRehanAmount}
+                  keyboardType="numeric"
+                />
               </View>
-            )}
-          </View>
-        )}
-
-        {/* Save Button */}
-        <TouchableOpacity
-          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle" size={22} color="#fff" />
-              <Text style={styles.saveButtonText}>Save Entry</Text>
-            </>
+            </View>
           )}
-        </TouchableOpacity>
-      </ScrollView>
+
+          {/* Lenden-specific Fields */}
+          {entryType === "lenden" && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Len-Den Details</Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Amount (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter amount"
+                  placeholderTextColor="#999"
+                  value={lendenAmount}
+                  onChangeText={setLendenAmount}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Discount (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter discount (optional)"
+                  placeholderTextColor="#999"
+                  value={discount}
+                  onChangeText={setDiscount}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Bill Table with Jama Entries */}
+              {parseInt(lendenAmount, 10) > 0 && (
+                <View style={styles.inputGroup}>
+                  <BillTable
+                    amount={parseInt(lendenAmount, 10) || 0}
+                    discount={parseInt(discount, 10) || 0}
+                    jamaEntries={jamaEntries}
+                    editable={true}
+                    onAddJama={() => setShowAddJamaModal(true)}
+                    onDeleteJama={(index) => {
+                      setJamaEntries((prev) =>
+                        prev.filter((_, i) => i !== index),
+                      );
+                    }}
+                  />
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Add Jama Modal */}
+          <AddJamaModal
+            visible={showAddJamaModal}
+            onClose={() => setShowAddJamaModal(false)}
+            onAdd={(amount, date) => {
+              setJamaEntries((prev) => [
+                ...prev,
+                { amount, date: date.toISOString() },
+              ]);
+            }}
+          />
+
+          {/* Bill Section - Only show if entry type is selected */}
+          {entryType && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Bill (Optional){" "}
+                <Text style={styles.mediaCount}>({selectedImages.length})</Text>
+              </Text>
+
+              <View style={styles.buttonRow}>
+                <TouchableOpacity style={styles.mediaButton} onPress={takePhoto}>
+                  <Ionicons name="camera" size={20} color="#007AFF" />
+                  <Text style={styles.mediaButtonText}>Take Photo</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.mediaButton} onPress={pickImages}>
+                  <Ionicons name="images" size={20} color="#007AFF" />
+                  <Text style={styles.mediaButtonText}>Gallery</Text>
+                </TouchableOpacity>
+              </View>
+
+              {selectedImages.length > 0 && (
+                <View style={styles.imageGrid}>
+                  {selectedImages.map((uri, index) => (
+                    <View key={index} style={styles.imageWrapper}>
+                      <Image source={{ uri }} style={styles.image} />
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => removeImage(index)}
+                      >
+                        <Ionicons name="close" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
+        <FooterBar>
+          {/* Save Button */}
+          <TouchableOpacity
+            style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
+            onPress={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={22} color="#fff" />
+                <Text style={styles.saveButtonText}>Save Entry</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </FooterBar>
+      </KeyboardArea>
 
       {/* Custom Date Picker */}
       <CustomDatePicker
@@ -581,7 +583,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
         minimumDate={minDate}
         maximumDate={new Date()}
       />
-    </SafeAreaView>
+    </Screen>
   );
 };
 
@@ -595,10 +597,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: fontSize.heading,
     fontWeight: "800",
     color: "#1A1A1A",
     marginBottom: 4,
@@ -769,7 +771,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
     paddingVertical: 16,
     borderRadius: 14,
-    marginTop: 10,
     shadowColor: "#007AFF",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

@@ -35,4 +35,15 @@ describe("source audit (UI revamp spec §6)", () => {
     const state = sheets.map((f) => ({ f, sheet: read(f).includes("<BottomSheet"), modal: /<Modal\b/.test(read(f)) }));
     expect(state).toEqual(sheets.map((f) => ({ f, sheet: true, modal: false })));
   });
+
+  it("keeps form inputs above the keyboard with KeyboardArea (spec §6 rule 9)", () => {
+    const forms = [
+      "src/screen/NewCustomerScreen.tsx",
+      "src/screen/AddTransactionScreen.tsx",
+      "src/screen/UpdateBhavScreen.tsx",
+      "src/screen/AddEditCategoryScreen.tsx",
+      "src/screen/AddEditProductScreen.tsx",
+    ];
+    expect(forms.filter((f) => !read(f).includes("<KeyboardArea"))).toEqual([]);
+  });
 });

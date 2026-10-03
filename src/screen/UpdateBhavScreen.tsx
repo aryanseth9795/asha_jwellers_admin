@@ -7,11 +7,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
-import { Text, TextInput } from "../ui";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Text, TextInput, Screen, KeyboardArea, FooterBar, fontSize } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 import {
   getBhavRates,
@@ -180,18 +177,18 @@ const UpdateBhavScreen: React.FC = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <Screen style={styles.container}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading rates...</Text>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container} edges={["bottom"]}>
+      <Screen style={styles.container}>
         <View style={styles.centerContainer}>
           <Ionicons name="alert-circle" size={60} color="#FF3B30" />
           <Text style={styles.errorText}>{error}</Text>
@@ -202,16 +199,13 @@ const UpdateBhavScreen: React.FC = () => {
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["bottom"]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardView}
-      >
+    <Screen style={styles.container}>
+      <KeyboardArea>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -258,6 +252,7 @@ const UpdateBhavScreen: React.FC = () => {
                     keyboardType="numeric"
                     placeholder="Enter value"
                     placeholderTextColor="#999"
+                    numberOfLines={1}
                   />
                 </View>
 
@@ -274,7 +269,7 @@ const UpdateBhavScreen: React.FC = () => {
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <FooterBar>
           <TouchableOpacity
             style={[
               styles.updateButton,
@@ -292,9 +287,9 @@ const UpdateBhavScreen: React.FC = () => {
               </>
             )}
           </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </FooterBar>
+      </KeyboardArea>
+    </Screen>
   );
 };
 
@@ -302,9 +297,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8F9FA",
-  },
-  keyboardView: {
-    flex: 1,
   },
   centerContainer: {
     flex: 1,
@@ -340,10 +332,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 24,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: fontSize.heading,
     fontWeight: "800",
     color: "#1A1A1A",
     marginBottom: 8,
@@ -379,7 +371,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   cardLabel: {
-    fontSize: 20,
+    fontSize: fontSize.title,
     fontWeight: "700",
     color: "#1A1A1A",
   },
@@ -400,7 +392,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 22,
+    fontSize: fontSize.heading,
     fontWeight: "600",
     color: "#1A1A1A",
     paddingVertical: 14,
@@ -414,16 +406,6 @@ const styles = StyleSheet.create({
   timestampText: {
     fontSize: 13,
     color: "#666",
-  },
-  footer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: "#F8F9FA",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
   },
   updateButton: {
     flexDirection: "row",
