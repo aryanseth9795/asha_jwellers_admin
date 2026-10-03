@@ -5,10 +5,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   ActivityIndicator,
 } from "react-native";
-import { Text, TextInput, Screen, KeyboardArea, FooterBar, fontSize } from "../ui";
+import { Text, TextInput, Screen, KeyboardArea, FooterBar, fontSize, notify } from "../ui";
 import * as ImagePicker from "expo-image-picker";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -104,8 +103,8 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
   const takePhoto = async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      Alert.alert(
-        "Permission Required",
+      notify.error(
+        "Permission required",
         "Camera and media library permissions are required to take photos.",
       );
       return;
@@ -125,8 +124,8 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
   const pickImages = async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      Alert.alert(
-        "Permission Required",
+      notify.error(
+        "Permission required",
         "Media library permission is required.",
       );
       return;
@@ -174,10 +173,9 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       );
 
       if (isDuplicate) {
-        Alert.alert(
-          "Duplicate Entry Detected",
+        notify.error(
+          "Possible duplicate",
           `A customer with the name "${name.trim()}" and address "${address.trim()}" already exists. Please verify the details before proceeding.`,
-          [{ text: "OK" }],
         );
       }
 
@@ -191,13 +189,13 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
   const handleSave = async () => {
     // Validation
     if (!name.trim()) {
-      Alert.alert("Validation Error", "Please enter a name.");
+      notify.error("Name required", "Please enter a name.");
       return;
     }
 
     if (!entryType) {
-      Alert.alert(
-        "Validation Error",
+      notify.error(
+        "Entry type required",
         "Please select an entry type (Rehan or Len-Den).",
       );
       return;
@@ -214,8 +212,8 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       );
 
       if (isDuplicate) {
-        Alert.alert(
-          "Duplicate Entry",
+        notify.error(
+          "Duplicate customer",
           "A customer with the same name, address, and phone number already exists.",
         );
         setIsLoading(false);
@@ -263,15 +261,11 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
         }
       }
 
-      Alert.alert("Success", "Customer entry saved successfully!", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      notify.success("Customer saved", "Customer entry saved successfully!");
+      navigation.goBack();
     } catch (error) {
       console.error("Error saving entry:", error);
-      Alert.alert("Error", "Failed to save the entry. Please try again.");
+      notify.error("Couldn't save", "Failed to save the entry. Please try again.");
     } finally {
       setIsLoading(false);
     }

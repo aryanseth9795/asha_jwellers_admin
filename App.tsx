@@ -9,9 +9,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Animated,
-  Alert,
 } from "react-native";
-import { NotifyRoot, Text, colors } from "./src/ui";
+import { NotifyRoot, Text, colors, confirm } from "./src/ui";
 import * as Updates from "expo-updates";
 import HomeScreen from "./src/screen/homeScreen";
 import BusinessMenuScreen from "./src/screen/BusinessMenuScreen";
@@ -50,23 +49,16 @@ export default function App() {
       if (update.isAvailable) {
         setIsUpdating(true);
         await Updates.fetchUpdateAsync();
-        Alert.alert(
-          "Update Available",
-          "A new version has been downloaded. Restart the app to apply the update.",
-          [
-            {
-              text: "Restart Now",
-              onPress: async () => {
-                await Updates.reloadAsync();
-              },
-            },
-            {
-              text: "Later",
-              style: "cancel",
-              onPress: () => setIsUpdating(false),
-            },
-          ],
-        );
+        const restart = await confirm({
+          title: "Update available",
+          message: "A new version has been downloaded. Restart the app to apply the update.",
+          confirmLabel: "Restart now",
+          cancelLabel: "Later",
+          tone: "primary",
+          icon: "cloud-download-outline",
+        });
+        if (restart) await Updates.reloadAsync();
+        else setIsUpdating(false);
       }
     } catch (error) {
       console.log("Error checking for updates:", error);

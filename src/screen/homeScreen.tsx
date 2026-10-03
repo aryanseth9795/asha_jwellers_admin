@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useIsFocused } from "@react-navigation/native";
@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../types/entry";
 import { exportData } from "../services/ExportService";
 import { BUSINESSES, BusinessId } from "../navigation/menus";
-import { ALL_EDGES, MenuCard, Screen, Text, colors, fontSize, radius, space } from "../ui";
+import { ALL_EDGES, MenuCard, Screen, Text, colors, fontSize, notify, radius, space } from "../ui";
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, "Home">;
 
@@ -26,7 +26,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
       await exportData();
     } catch (error) {
       console.error("Export failed:", error);
-      Alert.alert("Export failed", "Please try again.");
+      notify.error("Export failed", "Please try again.");
     } finally {
       setIsExporting(false);
     }

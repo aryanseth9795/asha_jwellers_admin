@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
-  Alert,
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,6 +17,8 @@ import {
   KeyboardArea,
   FooterBar,
   useLayout,
+  confirm,
+  notify,
 } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -352,8 +353,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const takePhoto = async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      Alert.alert(
-        "Permission Required",
+      notify.error(
+        "Permission required",
         "Camera and media library permissions are required.",
       );
       return;
@@ -373,8 +374,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const pickImage = async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      Alert.alert(
-        "Permission Required",
+      notify.error(
+        "Permission required",
         "Media library permission is required.",
       );
       return;
@@ -392,18 +393,18 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     }
   };
 
-  const removeImage = (index: number) => {
-    Alert.alert("Remove Image", "Are you sure you want to remove this image?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => {
-          const updated = mediaPaths.filter((_, i) => i !== index);
-          setMediaPaths(updated);
-        },
-      },
-    ]);
+  const removeImage = async (index: number) => {
+    if (
+      await confirm({
+        title: "Remove image",
+        message: "Are you sure you want to remove this image?",
+        confirmLabel: "Remove",
+        tone: "danger",
+      })
+    ) {
+      const updated = mediaPaths.filter((_, i) => i !== index);
+      setMediaPaths(updated);
+    }
   };
 
   const handleSaveChanges = async () => {
@@ -442,15 +443,15 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       });
 
       if (transactionType === "lenden" && lendenSettlement.netPayable < 0) {
-        Alert.alert(
-          "Validation Error",
+        notify.error(
+          "Check the amounts",
           "Old jewellery credit and discount cannot be greater than the new jewellery total.",
         );
         return;
       }
       if (transactionType === "lenden" && lendenSettlement.baki < 0) {
-        Alert.alert(
-          "Validation Error",
+        notify.error(
+          "Jama too high",
           "Jama payment cannot be greater than the net payable amount.",
         );
         return;
@@ -528,39 +529,36 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       setIsEditMode(false);
-      Alert.alert("Success", "Changes saved successfully!");
+      notify.success("Changes saved", "Changes saved successfully!");
     } catch (error) {
       console.error("Error saving changes:", error);
-      Alert.alert("Error", "Failed to save changes. Please try again.");
+      notify.error("Couldn't save", "Failed to save changes. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleCloseRehan = () => {
-    Alert.alert(
-      "Close Rehan Entry",
-      "Are you sure you want to mark this entry as closed? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Close Entry",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await closeRehan(transactionId);
-              // Reload data to reflect changes
-              setIsLoading(true);
-              await loadData();
-              Alert.alert("Success", "Rehan entry has been closed.");
-            } catch (error) {
-              console.error("Error closing Rehan:", error);
-              Alert.alert("Error", "Failed to close entry. Please try again.");
-            }
-          },
-        },
-      ],
-    );
+  const handleCloseRehan = async () => {
+    if (
+      await confirm({
+        title: "Close Rehan entry",
+        message:
+          "Are you sure you want to mark this entry as closed? This action cannot be undone.",
+        confirmLabel: "Close entry",
+        tone: "warning",
+      })
+    ) {
+      try {
+        await closeRehan(transactionId);
+        // Reload data to reflect changes
+        setIsLoading(true);
+        await loadData();
+        notify.success("Entry closed", "Rehan entry has been closed.");
+      } catch (error) {
+        console.error("Error closing Rehan:", error);
+        notify.error("Couldn't close entry", "Failed to close entry. Please try again.");
+      }
+    }
   };
 
   const cancelEdit = () => {
@@ -959,7 +957,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     const lendenData = await getLendenById(transactionId);
                     if (lendenData) setLenden(lendenData);
                   } catch (error) {
-                    Alert.alert("Error", "Failed to delete jama entry");
+                    notify.error("Couldn't delete jama", "Failed to delete jama entry");
                   }
                 }
               }}
@@ -985,31 +983,27 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             <RehanTransactionTable
               transactions={rehanTransactions}
               onDeleteTransaction={async (id) => {
-                Alert.alert(
-                  "Delete Transaction",
-                  "Are you sure you want to delete this transaction?",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Delete",
-                      style: "destructive",
-                      onPress: async () => {
-                        try {
-                          await deleteRehanTransaction(id);
-                          // Refresh data
-                          const updated =
-                            await getRehanTransactionsByRehanId(transactionId);
-                          setRehanTransactions(updated);
-                          // Refresh balance
-                          const rehanData = await getRehanById(transactionId);
-                          if (rehanData) setRehan(rehanData);
-                        } catch (error) {
-                          Alert.alert("Error", "Failed to delete transaction");
-                        }
-                      },
-                    },
-                  ],
-                );
+                if (
+                  await confirm({
+                    title: "Delete transaction",
+                    message: "Are you sure you want to delete this transaction?",
+                    confirmLabel: "Delete",
+                    tone: "danger",
+                  })
+                ) {
+                  try {
+                    await deleteRehanTransaction(id);
+                    // Refresh data
+                    const updated =
+                      await getRehanTransactionsByRehanId(transactionId);
+                    setRehanTransactions(updated);
+                    // Refresh balance
+                    const rehanData = await getRehanById(transactionId);
+                    if (rehanData) setRehan(rehanData);
+                  } catch (error) {
+                    notify.error("Couldn't delete transaction", "Failed to delete transaction");
+                  }
+                }
               }}
             />
           </View>
@@ -1035,7 +1029,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               const rehanData = await getRehanById(transactionId);
               if (rehanData) setRehan(rehanData);
             } catch (error) {
-              Alert.alert("Error", "Failed to add transaction");
+              notify.error("Couldn't add transaction", "Failed to add transaction");
             }
           }}
         />
@@ -1078,8 +1072,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               if (lendenData) setLenden(lendenData);
               setEditingJamaIndex(null);
             } catch (error) {
-              Alert.alert(
-                "Error",
+              notify.error(
+                isEditingJama ? "Couldn't update jama" : "Couldn't add jama",
                 isEditingJama
                   ? "Failed to update jama entry"
                   : "Failed to add jama entry",

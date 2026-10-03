@@ -5,10 +5,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   ActivityIndicator,
 } from "react-native";
-import { Text, TextInput, Screen, KeyboardArea, fontSize } from "../ui";
+import { Text, TextInput, Screen, KeyboardArea, fontSize, notify } from "../ui";
 import * as ImagePicker from "expo-image-picker";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -119,8 +118,8 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const takePhoto = async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      Alert.alert(
-        "Permission Required",
+      notify.error(
+        "Permission required",
         "Camera and media library permissions are required."
       );
       return;
@@ -140,8 +139,8 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const pickImages = async () => {
     const hasPermission = await requestPermissions();
     if (!hasPermission) {
-      Alert.alert(
-        "Permission Required",
+      notify.error(
+        "Permission required",
         "Media library permission is required."
       );
       return;
@@ -174,34 +173,34 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const handleSave = async () => {
     if (!entryType) {
-      Alert.alert(
-        "Validation Error",
+      notify.error(
+        "Entry type required",
         "Please select an entry type (Rehan or Len-Den)."
       );
       return;
     }
 
     if (entryType === "rehan" && (!amount || parseInt(amount, 10) <= 0)) {
-      Alert.alert("Validation Error", "Please enter an amount greater than zero.");
+      notify.error("Amount required", "Please enter an amount greater than zero.");
       return;
     }
 
     if (entryType === "lenden" && lendenItems.length === 0) {
-      Alert.alert("Validation Error", "Please add at least one jewellery item.");
+      notify.error("Item required", "Please add at least one jewellery item.");
       return;
     }
 
     if (entryType === "lenden" && settlement.netPayable < 0) {
-      Alert.alert(
-        "Validation Error",
+      notify.error(
+        "Check the amounts",
         "Old jewellery credit and discount cannot be greater than the new jewellery total.",
       );
       return;
     }
 
     if (entryType === "lenden" && settlement.baki < 0) {
-      Alert.alert(
-        "Validation Error",
+      notify.error(
+        "Jama too high",
         "Jama payment cannot be greater than the net payable amount.",
       );
       return;
@@ -260,15 +259,11 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
         );
       }
 
-      Alert.alert("Success", "Transaction added successfully!", [
-        {
-          text: "OK",
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      notify.success("Transaction saved", "Transaction added successfully!");
+      navigation.goBack();
     } catch (error) {
       console.error("Error saving transaction:", error);
-      Alert.alert("Error", "Failed to save transaction. Please try again.");
+      notify.error("Couldn't save", "Failed to save transaction. Please try again.");
     } finally {
       setIsLoading(false);
     }
