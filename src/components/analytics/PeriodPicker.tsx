@@ -42,7 +42,7 @@ const PeriodPicker: React.FC<{
             <Ionicons name="chevron-back" size={20} color={colors.goldDeep} />
           </TouchableOpacity>
         )}
-        <Text style={styles.periodLabel} numberOfLines={1} adjustsFontSizeToFit>
+        <Text style={styles.periodLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
           {period.label}
         </Text>
         {grain !== "all" && (

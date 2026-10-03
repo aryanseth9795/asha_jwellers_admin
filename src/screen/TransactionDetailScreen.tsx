@@ -1573,6 +1573,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addTransactionButton: {
+    minHeight: 44,
+    justifyContent: "center",
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -1598,6 +1600,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   editButton: {
+    minHeight: 44,
+    justifyContent: "center",
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -1612,6 +1616,8 @@ const styles = StyleSheet.create({
     color: "#007AFF",
   },
   cancelButton: {
+    minHeight: 44,
+    justifyContent: "center",
     paddingHorizontal: 12,
     paddingVertical: 6,
   },

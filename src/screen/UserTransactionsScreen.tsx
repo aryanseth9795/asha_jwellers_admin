@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text, Screen } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -39,6 +40,7 @@ interface Props {
 }
 
 const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const { userId, userName } = route.params;
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -553,7 +555,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
 
       {/* FAB Button */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: insets.bottom + 16 }]}
         onPress={() => {
           navigation.navigate("AddTransaction", {
             userId,
@@ -852,7 +854,6 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    bottom: 16,
     right: 26,
     width: 60,
     height: 60,
