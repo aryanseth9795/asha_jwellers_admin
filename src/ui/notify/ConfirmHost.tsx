@@ -65,6 +65,7 @@ const ConfirmDialog: React.FC<{ request: ConfirmRequest }> = ({ request }) => {
           style={StyleSheet.absoluteFill}
           onPress={() => close(dismissResult(request))}
           accessibilityLabel="Dismiss"
+          accessibilityRole="button"
         />
         <Animated.View
           style={[styles.card, { width: Math.min(width - 48, 360), transform: [{ scale }] }]}

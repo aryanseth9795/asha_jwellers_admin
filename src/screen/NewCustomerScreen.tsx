@@ -175,7 +175,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       if (isDuplicate) {
         notify.error(
           "Possible duplicate",
-          `A customer with the name "${name.trim()}" and address "${address.trim()}" already exists. Please verify the details before proceeding.`,
+          `"${name.trim()}" from ${address.trim()} already exists. Check before saving.`,
         );
       }
 
