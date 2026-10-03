@@ -50,7 +50,7 @@ const OldJewelleryItemsTable: React.FC<OldJewelleryItemsTableProps> = ({
             <Text style={styles.positionText}>{index + 1}</Text>
           </View>
           <View style={styles.itemContent}>
-            <Text style={styles.description}>{item.description}</Text>
+            <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
             <View style={styles.metaRow}>
               {item.metal ? (
                 <View
@@ -74,13 +74,13 @@ const OldJewelleryItemsTable: React.FC<OldJewelleryItemsTableProps> = ({
                 </View>
               )}
               {item.weight != null && (
-                <Text style={styles.weight}>
+                <Text style={styles.weight} numberOfLines={1}>
                   {formatWeight(item.weight).main}
                 </Text>
               )}
             </View>
           </View>
-          <Text style={styles.value}>{formatRupees(item.value)}</Text>
+          <Text style={styles.value} numberOfLines={1}>{formatRupees(item.value)}</Text>
           {editable && (
             <View style={styles.actions}>
               {onEdit && (
@@ -108,11 +108,11 @@ const OldJewelleryItemsTable: React.FC<OldJewelleryItemsTableProps> = ({
 
       {newJewelleryTotal !== undefined && (
         <View style={styles.netRow}>
-          <Text style={styles.netText}>
+          <Text style={styles.netText} numberOfLines={2}>
             New {formatRupees(newJewelleryTotal)} − Old{" "}
             {formatRupees(sumOldJewelleryValues(items))}
           </Text>
-          <Text style={styles.netValue}>
+          <Text style={styles.netValue} numberOfLines={1}>
             = {newJewelleryTotal - sumOldJewelleryValues(items) < 0 ? "−" : ""}
             {formatRupees(newJewelleryTotal - sumOldJewelleryValues(items))}
           </Text>
@@ -171,7 +171,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 6,
+    columnGap: 8,
+    rowGap: 4,
     marginTop: 3,
   },
   metalBadge: {
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
   },
   unknownBadgeText: { color: "#A15C5C", fontSize: 11, fontWeight: "600" },
   weight: { color: "#7A6B58", fontSize: 12 },
-  value: { color: "#7C4A08", fontSize: 14, fontWeight: "800" },
+  value: { flexShrink: 0, textAlign: "right", color: "#7C4A08", fontSize: 14, fontWeight: "800" },
   actions: { flexDirection: "row", marginLeft: 2 },
   actionButton: { padding: 6 },
   addButton: {
@@ -213,7 +214,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5E8CF",
   },
   netText: { flex: 1, color: "#7A6B58", fontSize: 13 },
-  netValue: { color: "#7C4A08", fontSize: 15, fontWeight: "800" },
+  netValue: { flexShrink: 0, textAlign: "right", color: "#7C4A08", fontSize: 15, fontWeight: "800" },
 });
 
 export default OldJewelleryItemsTable;

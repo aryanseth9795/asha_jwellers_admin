@@ -33,15 +33,15 @@ const RehanTransactionTable: React.FC<RehanTransactionTableProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={[styles.headerCell, styles.dateCol]}>Date</Text>
-        <Text style={[styles.headerCell, styles.typeCol]}>Type</Text>
-        <Text style={[styles.headerCell, styles.amountCol]}>Amount</Text>
-        <Text style={[styles.headerCell, styles.actionCol]}>Action</Text>
+        <Text style={[styles.headerCell, styles.dateCol]} numberOfLines={1}>Date</Text>
+        <Text style={[styles.headerCell, styles.typeCol]} numberOfLines={1}>Type</Text>
+        <Text style={[styles.headerCell, styles.amountCol]} numberOfLines={1}>Amount</Text>
+        <Text style={[styles.headerCell, styles.actionCol]} numberOfLines={1}>Action</Text>
       </View>
 
       {transactions.map((transaction, index) => (
         <View key={transaction.id} style={styles.row}>
-          <Text style={[styles.cell, styles.dateCol]}>
+          <Text style={[styles.cell, styles.dateCol]} numberOfLines={1}>
             {formatDate(transaction.date)}
           </Text>
           <View
@@ -73,6 +73,8 @@ const RehanTransactionTable: React.FC<RehanTransactionTableProps> = ({
               styles.amountCol,
               transaction.type === "diya" ? styles.diyaText : styles.jamaText,
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
             {transaction.type === "diya" ? "+" : "-"}₹
             {transaction.amount.toLocaleString()}

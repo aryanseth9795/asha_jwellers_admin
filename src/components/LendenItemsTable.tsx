@@ -36,7 +36,7 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
     <View style={styles.container}>
       <View style={styles.header}>
         <Ionicons name="diamond-outline" size={18} color="#007AFF" />
-        <Text style={styles.headerText}>Items ({items.length})</Text>
+        <Text style={styles.headerText} numberOfLines={1}>Items ({items.length})</Text>
       </View>
 
       {items.length === 0 && (
@@ -52,10 +52,10 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
           </View>
 
           <View style={styles.itemBody}>
-            <Text style={styles.itemName} numberOfLines={1}>
+            <Text style={styles.itemName} numberOfLines={2}>
               {item.name}
             </Text>
-            <Text style={styles.itemMeta}>
+            <Text style={styles.itemMeta} numberOfLines={2}>
               {[
                 metalLabel(item.metal),
                 item.purity ?? null,
@@ -68,7 +68,7 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
             </Text>
           </View>
 
-          <Text style={styles.itemTotal}>{formatRupees(item.total)}</Text>
+          <Text style={styles.itemTotal} numberOfLines={1}>{formatRupees(item.total)}</Text>
 
           {editable && onEdit && (
             <TouchableOpacity style={styles.iconButton} onPress={() => onEdit(index)}>
@@ -85,10 +85,10 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
 
       {items.length > 0 && (
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>
+          <Text style={styles.totalLabel} numberOfLines={2}>
             TOTAL AMOUNT {totalWeight > 0 ? `· ${formatWeight(totalWeight).main}` : ""}
           </Text>
-          <Text style={styles.totalValue}>{formatRupees(total)}</Text>
+          <Text style={styles.totalValue} numberOfLines={1}>{formatRupees(total)}</Text>
         </View>
       )}
 
@@ -155,18 +155,19 @@ const styles = StyleSheet.create({
   itemBody: { flex: 1 },
   itemName: { fontSize: 15, fontWeight: "600", color: "#1A1A1A" },
   itemMeta: { fontSize: 12, color: "#666", marginTop: 2 },
-  itemTotal: { fontSize: 15, fontWeight: "700", color: "#1A1A1A" },
+  itemTotal: { flexShrink: 0, textAlign: "right", fontSize: 15, fontWeight: "700", color: "#1A1A1A" },
   iconButton: { padding: 2 },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: "#F8F9FA",
   },
-  totalLabel: { fontSize: 13, fontWeight: "700", color: "#1A1A1A" },
-  totalValue: { fontSize: 17, fontWeight: "700", color: "#1976D2" },
+  totalLabel: { flexShrink: 1, fontSize: 13, fontWeight: "700", color: "#1A1A1A" },
+  totalValue: { flexShrink: 0, textAlign: "right", fontSize: 17, fontWeight: "700", color: "#1976D2" },
   warning: {
     flexDirection: "row",
     alignItems: "center",

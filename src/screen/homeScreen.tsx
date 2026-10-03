@@ -55,7 +55,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             </Text>
             <View style={styles.dateBadge}>
               <Ionicons name="calendar-outline" size={14} color={colors.textDim} />
-              <Text style={styles.dateText} numberOfLines={1}>
+              <Text style={styles.dateText} numberOfLines={2}>
                 {today}
               </Text>
             </View>

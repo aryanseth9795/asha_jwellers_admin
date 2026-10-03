@@ -50,19 +50,19 @@ const BillTable: React.FC<BillTableProps> = ({
       {/* Header */}
       <View style={styles.header}>
         <Ionicons name="receipt-outline" size={18} color="#007AFF" />
-        <Text style={styles.headerText}>Bill Summary</Text>
+        <Text style={styles.headerText} numberOfLines={1}>Bill Summary</Text>
       </View>
 
       {/* Amount Row */}
       <View style={styles.row}>
-        <Text style={styles.label}>Amount</Text>
-        <Text style={styles.value}>₹{amount.toLocaleString()}</Text>
+        <Text style={styles.label} numberOfLines={2}>Amount</Text>
+        <Text style={styles.value} numberOfLines={1}>₹{amount.toLocaleString()}</Text>
       </View>
 
       {oldJewelleryCredit > 0 && (
         <View style={styles.row}>
-          <Text style={styles.label}>Old Jewellery Credit</Text>
-          <Text style={[styles.value, styles.oldJewelleryValue]}>
+          <Text style={styles.label} numberOfLines={2}>Old Jewellery Credit</Text>
+          <Text style={[styles.value, styles.oldJewelleryValue]} numberOfLines={1}>
             -₹{oldJewelleryCredit.toLocaleString()}
           </Text>
         </View>
@@ -70,16 +70,16 @@ const BillTable: React.FC<BillTableProps> = ({
 
       {/* Discount Row */}
       <View style={styles.row}>
-        <Text style={styles.label}>Discount</Text>
-        <Text style={[styles.value, styles.discountValue]}>
+        <Text style={styles.label} numberOfLines={2}>Discount</Text>
+        <Text style={[styles.value, styles.discountValue]} numberOfLines={1}>
           -₹{discount.toLocaleString()}
         </Text>
       </View>
 
       {/* Remaining Row */}
       <View style={[styles.row, styles.remainingRow]}>
-        <Text style={[styles.label, styles.remainingLabel]}>REMAINING</Text>
-        <Text style={[styles.value, styles.remainingValue]}>
+        <Text style={[styles.label, styles.remainingLabel]} numberOfLines={2}>REMAINING</Text>
+        <Text style={[styles.value, styles.remainingValue]} numberOfLines={1}>
           ₹{remaining.toLocaleString()}
         </Text>
       </View>
@@ -94,11 +94,11 @@ const BillTable: React.FC<BillTableProps> = ({
             {/* Jama Row */}
             <View style={styles.jamaRow}>
               <View style={styles.jamaInfo}>
-                <Text style={styles.jamaLabel}>Jama</Text>
-                <Text style={styles.jamaDate}>({formatDate(entry.date)})</Text>
+                <Text style={styles.jamaLabel} numberOfLines={1}>Jama</Text>
+                <Text style={styles.jamaDate} numberOfLines={1}>({formatDate(entry.date)})</Text>
               </View>
               <View style={styles.jamaAmountContainer}>
-                <Text style={[styles.value, styles.jamaValue]}>
+                <Text style={[styles.value, styles.jamaValue]} numberOfLines={1}>
                   -₹{entry.amount.toLocaleString()}
                 </Text>
                 {editable && onEditJama && (
@@ -122,8 +122,8 @@ const BillTable: React.FC<BillTableProps> = ({
 
             {/* Baki Row after this Jama */}
             <View style={styles.bakiRow}>
-              <Text style={styles.bakiLabel}>Baki</Text>
-              <Text style={styles.bakiValue}>
+              <Text style={styles.bakiLabel} numberOfLines={2}>Baki</Text>
+              <Text style={styles.bakiValue} numberOfLines={1}>
                 ₹{bakiAfterJama.toLocaleString()}
               </Text>
             </View>
@@ -134,8 +134,8 @@ const BillTable: React.FC<BillTableProps> = ({
       {/* Total Jama Row - only show if there are entries */}
       {jamaEntries.length > 0 && (
         <View style={[styles.row, styles.totalJamaRow]}>
-          <Text style={[styles.label, styles.totalJamaLabel]}>TOTAL JAMA</Text>
-          <Text style={[styles.value, styles.totalJamaValue]}>
+          <Text style={[styles.label, styles.totalJamaLabel]} numberOfLines={2}>TOTAL JAMA</Text>
+          <Text style={[styles.value, styles.totalJamaValue]} numberOfLines={1}>
             -₹{totalJama.toLocaleString()}
           </Text>
         </View>
@@ -144,8 +144,8 @@ const BillTable: React.FC<BillTableProps> = ({
       {/* Final Baki if no jama entries */}
       {jamaEntries.length === 0 && (
         <View style={[styles.row, styles.finalBakiRow]}>
-          <Text style={[styles.label, styles.finalBakiLabel]}>BAKI</Text>
-          <Text style={[styles.value, styles.finalBakiValue]}>
+          <Text style={[styles.label, styles.finalBakiLabel]} numberOfLines={2}>BAKI</Text>
+          <Text style={[styles.value, styles.finalBakiValue]} numberOfLines={1}>
             ₹{remaining.toLocaleString()}
           </Text>
         </View>
@@ -154,8 +154,8 @@ const BillTable: React.FC<BillTableProps> = ({
       {/* Final Baki Summary if there are jama entries */}
       {jamaEntries.length > 0 && (
         <View style={[styles.row, styles.finalBakiRow]}>
-          <Text style={[styles.label, styles.finalBakiLabel]}>FINAL BAKI</Text>
-          <Text style={[styles.value, styles.finalBakiValue]}>
+          <Text style={[styles.label, styles.finalBakiLabel]} numberOfLines={2}>FINAL BAKI</Text>
+          <Text style={[styles.value, styles.finalBakiValue]} numberOfLines={1}>
             ₹{runningBaki.toLocaleString()}
           </Text>
         </View>
@@ -201,16 +201,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F2F5",
   },
   label: {
+    flexShrink: 1,
     fontSize: 15,
     color: "#666",
   },
   value: {
+    flexShrink: 0,
+    textAlign: "right",
     fontSize: 15,
     fontWeight: "600",
     color: "#1A1A1A",
@@ -241,11 +245,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
     backgroundColor: "#E8F5E9",
   },
   jamaInfo: {
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -260,6 +266,7 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   jamaAmountContainer: {
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -274,6 +281,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 8,
     backgroundColor: "#FAFAFA",
@@ -281,10 +289,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E0E0E0",
   },
   bakiLabel: {
+    flexShrink: 1,
     fontSize: 13,
     color: "#999",
   },
   bakiValue: {
+    flexShrink: 0,
+    textAlign: "right",
     fontSize: 14,
     fontWeight: "600",
     color: "#666",

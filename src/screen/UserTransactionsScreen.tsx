@@ -236,7 +236,7 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
         <View style={styles.amountDateRow}>
           <View style={styles.amountHighlight}>
             <Ionicons name="cash" size={20} color="#2E7D32" />
-            <Text style={styles.highlightedAmount} numberOfLines={1}>
+            <Text style={styles.highlightedAmount} numberOfLines={1} adjustsFontSizeToFit>
               ₹{item.amount.toLocaleString()}
             </Text>
           </View>
@@ -342,10 +342,12 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading transactions...</Text>
-      </View>
+      <Screen style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading transactions...</Text>
+        </View>
+      </Screen>
     );
   }
 

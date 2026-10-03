@@ -32,7 +32,7 @@ const MenuCard: React.FC<MenuCardProps> = ({ title, subtitle, icon, accent, tint
         <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={large ? 30 : 24} color={accent} />
       </View>
       <View style={styles.body}>
-        <Text style={[styles.title, large && styles.titleLarge]} numberOfLines={1}>
+        <Text style={[styles.title, large && styles.titleLarge]} numberOfLines={2}>
           {title}
         </Text>
         <Text style={styles.subtitle} numberOfLines={2}>
