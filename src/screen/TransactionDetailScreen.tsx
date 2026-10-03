@@ -1531,6 +1531,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   amountValue: {
+    flexShrink: 1,
     fontSize: 24,
     fontWeight: "800",
     color: "#2E7D32",
