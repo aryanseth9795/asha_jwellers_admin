@@ -407,3 +407,14 @@ The customer's `address` field holds the village name. No schema change is neede
   description field stays.
 - **Analytics:** `buildPledgeRows` uses `rehan.category ?? itemTypeOf(productName)` for the item type. Add a test that
   a stored category wins over the description keyword.
+
+#### Unit H1 additions (from wave 1 reviews)
+- **`uuidSql.ts`:** change the variant digit to `substr('89ab', 1 + (random() & 3), 1)`, because `abs(random())`
+  overflows on INT64_MIN.
+- **`replaceLendenItems` / `replaceLendenOldJewelleryItems`:** keep the existing `uuid` of an item passed in with one,
+  and generate one only for new items. `toLendenItem` / `toOldJewelleryItem` must return `uuid`, so edits round-trip
+  it. TransactionDetail compares the item arrays with `JSON.stringify`; it still works because the uuid stays stable.
+- **`validate.ts`:** allow `rehan.status` to be null.
+- **`legacy.ts`:** a customer with a missing or empty name becomes "(no name)", with the warning
+  "N customers had no name and were saved as (no name)".
+- **`serialize.ts`:** strip any `?query` / `#hash` from photo base names.
