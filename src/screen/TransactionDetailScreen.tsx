@@ -6,13 +6,19 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
-  Dimensions,
   Modal,
   Alert,
-  KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { Text, TextInput } from "../ui";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Text,
+  TextInput,
+  Screen,
+  KeyboardArea,
+  FooterBar,
+  useLayout,
+} from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -84,10 +90,10 @@ interface Props {
   route: TransactionDetailScreenRouteProp;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const { transactionId, transactionType } = route.params;
+  const { mediaTile } = useLayout();
+  const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -572,24 +578,25 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <Screen style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading details...</Text>
-      </View>
+      </Screen>
     );
   }
 
   if (!user) {
     return (
-      <View style={styles.errorContainer}>
+      <Screen style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
         <Text style={styles.errorText}>Transaction not found</Text>
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
+      <KeyboardArea>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -695,7 +702,11 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               <View style={styles.amountDateRow}>
                 <View style={styles.amountHighlight}>
                   <Ionicons name="cash" size={22} color="#2E7D32" />
-                  <Text style={styles.amountValue}>
+                  <Text
+                    style={styles.amountValue}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
                     ₹
                     {(transactionType === "rehan"
                       ? rehan?.amount
@@ -1130,7 +1141,9 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </View>
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Name</Text>
-                <Text style={styles.infoValue}>{user.name}</Text>
+                <Text style={styles.infoValue} numberOfLines={1}>
+                  {user.name}
+                </Text>
               </View>
             </View>
 
@@ -1141,7 +1154,9 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Address</Text>
-                  <Text style={styles.infoValue}>{user.address}</Text>
+                  <Text style={styles.infoValue} numberOfLines={2}>
+                    {user.address}
+                  </Text>
                 </View>
               </View>
             )}
@@ -1241,7 +1256,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             {mediaPaths.map((path, index) => (
               <TouchableOpacity
                 key={index}
-                style={styles.mediaItem}
+                style={[
+                  styles.mediaItem,
+                  { width: mediaTile, height: mediaTile },
+                ]}
                 onPress={() =>
                   isEditMode ? removeImage(index) : setSelectedImageIndex(index)
                 }
@@ -1283,13 +1301,15 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
             disabled={lendenItems.length === 0}
           >
             <Ionicons name="receipt" size={20} color="#fff" />
-            <Text style={styles.billButtonText}>बिल बनाएं / Generate Bill</Text>
+            <Text style={styles.billButtonText} numberOfLines={1}>
+              बिल बनाएं / Generate Bill
+            </Text>
           </TouchableOpacity>
         )}
       </ScrollView>
       {/* Save Changes Button - only in edit mode with changes */}
       {isEditMode && hasChanges && (
-        <View style={styles.saveContainer}>
+        <FooterBar>
           <TouchableOpacity
             style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
             onPress={handleSaveChanges}
@@ -1304,19 +1324,22 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               </>
             )}
           </TouchableOpacity>
-        </View>
+        </FooterBar>
       )}
+      </KeyboardArea>
       {/* Full Screen Image Viewer */}
       {/* Full Screen Image Viewer with Zoom */}
       <Modal
         visible={selectedImageIndex !== null}
         transparent={true}
         animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setSelectedImageIndex(null)}
       >
         <View style={styles.modalContainer}>
           <TouchableOpacity
-            style={styles.modalCloseButton}
+            style={[styles.modalCloseButton, { top: insets.top + 8 }]}
             onPress={() => setSelectedImageIndex(null)}
           >
             <Ionicons name="close" size={28} color="#fff" />
@@ -1341,7 +1364,9 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 />
               </ReactNativeZoomableView>
 
-              <View style={styles.footerContainer}>
+              <View
+                style={[styles.footerContainer, { bottom: insets.bottom + 16 }]}
+              >
                 <TouchableOpacity
                   style={[
                     styles.navButton,
@@ -1391,7 +1416,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
         </View>
       </Modal>
-    </View>
+    </Screen>
   );
 };
 
@@ -1405,7 +1430,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 24,
   },
   loadingContainer: {
     flex: 1,
@@ -1493,6 +1518,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
     backgroundColor: "#E8F5E9",
     padding: 16,
     borderRadius: 12,
@@ -1502,6 +1528,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    flexShrink: 1,
   },
   amountValue: {
     fontSize: 24,
@@ -1529,9 +1556,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     marginBottom: 12,
   },
   sectionTitle: {
+    flexShrink: 1,
     fontSize: 17,
     fontWeight: "700",
     color: "#1A1A1A",
@@ -1659,8 +1688,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mediaItem: {
-    width: (SCREEN_WIDTH - 44) / 3,
-    height: (SCREEN_WIDTH - 44) / 3,
     borderRadius: 12,
     overflow: "hidden",
     position: "relative",
@@ -1714,16 +1741,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   billButtonDisabled: { backgroundColor: "#D8C79A" },
-  billButtonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
-  saveContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#E5E5E5",
+  billButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+    flexShrink: 1,
   },
   saveButton: {
     flexDirection: "row",
@@ -1750,7 +1772,6 @@ const styles = StyleSheet.create({
   },
   modalCloseButton: {
     position: "absolute",
-    top: 50,
     right: 20,
     zIndex: 10,
     padding: 8,
@@ -1768,7 +1789,6 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     position: "absolute",
-    bottom: 40,
     left: 0,
     right: 0,
     flexDirection: "row",

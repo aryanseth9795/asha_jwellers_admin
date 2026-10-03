@@ -7,7 +7,7 @@ import {
   Alert,
   Switch,
 } from "react-native";
-import { Text, TextInput } from "../ui";
+import { Text, TextInput, Screen } from "../ui";
 import { WebView } from "react-native-webview";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -156,18 +156,20 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
 
   if (isLoading || !html) {
     return (
-      <View style={styles.loader}>
+      <Screen style={styles.loader}>
         <ActivityIndicator size="large" color="#007AFF" />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <Screen style={styles.container}>
       <View style={styles.controls}>
         <View style={styles.topControlsRow}>
           <View style={styles.controlRow}>
-            <Text style={styles.controlLabel}>बिल नं.</Text>
+            <Text style={styles.controlLabel} numberOfLines={1}>
+              बिल नं.
+            </Text>
             <TextInput
               style={styles.billNoInput}
               value={billNoText}
@@ -177,7 +179,9 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
             />
           </View>
           <View style={styles.controlRow}>
-            <Text style={styles.controlLabel}>भुगतान विवरण</Text>
+            <Text style={styles.controlLabel} numberOfLines={1}>
+              भुगतान विवरण
+            </Text>
             <Switch
               value={showPaymentDetails}
               onValueChange={(v) => {
@@ -196,7 +200,9 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
           >
             <View style={styles.nestedLabelContainer}>
               <Ionicons name="return-down-forward" size={16} color="#007AFF" />
-              <Text style={styles.nestedControlLabel}>पिछला व कुल बाकी दिखाएं</Text>
+              <Text style={styles.nestedControlLabel} numberOfLines={1}>
+                पिछला व कुल बाकी दिखाएं
+              </Text>
             </View>
             <Switch
               value={showTotalBaki}
@@ -234,7 +240,7 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
           <Text style={styles.actionText}>प्रिंट करें</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Screen>
   );
 };
 
@@ -253,13 +259,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
   },
-  controlRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  controlLabel: { fontSize: 14, fontWeight: "600", color: "#666" },
+  controlRow: {
+    flexShrink: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  controlLabel: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
   nestedControlRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
     paddingLeft: 12,
     paddingRight: 10,
     paddingVertical: 6,
@@ -270,11 +288,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   nestedLabelContainer: {
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  nestedControlLabel: { fontSize: 14, fontWeight: "600", color: "#007AFF" },
+  nestedControlLabel: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
   billNoInput: {
     minWidth: 70,
     backgroundColor: "#F0F7FF",
