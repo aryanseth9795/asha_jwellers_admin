@@ -23,10 +23,12 @@ const CategoryPicker: React.FC<Props> = ({
   value,
   onChange,
   label = "Category (optional)",
-  placeholder = "Choose a category — Other if left empty",
+  placeholder = "Choose — Other if empty",
 }) => {
   const [options, setOptions] = useState<string[]>(BASE_CATEGORIES);
   const [open, setOpen] = useState(false);
+  // True once the admin types during the current focus; until then the whole list is shown.
+  const [typing, setTyping] = useState(false);
   const inputRef = useRef<React.ElementRef<typeof TextInput>>(null);
   const latest = useRef(value);
   latest.current = value;
@@ -45,14 +47,15 @@ const CategoryPicker: React.FC<Props> = ({
   }, []);
 
   const typed = value.trim();
-  const needle = categoryKey(typed);
-  // Focused and empty shows the whole list; typing narrows it to the matches.
+  const needle = typing ? categoryKey(typed) : "";
+  // Focusing shows the whole list (even over an existing value); typing narrows it to the matches.
   const suggestions = needle ? options.filter((o) => categoryKey(o).includes(needle)) : options;
   const isNew = needle.length > 0 && !options.some((o) => categoryKey(o) === needle);
 
   const handleFocus = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     edited.current = false;
+    setTyping(false);
     setOpen(true);
   };
 
@@ -90,6 +93,7 @@ const CategoryPicker: React.FC<Props> = ({
         value={value}
         onChangeText={(text) => {
           edited.current = true;
+          setTyping(true);
           onChange(text);
         }}
         onFocus={handleFocus}

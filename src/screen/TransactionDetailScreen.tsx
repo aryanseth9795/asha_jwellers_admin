@@ -636,6 +636,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Type Badge */}
         <View style={styles.typeContainer}>
