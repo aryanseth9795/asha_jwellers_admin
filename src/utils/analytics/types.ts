@@ -38,6 +38,7 @@ export interface RehanRow {
   status: number | null;
   amount: number | null; // running balance, not the opening principal
   productName?: string | null;
+  category?: string | null; // stored item category; null for records saved before categories
   media?: string | null; // JSON array of image paths
 }
 

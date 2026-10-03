@@ -50,6 +50,9 @@ import { User, Rehan, Lenden } from "../types/entry";
 import { saveImages } from "../storage/fileStorage";
 import BillTable from "../components/BillTable";
 import LendenItemsTable from "../components/LendenItemsTable";
+import CategoryPicker from "../components/CategoryPicker";
+import { getCategoryOptions } from "../database/itemCategories";
+import { BASE_CATEGORIES, resolveCategory } from "../utils/itemCategories";
 import AddLendenItemModal from "../components/AddLendenItemModal";
 import OldJewelleryItemsTable from "../components/OldJewelleryItemsTable";
 import AddOldJewelleryItemModal from "../components/AddOldJewelleryItemModal";
@@ -115,6 +118,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const [editAmount, setEditAmount] = useState("");
   const [originalProductName, setOriginalProductName] = useState("");
   const [originalAmount, setOriginalAmount] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [originalCategory, setOriginalCategory] = useState("");
 
   // Lenden-specific edit fields
   const [editDiscount, setEditDiscount] = useState("");
@@ -204,6 +209,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       JSON.stringify(mediaPaths) !== JSON.stringify(originalMediaPaths);
     const productNameChanged = editProductName !== originalProductName;
     const amountChanged = editAmount !== originalAmount;
+    const categoryChanged = editCategory.trim() !== originalCategory.trim();
     const discountChanged = editDiscount !== originalDiscount;
     const remainingChanged = editRemaining !== originalRemaining;
     const jamaChanged = editJama !== originalJama;
@@ -217,6 +223,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setHasChanges(
       mediaChanged ||
         productNameChanged ||
+        categoryChanged ||
         amountChanged ||
         discountChanged ||
         remainingChanged ||
@@ -230,6 +237,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     originalMediaPaths,
     editProductName,
     originalProductName,
+    editCategory,
+    originalCategory,
     editAmount,
     originalAmount,
     editDiscount,
@@ -252,6 +261,16 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         const rehanData = await getRehanById(transactionId);
         if (rehanData) {
           setRehan(rehanData);
+          // Fill the edit fields from the stored record (they used to start empty).
+          const storedName = rehanData.productName ?? "";
+          const storedAmount = rehanData.amount ? String(rehanData.amount) : "";
+          const storedCategory = rehanData.category ?? "";
+          setEditProductName(storedName);
+          setOriginalProductName(storedName);
+          setEditAmount(storedAmount);
+          setOriginalAmount(storedAmount);
+          setEditCategory(storedCategory);
+          setOriginalCategory(storedCategory);
           const paths = JSON.parse(rehanData.media);
           setMediaPaths(paths);
           setOriginalMediaPaths(paths);
@@ -300,7 +319,9 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
           const storedItems = await getLendenItems(transactionId);
           const mappedItems = storedItems.map((i) => ({
+            uuid: i.uuid,
             name: i.name,
+            category: i.category ?? null,
             metal: i.metal,
             purity: i.purity,
             weight: i.weight,
@@ -314,6 +335,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           const storedOldJewelleryItems =
             await getLendenOldJewelleryItems(transactionId);
           const mappedOldJewelleryItems = storedOldJewelleryItems.map((item) => ({
+            uuid: item.uuid,
             description: item.description,
             metal: item.metal,
             purity: item.purity,
@@ -459,12 +481,20 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       }
 
       // Update database
+      let savedCategory: string | undefined;
       if (transactionType === "rehan") {
+        // Keep the stored category (even none) unless the admin changed the field.
+        // Save does not blur the field, so resolve it here against the stored categories.
+        if (editCategory.trim() !== originalCategory.trim()) {
+          const options = await getCategoryOptions().catch(() => BASE_CATEGORIES);
+          savedCategory = resolveCategory(editCategory, options);
+        }
         await updateRehanDetails(
           transactionId,
           finalPaths,
           editProductName.trim() || undefined,
           editAmount ? parseInt(editAmount, 10) : undefined,
+          savedCategory,
         );
       } else {
         await updateLendenDetails(
@@ -493,6 +523,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       setOriginalMediaPaths(finalPaths);
       setOriginalProductName(editProductName);
       setOriginalAmount(editAmount);
+      if (transactionType === "rehan" && savedCategory !== undefined) {
+        setEditCategory(savedCategory);
+        setOriginalCategory(savedCategory);
+      }
       if (transactionType === "lenden") {
         setOriginalLendenItems(lendenItems);
         setOriginalOldJewelleryItems(oldJewelleryItems);
@@ -504,6 +538,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           ...rehan,
           media: JSON.stringify(finalPaths),
           productName: editProductName.trim() || undefined,
+          category: savedCategory !== undefined ? savedCategory : rehan.category,
           amount: editAmount ? parseInt(editAmount, 10) : undefined,
         });
       } else if (lenden) {
@@ -565,6 +600,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const cancelEdit = () => {
     setMediaPaths(originalMediaPaths);
     setEditProductName(originalProductName);
+    setEditCategory(originalCategory);
     setEditAmount(originalAmount);
     setEditDiscount(originalDiscount);
     setEditRemaining(originalRemaining);
@@ -668,6 +704,9 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   value={editProductName}
                   onChangeText={setEditProductName}
                 />
+                <View style={{ marginTop: 12 }}>
+                  <CategoryPicker value={editCategory} onChange={setEditCategory} />
+                </View>
               </View>
             ) : transactionType === "rehan" && rehan?.productName ? (
               <View style={styles.infoRow}>
@@ -679,6 +718,20 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Product Name</Text>
                   <Text style={styles.infoValue}>{rehan.productName}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {!isEditMode && transactionType === "rehan" && rehan?.category ? (
+              <View style={styles.infoRow}>
+                <View
+                  style={[styles.iconContainer, { backgroundColor: "#FFF3E0" }]}
+                >
+                  <Ionicons name="pricetag" size={20} color="#E65100" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Category</Text>
+                  <Text style={styles.infoValue}>{rehan.category}</Text>
                 </View>
               </View>
             ) : null}

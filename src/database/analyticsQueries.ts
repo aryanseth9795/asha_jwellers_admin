@@ -31,7 +31,7 @@ export const getAnalyticsData = async (): Promise<AnalyticsData> => {
     ),
     jama: await database.getAllAsync<JamaRow>("SELECT lendenId, amount, date FROM jama_entries"),
     rehan: await database.getAllAsync<RehanRow>(
-      "SELECT id, userId, openDate, closedDate, status, amount, productName, media FROM rehan",
+      "SELECT id, userId, openDate, closedDate, status, amount, productName, category, media FROM rehan",
     ),
     rehanTx: await database.getAllAsync<RehanTxRow>(
       "SELECT rehanId, type, amount, date FROM rehan_transactions",

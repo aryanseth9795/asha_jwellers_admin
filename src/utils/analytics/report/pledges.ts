@@ -73,7 +73,7 @@ export const buildPledgeRows = (
       principal: principalOf(r, txByRehan.get(r.id) ?? []),
       balance: r.amount ?? 0,
       name: r.productName ?? "",
-      item: itemTypeOf(r.productName),
+      item: r.category?.trim() || itemTypeOf(r.productName),
       bundle: isBundle(r.productName),
       village: onFile.has(r.userId) ? villageOfUser(groups, r.userId) : UNKNOWN_VILLAGE,
       onFile: onFile.has(r.userId),

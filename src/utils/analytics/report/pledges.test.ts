@@ -33,6 +33,21 @@ describe("buildPledgeRows", () => {
     expect(byId(3)).toMatchObject({ open: false, daysOpen: null, daysToRedeem: 180, bundle: true, item: "Locket" });
   });
 
+  it("prefers a stored category over the description keyword", () => {
+    const data = {
+      ...fixtureData,
+      rehan: fixtureData.rehan.map((r) =>
+        r.id === 1 ? { ...r, category: "Watch" } : r.id === 2 ? { ...r, category: "Other" } : r.id === 4 ? { ...r, category: null } : r,
+      ),
+    };
+    const list = buildPledgeRows(data, NOW);
+    const get = (id: number) => list.find((r) => r.id === id)!;
+    expect(get(1).item).toBe("Watch"); // description says Payal
+    expect(get(2).item).toBe("Other"); // description says Chain
+    expect(get(4).item).toBe("Kardhan"); // null falls back to the keyword rule
+    expect(get(3).item).toBe("Locket"); // category absent falls back too
+  });
+
   it("keeps pledges whose customer is missing", () => {
     expect(byId(8)).toMatchObject({ onFile: false, village: "Unknown", item: "Other" });
     expect(byId(7)).toMatchObject({ item: "Unspecified", village: "Unknown" });

@@ -28,6 +28,9 @@ import CustomDatePicker from "../components/CustomDatePicker";
 import BillTable from "../components/BillTable";
 import AddJamaModal from "../components/AddJamaModal";
 import LendenItemsTable from "../components/LendenItemsTable";
+import CategoryPicker from "../components/CategoryPicker";
+import { getCategoryOptions } from "../database/itemCategories";
+import { BASE_CATEGORIES, resolveCategory } from "../utils/itemCategories";
 import AddLendenItemModal from "../components/AddLendenItemModal";
 import OldJewelleryItemsTable from "../components/OldJewelleryItemsTable";
 import AddOldJewelleryItemModal from "../components/AddOldJewelleryItemModal";
@@ -63,6 +66,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [productName, setProductName] = useState("");
+  const [category, setCategory] = useState("");
   const [amount, setAmount] = useState("");
 
   // Lenden-specific fields
@@ -212,11 +216,14 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       const savedImagePaths = await saveImages(selectedImages);
 
       if (entryType === "rehan") {
+        // Save does not blur the category field, so resolve it here. Nothing chosen saves as "Other".
+        const categoryOptions = await getCategoryOptions().catch(() => BASE_CATEGORIES);
         await createRehan({
           userId,
           media: savedImagePaths,
           openDate: selectedDate.toISOString(),
           productName: productName.trim() || undefined,
+          category: resolveCategory(category, categoryOptions),
           amount: amount ? parseInt(amount, 10) : undefined,
         });
       } else {
@@ -375,6 +382,12 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
                     onChangeText={setProductName}
                     placeholderTextColor="#999"
                   />
+                </View>
+              )}
+
+              {entryType === "rehan" && (
+                <View style={styles.inputContainer}>
+                  <CategoryPicker value={category} onChange={setCategory} />
                 </View>
               )}
 

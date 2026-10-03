@@ -68,6 +68,8 @@ const AddOldJewelleryItemModal: React.FC<AddOldJewelleryItemModalProps> = ({
     if (!canSave) return;
     const parsedWeight = parseFloat(weight);
     onSave({
+      // Keep the item's identity on edit; a new item gets its uuid when it is stored.
+      uuid: editMode ? initialItem?.uuid : undefined,
       description: description.trim(),
       metal,
       purity,

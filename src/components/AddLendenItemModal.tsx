@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { BottomSheet, Text, TextInput } from "../ui";
+import CategoryPicker from "./CategoryPicker";
+import { getCategoryOptions } from "../database/itemCategories";
+import { BASE_CATEGORIES, resolveCategory } from "../utils/itemCategories";
 import { Ionicons } from "@expo/vector-icons";
 import {
   JewelleryMetal,
@@ -26,6 +29,8 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
   initialItem,
 }) => {
   const [name, setName] = useState("");
+  const [category, setCategory] = useState("");
+  const [saving, setSaving] = useState(false);
   const [metal, setMetal] = useState<JewelleryMetal>("gold");
   const [purity, setPurity] = useState<Purity>("22KT");
   const [weight, setWeight] = useState("");
@@ -42,6 +47,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
         initialItem.metal ??
         (initialItem.purity === "Silver" ? "silver" : "gold");
       setName(initialItem.name);
+      setCategory(initialItem.category ?? "");
       setMetal(initialMetal);
       setPurity(
         initialItem.purity &&
@@ -56,6 +62,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
       setTotalTouched(true);
     } else {
       setName("");
+      setCategory("");
       setMetal("gold");
       setPurity("22KT");
       setWeight("");
@@ -84,13 +91,27 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
   const canSave = name.trim().length > 0 && totalNum > 0;
   const purityOptions: Purity[] = PURITY_OPTIONS_BY_METAL[metal];
 
-  const handleSave = () => {
-    if (!canSave) return;
+  const handleSave = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    // Save does not blur the category field, so resolve it here against the stored categories.
+    // An item being edited keeps its stored category (possibly none) unless the admin changed the field.
+    let savedCategory: string | null;
+    if (editMode && initialItem && category.trim() === (initialItem.category ?? "").trim()) {
+      savedCategory = initialItem.category ?? null;
+    } else {
+      const options = await getCategoryOptions().catch(() => BASE_CATEGORIES);
+      savedCategory = resolveCategory(category, options);
+    }
+    setSaving(false);
     const w = parseFloat(weight);
     const q = parseInt(qty, 10);
     const r = parseInt(rate, 10);
     onSave({
+      // Keep the item's identity on edit; a new item gets its uuid when it is stored.
+      uuid: editMode ? initialItem?.uuid : undefined,
       name: name.trim(),
+      category: savedCategory,
       metal,
       purity,
       weight: Number.isFinite(w) ? w : null,
@@ -110,7 +131,7 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
         <TouchableOpacity
           style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
           onPress={handleSave}
-          disabled={!canSave}
+          disabled={!canSave || saving}
         >
           <Ionicons name="checkmark-circle" size={20} color="#fff" />
           <Text style={styles.saveButtonText}>
@@ -131,6 +152,10 @@ const AddLendenItemModal: React.FC<AddLendenItemModalProps> = ({
           onChangeText={setName}
           autoFocus
         />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <CategoryPicker value={category} onChange={setCategory} />
       </View>
 
       <View style={styles.inputGroup}>

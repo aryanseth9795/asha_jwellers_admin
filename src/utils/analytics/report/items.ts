@@ -59,3 +59,6 @@ export const itemTypeOf = (name: string | null | undefined): string => {
 };
 
 export const isBundle = (name: string | null | undefined): boolean => itemTypesIn(name).length >= 2;
+
+/** The item-type labels in rule order. The category dropdown starts from these. */
+export const ITEM_TYPES: string[] = Object.keys(KEYWORDS);

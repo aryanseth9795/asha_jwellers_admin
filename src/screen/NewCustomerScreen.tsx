@@ -25,6 +25,9 @@ import BillTable from "../components/BillTable";
 import AddJamaModal from "../components/AddJamaModal";
 import VillagePicker from "../components/VillagePicker";
 import { getVillages } from "../database/villages";
+import CategoryPicker from "../components/CategoryPicker";
+import { getCategoryOptions } from "../database/itemCategories";
+import { BASE_CATEGORIES, resolveCategory } from "../utils/itemCategories";
 import { normaliseVillageForSave } from "../utils/villageNames";
 
 type NewCustomerScreenNavigationProp = NativeStackNavigationProp<
@@ -61,6 +64,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
 
   // Rehan-specific fields
   const [productName, setProductName] = useState("");
+  const [category, setCategory] = useState("");
   const [rehanAmount, setRehanAmount] = useState("");
 
   // Lenden-specific fields
@@ -241,11 +245,14 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
 
       // Create entry based on type
       if (entryType === "rehan") {
+        // Save does not blur the category field, so resolve it here. Nothing chosen saves as "Other".
+        const categoryOptions = await getCategoryOptions().catch(() => BASE_CATEGORIES);
         await createRehan({
           userId,
           media: savedImagePaths,
           openDate: selectedDate.toISOString(),
           productName: productName.trim() || undefined,
+          category: resolveCategory(category, categoryOptions),
           amount: rehanAmount ? parseInt(rehanAmount, 10) : undefined,
         });
       } else {
@@ -435,6 +442,10 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
                   value={productName}
                   onChangeText={setProductName}
                 />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <CategoryPicker value={category} onChange={setCategory} />
               </View>
 
               <View style={styles.inputGroup}>
