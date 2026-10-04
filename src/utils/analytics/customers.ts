@@ -1,5 +1,5 @@
 import { AnalyticsData } from "./types";
-import { Period, dayNumber, daysBetween, inPeriod, median } from "./periods";
+import { Period, dayNumber, daysSince, inPeriod, median, toTime } from "./periods";
 import { oldCreditByLenden } from "./sales";
 
 export type Tier = "good" | "medium" | "low";
@@ -52,16 +52,18 @@ export const recencyPoints = (days: number): 1 | 2 | 3 =>
 export const tierFor = (score: number): Tier =>
   score >= 8 ? "good" : score >= 6 ? "medium" : "low";
 
+// A date that cannot be read (NaN) never wins, so a customer's latest and earliest are readable ones.
 const latest = (dates: string[]) =>
-  dates.reduce((a, b) => (new Date(a).getTime() >= new Date(b).getTime() ? a : b));
+  dates.reduce((a, b) => (toTime(a) >= toTime(b) || Number.isNaN(toTime(b)) ? a : b));
 const earliest = (dates: string[]) =>
-  dates.reduce((a, b) => (new Date(a).getTime() <= new Date(b).getTime() ? a : b));
+  dates.reduce((a, b) => (toTime(a) <= toTime(b) || Number.isNaN(toTime(b)) ? a : b));
 
 /** Customers whose first Len-Den or Rehan entry falls in the period (the view's newInPeriod, without the rest). */
 export const countNewCustomers = (data: AnalyticsData, period: Period): number => {
   const first = new Map<number, number>();
-  const note = (userId: number, iso: string) => {
-    const t = new Date(iso).getTime();
+  const note = (userId: number, stored: string) => {
+    const t = toTime(stored);
+    if (Number.isNaN(t)) return;
     const seen = first.get(userId);
     if (seen === undefined || t < seen) first.set(userId, t);
   };
@@ -128,11 +130,10 @@ export const buildCustomersView = (
   const visitPeers = [...purchases.values()].map((p) => p.days.size);
   const salesPeers = [...purchases.values()].map((p) => p.sales);
   const tooFewToRank = purchases.size < 3;
-  const nowIso = now.toISOString();
 
   const customers: CustomerStat[] = [...purchases]
     .map(([userId, p]) => {
-      const daysSinceLastVisit = Math.max(0, daysBetween(latest(activity.get(userId)!), nowIso));
+      const daysSinceLastVisit = Math.max(0, daysSince(latest(activity.get(userId)!), now));
       const tier: Tier = tooFewToRank
         ? "medium"
         : tierFor(

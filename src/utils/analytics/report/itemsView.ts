@@ -1,6 +1,6 @@
 import { PledgeRow } from "./pledges";
 import { pledgeStats } from "./pledgeBook";
-import { Bucket, sum } from "../periods";
+import { Bucket, sum, toTime } from "../periods";
 
 export interface ItemStat {
   item: string;
@@ -69,14 +69,11 @@ export const rankItems = (rows: PledgeRow[], minPledges = 5): ItemStat[] => {
   ];
 };
 
-const quarterOf = (iso: string) => {
-  const d = new Date(iso);
-  return { year: d.getFullYear(), q: Math.floor(d.getMonth() / 3) + 1 };
-};
+const quarterOf = (when: Date) => ({ year: when.getFullYear(), q: Math.floor(when.getMonth() / 3) + 1 });
 
 /** Pledges opened per calendar quarter for the last `quarters` quarters: the `top` items, then the rest. */
 export const itemMixByQuarter = (rows: PledgeRow[], now: Date, quarters = 4, top = 3): QuarterMix => {
-  const current = quarterOf(now.toISOString());
+  const current = quarterOf(now);
   const buckets: Bucket[] = [];
   for (let i = quarters - 1; i >= 0; i--) {
     const index = current.year * 4 + (current.q - 1) - i;
@@ -87,7 +84,7 @@ export const itemMixByQuarter = (rows: PledgeRow[], now: Date, quarters = 4, top
   const position = new Map(buckets.map((b, i) => [b.key, i]));
   const inRange = rows
     .map((r) => {
-      const { year, q } = quarterOf(r.openDate);
+      const { year, q } = quarterOf(new Date(toTime(r.openDate)));
       return { r, i: position.get(`${year}-Q${q}`) };
     })
     .filter((x): x is { r: PledgeRow; i: number } => x.i !== undefined);

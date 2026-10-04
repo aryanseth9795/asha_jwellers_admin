@@ -1,5 +1,8 @@
 // Shared test ledger for the report modules (spec §12). Not a test file.
 // Dates are local noon so local-time bucketing is exercised in any time zone.
+// The same ledger is also offered with plain-day dates and local-midnight timestamps below,
+// the two other forms a stored calendar date can take.
+import { normalizeDay, parseDay, toDay } from "../../dates";
 import { AnalyticsData, LendenRow, RehanRow, UserRow } from "../types";
 
 export const iso = (y: number, m: number, d: number): string =>
@@ -73,3 +76,31 @@ export const fixtureData: AnalyticsData = {
   soldItems: [],
   oldItems: [],
 };
+
+/** A stored calendar day as the migrated database holds it: plain `YYYY-MM-DD`, the local day. */
+export const day = (y: number, m: number, d: number): string => toDay(new Date(y, m - 1, d));
+
+/** What the old date picker stored for a picked day: the ISO text of local midnight. */
+export const midnightIso = (y: number, m: number, d: number): string =>
+  new Date(y, m - 1, d).toISOString();
+
+/** `data` with every calendar-date column rewritten by `convert`. `users.createdAt` stays a timestamp. */
+export const mapDates = (data: AnalyticsData, convert: (stored: string) => string): AnalyticsData => ({
+  ...data,
+  lenden: data.lenden.map((b) => ({ ...b, date: convert(b.date) })),
+  jama: data.jama.map((j) => ({ ...j, date: convert(j.date) })),
+  rehan: data.rehan.map((r) => ({
+    ...r,
+    openDate: convert(r.openDate),
+    closedDate: r.closedDate === null ? null : convert(r.closedDate),
+  })),
+  rehanTx: data.rehanTx.map((t) => ({ ...t, date: convert(t.date) })),
+});
+
+/** The ledger as the migration leaves it: the same days, each a plain local `YYYY-MM-DD`. */
+export const fixtureDataPlain: AnalyticsData = mapDates(fixtureData, normalizeDay);
+
+/** The ledger as the old picker wrote it: the same days, each the ISO text of local midnight. */
+export const fixtureDataMidnight: AnalyticsData = mapDates(fixtureData, (stored) =>
+  parseDay(normalizeDay(stored)).toISOString(),
+);

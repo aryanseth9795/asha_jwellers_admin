@@ -1,5 +1,5 @@
 import { AnalyticsData } from "./types";
-import { daysBetween } from "./periods";
+import { daysSince, toTime } from "./periods";
 import { oldCreditByLenden } from "./sales";
 
 export interface AgingBucket {
@@ -15,7 +15,7 @@ export interface AgingBucket {
  */
 export const baakiAt = (data: AnalyticsData, at: Date): number => {
   const t = at.getTime();
-  const before = (iso: string) => new Date(iso).getTime() < t;
+  const before = (stored: string) => toTime(stored) < t;
   const credit = oldCreditByLenden(data);
   const hasEntries = new Set(data.jama.map((j) => j.lendenId));
   const paid = new Map<number, number>();
@@ -43,11 +43,11 @@ const AGING = [
 /** Open entries' stored baki grouped by how old the bill is. */
 export const baakiAging = (data: AnalyticsData, now: Date = new Date()): AgingBucket[] => {
   const buckets = AGING.map(({ label }) => ({ label, count: 0, amount: 0 }));
-  const nowIso = now.toISOString();
   for (const bill of data.lenden) {
     const baki = bill.baki ?? 0;
     if ((bill.status ?? 0) !== 0 || baki <= 0) continue;
-    const age = Math.max(0, daysBetween(bill.date, nowIso));
+    const age = Math.max(0, daysSince(bill.date, now));
+    if (Number.isNaN(age)) continue; // a date that cannot be read cannot be aged
     const bucket = buckets[AGING.findIndex((a) => age <= a.maxDays)];
     bucket.count++;
     bucket.amount += baki;

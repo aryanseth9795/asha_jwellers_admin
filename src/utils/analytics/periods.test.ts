@@ -1,9 +1,12 @@
 import {
+  Period,
   allPeriod,
   bucketKey,
   buckets,
   customPeriod,
+  dayNumber,
   daysBetween,
+  daysSince,
   fyLabel,
   fyPeriod,
   fyStartYear,
@@ -18,8 +21,11 @@ import {
   shiftPeriod,
   sum,
   toDateEquivalent,
+  toTime,
   weekPeriod,
 } from "./periods";
+import { daysBetweenDays, toDay } from "../dates";
+import { day, midnightIso } from "./report/fixture";
 
 const d = (y: number, m: number, day: number, h = 12) => new Date(y, m - 1, day, h);
 const iso = (y: number, m: number, day: number, h = 12) => d(y, m, day, h).toISOString();
@@ -203,5 +209,159 @@ describe("toDateEquivalent", () => {
     const cut = toDateEquivalent(feb, mar, d(2027, 3, 31, 12));
     expect(cut.start).toEqual(feb.start);
     expect(cut.end).toEqual(feb.end);
+  });
+});
+
+// Calendar dates are stored as plain `YYYY-MM-DD` days (the phone's local day); rows from before
+// the migration are ISO timestamps. Every form of the same day must read as that day, so it lands
+// in the same week, month, quarter and financial year whichever form it is stored in.
+type Stamp = (y: number, m: number, dd: number) => string;
+const FORMS: [string, Stamp][] = [
+  ["a plain day", day],
+  ["an ISO local-midnight timestamp", midnightIso],
+  ["an ISO noon timestamp", (y, m, dd) => iso(y, m, dd)],
+];
+
+describe("toTime", () => {
+  it("reads a plain day as local midnight, not UTC midnight", () => {
+    const t = new Date(toTime("2026-10-01"));
+    expect([
+      t.getFullYear(), t.getMonth(), t.getDate(), t.getHours(), t.getMinutes(), t.getSeconds(), t.getMilliseconds(),
+    ]).toEqual([2026, 9, 1, 0, 0, 0, 0]);
+    expect(toTime("2026-10-01")).toBe(midnight(2026, 10, 1));
+  });
+
+  it("reads an ISO timestamp as the instant it names", () => {
+    const stamp = iso(2026, 10, 1, 15);
+    expect(toTime(stamp)).toBe(new Date(stamp).getTime());
+  });
+
+  it("gives a plain day and the ISO text of its own local midnight the same moment", () => {
+    expect(toTime(day(2026, 10, 1))).toBe(toTime(midnightIso(2026, 10, 1)));
+  });
+
+  it("is NaN, never a throw, for text that is not a date", () => {
+    for (const bad of ["", "garbage", "2026-13-01"]) expect(toTime(bad)).toBeNaN();
+    expect(inPeriod("garbage", fyPeriod(2026))).toBe(false);
+  });
+});
+
+describe.each(FORMS)("a date stored as %s", (_name, stored) => {
+  const inside = (period: Period, ...days: [number, number, number][]) =>
+    days.map(([y, m, dd]) => inPeriod(stored(y, m, dd), period));
+
+  it("falls in the right week, Monday to Sunday", () => {
+    const week = weekPeriod(d(2026, 10, 7)); // Mon 5 Oct to Sun 11 Oct
+    expect(inside(week, [2026, 10, 4], [2026, 10, 5], [2026, 10, 7], [2026, 10, 11], [2026, 10, 12])).toEqual([
+      false, true, true, true, false,
+    ]);
+    expect(bucketKey(stored(2026, 10, 5), week)).toBe("2026-10-05");
+    expect(bucketKey(stored(2026, 10, 11), week)).toBe("2026-10-11");
+  });
+
+  it("falls in the right month on its first and last day", () => {
+    const oct = monthPeriod(d(2026, 10, 7));
+    expect(inside(oct, [2026, 9, 30], [2026, 10, 1], [2026, 10, 31], [2026, 11, 1])).toEqual([false, true, true, false]);
+    // week bars: the first one starts on the Monday before the 1st
+    expect(bucketKey(stored(2026, 10, 1), oct)).toBe("2026-09-28");
+    expect(bucketKey(stored(2026, 10, 31), oct)).toBe("2026-10-26");
+  });
+
+  it("falls in the right financial-year quarter", () => {
+    const q1 = quarterPeriod(d(2026, 4, 1)); // Apr to Jun 2026
+    const q3 = quarterPeriod(d(2026, 10, 7)); // Oct to Dec 2026
+    const q4 = quarterPeriod(d(2027, 2, 10)); // Jan to Mar 2027
+    expect(inside(q1, [2026, 3, 31], [2026, 4, 1], [2026, 6, 30], [2026, 7, 1])).toEqual([false, true, true, false]);
+    expect(inside(q3, [2026, 9, 30], [2026, 10, 1], [2026, 12, 31], [2027, 1, 1])).toEqual([false, true, true, false]);
+    expect(inside(q4, [2026, 12, 31], [2027, 1, 1], [2027, 3, 31], [2027, 4, 1])).toEqual([false, true, true, false]);
+  });
+
+  it("falls in the right financial year, either side of 1 April", () => {
+    const fy = fyPeriod(2026);
+    expect(inside(fy, [2026, 3, 31], [2026, 4, 1], [2027, 3, 31], [2027, 4, 1])).toEqual([false, true, true, false]);
+    expect(bucketKey(stored(2026, 4, 1), fy)).toBe("2026-04");
+    expect(bucketKey(stored(2027, 3, 31), fy)).toBe("2027-03");
+    expect(bucketKey(stored(2026, 4, 1), allPeriod([stored(2026, 4, 1)]))).toBe("2026");
+    expect(bucketKey(stored(2026, 3, 31), allPeriod([stored(2026, 3, 31)]))).toBe("2025");
+  });
+
+  it("is summed into the right bar and dropped outside the period", () => {
+    const fy = fyPeriod(2026);
+    const values = series(buckets(fy), fy, [
+      { date: stored(2026, 4, 1), value: 100 },
+      { date: stored(2026, 4, 30), value: 50 },
+      { date: stored(2026, 5, 1), value: 7 },
+      { date: stored(2027, 3, 31), value: 3 },
+      { date: stored(2026, 3, 31), value: 999 }, // the day before the year
+      { date: stored(2027, 4, 1), value: 999 }, // the day after
+    ]);
+    expect(values[0]).toBe(150);
+    expect(values[1]).toBe(7);
+    expect(values[11]).toBe(3);
+    expect(sum(values)).toBe(160);
+  });
+
+  it("builds an all-time period of whole financial years", () => {
+    const p = allPeriod([stored(2024, 5, 1), stored(2026, 3, 31)]);
+    expect(p.start.getTime()).toBe(midnight(2024, 4, 1));
+    expect(p.end.getTime()).toBe(midnight(2026, 4, 1));
+    expect(allPeriod([stored(2026, 4, 1)]).start.getTime()).toBe(midnight(2026, 4, 1));
+    expect(allPeriod([stored(2026, 4, 1)]).end.getTime()).toBe(midnight(2027, 4, 1));
+  });
+
+  it("counts calendar days, also across the clock changes of a daylight-saving zone", () => {
+    expect(daysBetween(stored(2026, 3, 1), stored(2026, 3, 2))).toBe(1);
+    expect(daysBetween(stored(2026, 1, 1), stored(2026, 12, 31))).toBe(364);
+    expect(daysBetween(stored(2026, 3, 7), stored(2026, 3, 9))).toBe(2);
+    expect(daysBetween(stored(2026, 10, 31), stored(2026, 11, 2))).toBe(2);
+    expect(dayNumber(stored(2026, 3, 2)) - dayNumber(stored(2026, 3, 1))).toBe(1);
+  });
+});
+
+describe("stored days in mixed forms", () => {
+  it("treats a plain day and the ISO text of its own local midnight as the same day", () => {
+    expect(daysBetween(day(2026, 3, 1), midnightIso(2026, 3, 1))).toBe(0);
+    expect(daysBetween(midnightIso(2026, 3, 1), day(2026, 3, 1))).toBe(0);
+    expect(dayNumber(day(2026, 3, 1))).toBe(dayNumber(midnightIso(2026, 3, 1)));
+  });
+
+  it("counts days between one form and another", () => {
+    expect(daysBetween(day(2026, 1, 1), midnightIso(2026, 12, 31))).toBe(364);
+    expect(daysBetween(iso(2026, 3, 1, 23), day(2026, 3, 2))).toBe(1);
+    expect(daysBetween(midnightIso(2026, 3, 1), iso(2026, 3, 2, 1))).toBe(1);
+  });
+
+  it("puts both forms of the first and last day of a period inside it", () => {
+    const oct = monthPeriod(d(2026, 10, 7));
+    for (const stamp of [day, midnightIso]) {
+      expect(inPeriod(stamp(2026, 10, 1), oct)).toBe(true);
+      expect(inPeriod(stamp(2026, 10, 31), oct)).toBe(true);
+      expect(inPeriod(stamp(2026, 9, 30), oct)).toBe(false);
+      expect(inPeriod(stamp(2026, 11, 1), oct)).toBe(false);
+    }
+  });
+});
+
+describe("daysSince", () => {
+  // The same calendar day, early, midday and late: the count must not move with the time of day.
+  const nows = [
+    new Date(2026, 9, 2, 0, 0, 0, 0),
+    new Date(2026, 9, 2, 0, 5),
+    d(2026, 10, 2, 12),
+    new Date(2026, 9, 2, 23, 59, 59, 999),
+  ];
+
+  it.each(FORMS)("counts whole calendar days from %s up to the day of now", (_name, stored) => {
+    for (const now of nows) {
+      expect(daysSince(stored(2026, 9, 20), now)).toBe(12);
+      expect(daysSince(stored(2026, 10, 2), now)).toBe(0);
+      expect(daysSince(stored(2026, 10, 3), now)).toBe(-1);
+    }
+  });
+
+  it.each(FORMS)("agrees with daysBetweenDays for %s", (_name, stored) => {
+    for (const now of nows) {
+      expect(daysSince(stored(2026, 9, 20), now)).toBe(daysBetweenDays(stored(2026, 9, 20), toDay(now)));
+    }
   });
 });

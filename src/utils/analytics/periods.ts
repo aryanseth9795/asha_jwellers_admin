@@ -1,6 +1,9 @@
-// Period maths for analytics. Everything is local time: ISO strings are
-// stored in UTC, and a 1 a.m. IST sale must not slide into the previous day,
-// week, month or financial year.
+// Period maths for analytics. Everything is local time. Calendar dates are stored as
+// plain YYYY-MM-DD days (the phone's local day); rows not yet migrated still hold ISO
+// timestamps, which are stored in UTC. Either way a 1 a.m. IST sale must not slide
+// into the previous day, week, month or financial year.
+
+import { toDay, toLocalDate } from "../dates";
 
 export type Grain = "week" | "month" | "quarter" | "fy" | "custom" | "all";
 export type Unit = "day" | "week" | "month" | "year";
@@ -27,13 +30,16 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const APRIL = 3;
 
-// ISO strings are parsed thousands of times per render; parse each once.
+// Stored dates are parsed thousands of times per render; parse each once. A plain day is local
+// midnight (never UTC midnight, which is the evening before west of UTC); an ISO timestamp is the
+// instant it names. Text that is not a date is NaN, so it falls outside every period rather than
+// throwing in a render.
 const timeCache = new Map<string, number>();
-const toTime = (iso: string): number => {
-  let t = timeCache.get(iso);
+export const toTime = (stored: string): number => {
+  let t = timeCache.get(stored);
   if (t === undefined) {
-    t = new Date(iso).getTime();
-    timeCache.set(iso, t);
+    t = toLocalDate(stored)?.getTime() ?? NaN;
+    timeCache.set(stored, t);
   }
   return t;
 };
@@ -125,13 +131,13 @@ export const customPeriod = (from: Date, to: Date): Period => {
   };
 };
 
-/** Whole FYs from the earliest to the latest date given. */
-export const allPeriod = (isos: string[]): Period => {
-  if (isos.length === 0) {
+/** Whole FYs from the earliest to the latest date given (plain days or timestamps); dates that cannot be read are left out. */
+export const allPeriod = (dates: string[]): Period => {
+  const times = dates.map(toTime).filter((t) => !Number.isNaN(t));
+  if (times.length === 0) {
     const today = startOfDay(new Date());
     return { grain: "all", start: today, end: today, unit: "year", label: "All time" };
   }
-  const times = isos.map(toTime);
   const first = times.reduce((a, b) => Math.min(a, b));
   const last = times.reduce((a, b) => Math.max(a, b));
   return {
@@ -213,8 +219,8 @@ export const toDateEquivalent = (other: Period, current: Period, now: Date): Per
   return { ...range, grain: other.grain, unit: other.unit };
 };
 
-export const inPeriod = (iso: string, period: Period): boolean => {
-  const t = toTime(iso);
+export const inPeriod = (date: string, period: Period): boolean => {
+  const t = toTime(date);
   return t >= period.start.getTime() && t < period.end.getTime();
 };
 
@@ -231,8 +237,8 @@ const keyOf = (date: Date, unit: Unit): string => {
   }
 };
 
-export const bucketKey = (iso: string, period: Period): string =>
-  keyOf(new Date(toTime(iso)), period.unit);
+export const bucketKey = (date: string, period: Period): string =>
+  keyOf(new Date(toTime(date)), period.unit);
 
 /** Every bucket from start to end; the first may begin before start (e.g. a week). */
 export const buckets = (period: Period): Bucket[] => {
@@ -282,13 +288,22 @@ export const series = (bucketList: Bucket[], period: Period, points: Point[]): n
 };
 
 // Day index from local calendar fields, so DST and time-of-day can't shift it.
-export const dayNumber = (iso: string): number => {
-  const d = new Date(toTime(iso));
+export const dayNumber = (date: string): number => {
+  const d = new Date(toTime(date));
   return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
 };
 
-export const daysBetween = (fromIso: string, toIso: string): number =>
-  dayNumber(toIso) - dayNumber(fromIso);
+export const daysBetween = (from: string, to: string): number => dayNumber(to) - dayNumber(from);
+
+/**
+ * Whole local calendar days from a stored date (plain day or timestamp) up to the day `now` falls
+ * on, wherever in that day it is. Negative for a later date; NaN, not a throw, for a stored value
+ * that is not a date.
+ */
+export const daysSince = (stored: string, now: Date): number => daysBetween(stored, toDay(now));
+
+/** A day count, or null when it is NaN because a stored date behind it could not be read. */
+export const dayCountOrNull = (days: number): number | null => (Number.isNaN(days) ? null : days);
 
 export const median = (values: number[]): number | null => {
   if (values.length === 0) return null;

@@ -1,5 +1,5 @@
 import { AnalyticsData, RehanTxRow } from "../types";
-import { daysBetween } from "../periods";
+import { dayCountOrNull, daysBetween, daysSince, toTime } from "../periods";
 import { principalOf } from "../rehan";
 import { VillageGroups, UNKNOWN_VILLAGE, groupVillages, villageOfUser } from "../villages";
 import { isBundle, itemTypeOf } from "./items";
@@ -60,9 +60,9 @@ export const buildPledgeRows = (
     list.push(tx);
     txByRehan.set(tx.rehanId, list);
   }
-  const nowIso = now.toISOString();
   return data.rehan.map((r) => {
-    const opened = new Date(r.openDate);
+    // the local day opened (a plain day is local midnight), so year, month and weekday are the day picked
+    const opened = new Date(toTime(r.openDate));
     const open = (r.status ?? 0) === 0;
     return {
       id: r.id,
@@ -78,8 +78,8 @@ export const buildPledgeRows = (
       village: onFile.has(r.userId) ? villageOfUser(groups, r.userId) : UNKNOWN_VILLAGE,
       onFile: onFile.has(r.userId),
       photo: hasPhoto(r.media),
-      daysOpen: open ? Math.max(0, daysBetween(r.openDate, nowIso)) : null,
-      daysToRedeem: !open && r.closedDate ? daysBetween(r.openDate, r.closedDate) : null,
+      daysOpen: open ? dayCountOrNull(Math.max(0, daysSince(r.openDate, now))) : null,
+      daysToRedeem: !open && r.closedDate ? dayCountOrNull(daysBetween(r.openDate, r.closedDate)) : null,
       year: String(opened.getFullYear()),
       month: `${opened.getFullYear()}-${pad(opened.getMonth() + 1)}`,
       weekday: opened.getDay(),

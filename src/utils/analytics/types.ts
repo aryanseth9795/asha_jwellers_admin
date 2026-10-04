@@ -1,5 +1,10 @@
 // Flat rows fetched by analyticsQueries.ts. Pure types so the analytics
 // modules stay importable from Jest without expo-sqlite.
+//
+// Calendar dates (lenden.date, jama.date, rehan.openDate/closedDate, rehanTx.date) are plain
+// `YYYY-MM-DD` local days; rows not yet migrated still hold ISO timestamps. Analytics read both
+// through periods.ts (toTime), so a date means the same day in either form. users.createdAt is
+// always a full timestamp.
 
 export interface UserRow {
   id: number;

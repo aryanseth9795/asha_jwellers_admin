@@ -1,5 +1,5 @@
 import { AnalyticsData } from "../types";
-import { sum } from "../periods";
+import { dayNumber, sum } from "../periods";
 import { formatInr } from "../format";
 import { MIN_VILLAGE_CUSTOMERS, groupVillages, villageName } from "../villages";
 import { buildPledgeRows } from "./pledges";
@@ -206,8 +206,9 @@ export const dataQuality = (data: AnalyticsData, now: Date = new Date()): Qualit
   }
 
   const closedNoDate = data.rehan.filter((r) => r.status === 1 && !r.closedDate).length;
+  // A close is early only when it is dated on an earlier day: closing the day you opened is fine.
   const closedBeforeOpen = data.rehan.filter(
-    (r) => r.closedDate && new Date(r.closedDate).getTime() < new Date(r.openDate).getTime(),
+    (r) => r.closedDate && dayNumber(r.closedDate) < dayNumber(r.openDate),
   ).length;
   const openWithDate = data.rehan.filter((r) => (r.status ?? 0) === 0 && r.closedDate).length;
   const exceptions = closedNoDate + closedBeforeOpen + openWithDate;

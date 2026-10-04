@@ -1,5 +1,5 @@
 import { AnalyticsData } from "../types";
-import { daysBetween, sum } from "../periods";
+import { dayCountOrNull, dayNumber, daysSince, sum } from "../periods";
 import { UNKNOWN_VILLAGE, VillageGroups, villageOfUser } from "../villages";
 import { hasPhoto } from "./pledges";
 
@@ -60,7 +60,6 @@ export const buildBillRows = (data: AnalyticsData, groups: VillageGroups, now: D
   const users = new Map(data.users.map((u) => [u.id, u]));
   const entries = new Map<number, number>();
   for (const j of data.jama) entries.set(j.lendenId, (entries.get(j.lendenId) ?? 0) + j.amount);
-  const nowIso = now.toISOString();
   return data.lenden
     .map((b) => {
       const user = users.get(b.userId);
@@ -93,13 +92,14 @@ export const buildBillRows = (data: AnalyticsData, groups: VillageGroups, now: D
         collected,
         pending,
         open,
-        daysOpen: open && pending > 0 ? Math.max(0, daysBetween(b.date, nowIso)) : null,
+        daysOpen: open && pending > 0 ? dayCountOrNull(Math.max(0, daysSince(b.date, now))) : null,
         overridden: b.amountOverridden === 1,
         photo: hasPhoto(b.media),
         flags,
       };
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime() || b.id - a.id);
+    // newest day first; bills of one day, newest id first
+    .sort((a, b) => dayNumber(b.date) - dayNumber(a.date) || b.id - a.id);
 };
 
 export const billLabel = (row: BillRow): string => (row.billNo != null ? `#${row.billNo}` : `ID ${row.id}`);
@@ -133,8 +133,9 @@ export const waterfall = (s: BillingSummary) => [
   { label: "Pending dues", value: s.pending },
 ];
 
+// Bills are ordered by the day they are dated, then by id: the time of day is not part of a date.
 const oldestFirst = (rows: BillRow[]) =>
-  [...rows].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || a.id - b.id);
+  [...rows].sort((a, b) => dayNumber(a.date) - dayNumber(b.date) || a.id - b.id);
 
 export const discountPerBill = (rows: BillRow[]) => ({
   bills: oldestFirst(rows).map((r) => ({ label: billLabel(r), pct: r.gross ? r.discount / r.gross : 0 })),

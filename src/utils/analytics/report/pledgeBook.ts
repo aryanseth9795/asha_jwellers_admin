@@ -1,5 +1,5 @@
 import { PledgeRow } from "./pledges";
-import { median, sum } from "../periods";
+import { median, sum, toTime } from "../periods";
 
 export interface PledgeStats {
   pledges: number;
@@ -84,8 +84,6 @@ const monthKeysBetween = (first: string, last: string): string[] => {
   return keys;
 };
 
-const time = (iso: string) => new Date(iso).getTime();
-
 export const pledgeStats = (rows: PledgeRow[]): PledgeStats => {
   const open = rows.filter((r) => r.open);
   const principals = rows.map((r) => r.principal);
@@ -124,10 +122,10 @@ export const monthlyBook = (rows: PledgeRow[], now: Date): MonthPoint[] => {
     const end = new Date(y, m + 1, 1).getTime();
     const opened = rows.filter((r) => r.month === key);
     const redeemed = rows.filter(
-      (r) => !r.open && r.closedDate && time(r.closedDate) >= start && time(r.closedDate) < end,
+      (r) => !r.open && r.closedDate && toTime(r.closedDate) >= start && toTime(r.closedDate) < end,
     );
     const openAtEnd = rows.filter(
-      (r) => time(r.openDate) < end && (r.open || !r.closedDate || time(r.closedDate) >= end),
+      (r) => toTime(r.openDate) < end && (r.open || !r.closedDate || toTime(r.closedDate) >= end),
     );
     return {
       key,

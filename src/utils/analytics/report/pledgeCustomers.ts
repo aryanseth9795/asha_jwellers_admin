@@ -1,5 +1,5 @@
 import { AnalyticsData, UserRow } from "../types";
-import { sum } from "../periods";
+import { sum, toTime } from "../periods";
 import { OTHER_VILLAGES, UNKNOWN_VILLAGE, VillageGroups } from "../villages";
 import { PledgeRow } from "./pledges";
 import { monthLabel, pledgeStats } from "./pledgeBook";
@@ -179,7 +179,7 @@ export const customersAdded = (users: UserRow[], now: Date): AddedPoint[] => {
   const counts = new Map<string, number>();
   for (const u of users) {
     if (!u.createdAt) continue;
-    const k = keyOf(new Date(u.createdAt));
+    const k = keyOf(new Date(toTime(u.createdAt)));
     counts.set(k, (counts.get(k) ?? 0) + 1);
   }
   if (counts.size === 0) return [];

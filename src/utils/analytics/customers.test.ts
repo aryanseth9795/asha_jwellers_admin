@@ -1,5 +1,6 @@
 import { allPeriod, fyPeriod } from "./periods";
 import { buildCustomersView, countNewCustomers, recencyPoints, thirdPoints, tierFor } from "./customers";
+import { day, midnightIso } from "./report/fixture";
 import { AnalyticsData, LendenRow } from "./types";
 
 const iso = (y: number, m: number, d: number) => new Date(y, m - 1, d, 12).toISOString();
@@ -125,5 +126,55 @@ describe("buildCustomersView", () => {
     expect(blank.repeatRate).toBe(0);
     expect(blank.medianGapDays).toBeNull();
     expect(blank.customers).toEqual([]);
+  });
+});
+
+// Dates are stored as plain `YYYY-MM-DD` days now; rows from before the migration are ISO
+// timestamps. Visits, gaps and recency count calendar days, so every form gives the same view.
+type Stamp = (y: number, m: number, d: number) => string;
+const FORMS: [string, Stamp][] = [
+  ["a plain day", day],
+  ["an ISO local-midnight timestamp", midnightIso],
+  ["an ISO noon timestamp", iso],
+];
+
+describe.each(FORMS)("customers with dates stored as %s", (_name, stored) => {
+  const data: AnalyticsData = {
+    ...empty,
+    users: [1, 2, 3].map((id) => ({ id, name: `C${id}` })),
+    lenden: [
+      bill(1, stored(2026, 4, 10), 100000),
+      bill(1, stored(2026, 4, 10), 5000), // same day: one visit
+      bill(1, stored(2026, 9, 20), 100000),
+      bill(2, stored(2026, 5, 1), 20000),
+      bill(2, stored(2026, 7, 1), 20000),
+      bill(3, stored(2026, 4, 2), 10000, { baki: 8000, status: 0 }),
+    ],
+  };
+
+  it("counts visits, gaps and days since the last visit in calendar days, at any time of day", () => {
+    for (const now of [new Date(2026, 9, 2, 0, 5), NOW, new Date(2026, 9, 2, 23, 55)]) {
+      const view = buildCustomersView(data, FY26, now);
+      const byName = Object.fromEntries(view.customers.map((c) => [c.name, c]));
+      expect(byName.C1).toMatchObject({ visits: 2, daysSinceLastVisit: 12 });
+      expect(byName.C2).toMatchObject({ visits: 2, daysSinceLastVisit: 93 });
+      expect(byName.C3).toMatchObject({ visits: 1, daysSinceLastVisit: 183 });
+      expect(view.medianGapDays).toBe(112); // gaps 163 (C1) and 61 (C2)
+      expect(view.gapBins.find((b) => b.label === "1–3 mo")?.count).toBe(1);
+      expect(view.gapBins.find((b) => b.label === "3–6 mo")?.count).toBe(1);
+    }
+  });
+
+  it("counts a customer as new in the period they first bought in, either side of its first day", () => {
+    const first = (y: number, m: number, dd: number): AnalyticsData => ({
+      ...empty,
+      lenden: [bill(1, stored(y, m, dd), 1000)],
+    });
+    expect(countNewCustomers(first(2026, 3, 31), FY26)).toBe(0);
+    expect(countNewCustomers(first(2026, 4, 1), FY26)).toBe(1);
+    expect(countNewCustomers(first(2027, 3, 31), FY26)).toBe(1);
+    expect(countNewCustomers(first(2027, 4, 1), FY26)).toBe(0);
+    expect(buildCustomersView(first(2026, 4, 1), FY26, NOW).newInPeriod).toBe(1);
+    expect(buildCustomersView(first(2026, 3, 31), FY26, NOW).newInPeriod).toBe(0);
   });
 });
