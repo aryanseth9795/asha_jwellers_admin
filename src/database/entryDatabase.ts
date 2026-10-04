@@ -10,6 +10,7 @@ import {
   NewJamaEntry,
 } from "../types/entry";
 import { UUID_SQL } from "./uuidSql";
+import { ensureIndexes } from "./indexes";
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -373,6 +374,14 @@ export const initDatabase = async () => {
     // next launch retries from a clean state. Swallowing it would let the app
     // run with INSERTs that reference a column that does not exist.
     await ensureIdentityColumns(database);
+
+    // Index creation is non-fatal: indexes only affect speed, so a failure must
+    // never stop the app from opening.
+    try {
+      await ensureIndexes(database);
+    } catch (error) {
+      console.error("Index creation failed (app continues, retried next launch):", error);
+    }
 
     console.log("SQLite database initialized with User, Rehan, Lenden tables");
   } catch (error) {

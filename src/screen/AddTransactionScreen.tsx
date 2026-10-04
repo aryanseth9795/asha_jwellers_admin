@@ -132,7 +132,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: "images",
       allowsEditing: true,
-      quality: 1,
+      quality: 0.6,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -154,7 +154,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
       mediaTypes: "images",
       allowsMultipleSelection: false,
       allowsEditing: true,
-      quality: 1,
+      quality: 0.6,
     });
 
     if (!result.canceled && result.assets[0]) {

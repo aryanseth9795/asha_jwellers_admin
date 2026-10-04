@@ -120,7 +120,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: "images",
       allowsEditing: true,
-      quality: 1,
+      quality: 0.6,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -142,7 +142,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       mediaTypes: "images",
       allowsMultipleSelection: false,
       allowsEditing: true,
-      quality: 1,
+      quality: 0.6,
     });
 
     if (!result.canceled && result.assets.length > 0) {
