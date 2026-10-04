@@ -104,3 +104,54 @@ The worst case is `getTotalJamaByLendenId`. When it returns 0 on error, `updateL
 **Checks:**
 - `tsc` and jest stay green, and the source audit still passes. The audit globs for `<Screen` in `src/screen`, so it must be updated to look inside the folders.
 - Each split is reviewed by diffing the old file against the new folder for lost or changed logic.
+
+---
+
+## Task 3 execution split (controller, after the dates audit `agent/2026-10-04-dates-audit.md`)
+
+**Step 0 (one small agent first).**
+- Add `toLocalDate(value: string | null | undefined): Date | null` to `src/utils/dates.ts`, with tests:
+  - a plain day goes through `parseDay`
+  - anything else goes through `new Date(value)`
+  - empty or invalid input gives `null`
+  - it never throws
+- Also add `daysBetweenDays(a: string, b: string): number`, which counts calendar days between two stored values (plain day or timestamp) using local days.
+
+Then three agents run in parallel on disjoint files.
+
+**3a — database, migration, backups.**
+- **Files:** `src/database/*`, `src/backup/*`, `src/services/Backup*`, `src/test/*`.
+- **Migration:** `migrateCalendarDays(database)` runs after `ensureIndexes`, guarded by `PRAGMA user_version < 1`.
+  - It is one `withTransactionAsync`. It rewrites every non-plain value in the five columns with `normalizeDay`, then sets `PRAGMA user_version = 1` in the same transaction.
+  - An unparseable value is left unchanged, logged and counted. It never aborts the migration.
+  - The migration is non-fatal (logged). Readers handle both forms, so the app stays usable and the migration is retried on the next launch.
+- **Writes:**
+  - Defaults use `todayDay()`.
+  - `closeRehan` writes `closedDate = todayDay()` and a full-timestamp `updatedAt`.
+  - Date ordering adds `, id DESC` (or `ASC` to match).
+  - The Existing Customers SQL filters compare the plain-date columns directly, with no `date()`.
+- **Backups:**
+  - `validate.ts` accepts both forms, and `validateBackup` returns the five fields normalised.
+  - `convertLegacy` normalises them too. It keeps the raw timestamp for `updatedAt` and uses "1970-01-01" plus a warning for a missing day.
+- **Tests:**
+  - migration on the stand-in: mixed values, idempotent, a bad value left alone
+  - backup normalisation
+  - the round-trip test still passes
+  - Task 1 review Minor 1: strengthen `errors.test.ts` "resolves with real data" to assert the seeded values
+
+**3b — screens, components, bill services.**
+- **Files:** `src/screen/*`, `src/components/*`, `src/services/BillHtmlService.ts`, `src/services/BillService.ts`.
+- **Writes:** every write of the five fields uses `toDay(...)`.
+- **Reads:** pickers and display use `toLocalDate(...)`.
+- **Existing Customers filter:** passes `toDay(...)`.
+- **Task 1 review Minors 2 and 3:**
+  - success toasts only after a successful refresh, otherwise "Saved, but couldn't refresh"
+  - `bakiRecomputePending` is set back to true in the failing catch
+
+**3c — analytics.**
+- **Files:** `src/utils/analytics/**`.
+- **Parsing:** `periods.ts` `toTime` parses plain days as local midnight via `toLocalDate`.
+- **Day counts:** day-based ages use `daysBetweenDays` or `toDay(now)` in place of `now.toISOString()`.
+- **Tests:**
+  - plain-date rows fall into the right week, month, quarter and FY
+  - the age buckets are unchanged for equivalent data
