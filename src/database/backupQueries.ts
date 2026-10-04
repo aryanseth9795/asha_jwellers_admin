@@ -13,7 +13,7 @@ import {
   TABLE_KEYS,
   TableKey,
 } from "../backup/format";
-import { normalizeDay } from "../utils/dates";
+import { asStoredDay } from "../backup/validate";
 import { UUID_SQL } from "./uuidSql";
 
 /**
@@ -119,8 +119,8 @@ const localMedia = (recordUuid: string, media: string[], mediaMap: Map<string, s
  * ("customer not on file"). Any unresolved parent throws, which rolls the whole transaction back.
  *
  * The calendar fields (rehan openDate/closedDate, every other date) are stored as plain local days, whatever the
- * caller hands in, so no import path can write a timestamp into them. validateBackup and convertLegacy already give
- * plain days; a value that is not a date throws here and rolls everything back.
+ * caller hands in, so no import path can write a timestamp into them. A value that cannot be read as a date is stored
+ * exactly as given (validateBackup and convertLegacy have counted it for the owner), so a restore is exact.
  */
 const insertRows = async (
   txn: Txn,
@@ -166,8 +166,8 @@ const insertRows = async (
       x.category,
       x.amount,
       x.status,
-      normalizeDay(x.openDate),
-      x.closedDate == null ? null : normalizeDay(x.closedDate),
+      asStoredDay(x.openDate),
+      x.closedDate == null ? null : asStoredDay(x.closedDate),
       localMedia(x.uuid, x.media, mediaMap),
       x.updatedAt,
     );
@@ -182,7 +182,7 @@ const insertRows = async (
       await idOf("rehan", t.rehanUuid),
       t.type,
       t.amount,
-      normalizeDay(t.date),
+      asStoredDay(t.date),
       t.updatedAt,
     );
     counts.rehanTransactions++;
@@ -193,7 +193,7 @@ const insertRows = async (
       "INSERT INTO lenden (uuid, userId, date, amount, discount, remaining, jama, baki, status, billNo, amountOverridden, media, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       l.uuid,
       await customerId(l.customerUuid),
-      normalizeDay(l.date),
+      asStoredDay(l.date),
       l.amount,
       l.discount,
       l.remaining,
@@ -250,7 +250,7 @@ const insertRows = async (
       j.uuid,
       await idOf("lenden", j.lendenUuid),
       j.amount,
-      normalizeDay(j.date),
+      asStoredDay(j.date),
       j.updatedAt,
     );
     counts.jamaEntries++;

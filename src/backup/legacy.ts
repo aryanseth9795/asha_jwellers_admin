@@ -3,14 +3,14 @@
  * Pure: the caller supplies the uuid generator.
  */
 import { BackupData, BackupError, CustomerRow, LendenRow, RehanRow, UUID_RE } from "./format";
-import { isDay, normalizeDay, parseDay } from "../utils/dates";
+import { asStoredDay, keptDatesWarning, readDay } from "./validate";
 
 export const LEGACY_WARNING =
   "This is an old backup: jama payments, rehan diya/jama, bill items and old jewellery are not in it and cannot be restored.";
 
-/** Timestamp for a record with no date (createdAt, updatedAt). */
+/** Timestamp for a customer with no createdAt. */
 const EPOCH = "1970-01-01T00:00:00.000Z";
-/** Calendar day for a record with no date. Not normalizeDay(EPOCH): that is 31 December 1969 west of UTC. */
+/** Calendar day for a record with no date. Not the local day of EPOCH: that is 31 December 1969 west of UTC. */
 const EPOCH_DAY = "1970-01-01";
 const NO_NAME = "(no name)";
 
@@ -24,6 +24,8 @@ const validUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.
 export const convertLegacy = (
   input: { users: unknown; rehan: unknown; lenden: unknown },
   newUuid: () => string,
+  /** The time of the import: updatedAt of a record that has no date of its own. */
+  now: Date = new Date(),
 ): { data: BackupData; warnings: string[] } => {
   const { users, rehan, lenden } = input;
   if (!Array.isArray(users) || !Array.isArray(rehan) || !Array.isArray(lenden)) {
@@ -92,15 +94,13 @@ export const convertLegacy = (
   };
 
   // Calendar days (openDate, closedDate, date) are stored as plain local days. Old backups carry the timestamps the
-  // app used to store. A value that is not a date is kept as it is, so the import's check rejects the backup and names
-  // the row, instead of the record being quietly dated 1970.
+  // app used to store. A value that cannot be read is kept exactly as stored and counted for one warning, the same rule
+  // as validateBackup: it never stops a restore.
   let undated = 0;
+  let unreadable = 0;
   const dayOf = (raw: string): string => {
-    try {
-      return normalizeDay(raw);
-    } catch {
-      return raw;
-    }
+    if (readDay(raw) === null) unreadable++;
+    return asStoredDay(raw);
   };
   /** A required calendar day: EPOCH_DAY (counted for one warning) when the record has none. */
   const requiredDay = (raw: string | null): string => {
@@ -108,8 +108,9 @@ export const convertLegacy = (
     undated++;
     return EPOCH_DAY;
   };
-  /** updatedAt stays a full timestamp: the record's own stored date, or the start of the day for a plain day. */
-  const stampOf = (raw: string | null): string => (raw === null ? EPOCH : isDay(raw) ? parseDay(raw).toISOString() : raw);
+  /** updatedAt: the record's own stored date as it was, or the time of the import when it has none. */
+  const importedAt = now.toISOString();
+  const stampOf = (raw: string | null): string => raw ?? importedAt;
 
   const rehanRows: RehanRow[] = [];
   for (const r of rehan) {
@@ -172,6 +173,8 @@ export const convertLegacy = (
       } saved with the date 1 January 1970`,
     );
   }
+
+  if (unreadable > 0) warnings.push(keptDatesWarning(unreadable));
 
   return {
     data: {

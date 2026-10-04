@@ -129,6 +129,14 @@ const firstProblem = (problems: string[]): string =>
 /** The export's own note about photos missing on the old phone; the sheet already says that from missingMedia. */
 const MISSING_PHOTOS_WARNING = /photos listed on records were not found on the phone/;
 
+/** The notes shown before a v2 import: the export's own notes (less the missing-photos one), then what the check found. */
+export const previewWarnings = (manifestWarnings: unknown, found: string[]): string[] => [
+  ...(Array.isArray(manifestWarnings) ? manifestWarnings : []).filter(
+    (w): w is string => typeof w === "string" && !MISSING_PHOTOS_WARNING.test(w),
+  ),
+  ...found,
+];
+
 // ---------- Pick and stage ----------
 
 /** Where the unzipped backup starts: the folder itself, or its one sub-folder when the zip wraps everything in one. */
@@ -172,9 +180,7 @@ const stageV2 = async (contentDir: string): Promise<Omit<StagedImport, "dir" | "
 
   const plan = planMerge(data, await readSnapshot());
   const missing = manifest.media && typeof manifest.media.missing === "number" ? manifest.media.missing : 0;
-  const warnings = (Array.isArray(manifest.warnings) ? manifest.warnings : []).filter(
-    (w): w is string => typeof w === "string" && !MISSING_PHOTOS_WARNING.test(w),
-  );
+  const warnings = previewWarnings(manifest.warnings, result.warnings);
   return {
     data,
     plan,

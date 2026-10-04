@@ -7,7 +7,7 @@ import {
   TABLE_KEYS,
 } from "./format";
 import { fnv1a } from "./checksum";
-import { normalizeBackupDays, validateBackup, validateData } from "./validate";
+import { normalizeBackupDays, readDay, validateBackup, validateData } from "./validate";
 import { toDay } from "../utils/dates";
 
 const U = {
@@ -130,6 +130,11 @@ const dataOf = (r: ReturnType<typeof validateBackup>): BackupData => {
   return r.data;
 };
 
+const warningsOf = (r: ReturnType<typeof validateBackup>): string[] => {
+  if (!r.ok) throw new Error(`expected a valid backup: ${r.errors.join("; ")}`);
+  return r.warnings;
+};
+
 describe("validateBackup", () => {
   it("accepts a valid backup and returns the manifest and data", () => {
     const { input, manifest } = build();
@@ -138,6 +143,7 @@ describe("validateBackup", () => {
     if (r.ok) {
       expect(r.manifest).toEqual(manifest);
       expect(r.data).toEqual(goodData());
+      expect(r.warnings).toEqual([]);
     }
   });
 
@@ -406,8 +412,16 @@ describe("calendar days", () => {
     return data;
   };
 
+  it("reads a plain day as it is, a timestamp as its local day, and nothing else", () => {
+    expect(readDay("2026-09-15")).toBe("2026-09-15");
+    expect(readDay(IST_MIDNIGHT)).toBe(toDay(new Date(IST_MIDNIGHT)));
+    for (const unreadable of ["garbage", "2026-02-30", "15/09/2026", ""]) expect(readDay(unreadable)).toBeNull();
+  });
+
   it("accepts an older backup whose calendar days are timestamps and returns each as its local day", () => {
-    const data = dataOf(validateBackup(build(olderData()).input));
+    const r = validateBackup(build(olderData()).input);
+    expect(warningsOf(r)).toEqual([]);
+    const data = dataOf(r);
     const expected = goodData();
     expected.rehan[0].openDate = toDay(new Date(IST_MIDNIGHT));
     expected.rehan[0].closedDate = toDay(new Date(LATE));
@@ -431,26 +445,58 @@ describe("calendar days", () => {
     expect(data.lenden[0].date).toBe(toDay(new Date(NOON)));
   });
 
-  it("flags a calendar day that is neither a plain day nor a timestamp", () => {
+  // A stored value that cannot be read as a date never stops a backup from being made or restored: it is kept
+  // exactly as stored and counted for one warning.
+  it("keeps a calendar value it cannot read exactly as stored, accepts the backup and says how many", () => {
     const data = goodData();
     data.rehan[0].openDate = "garbage";
     data.rehan[0].closedDate = "2026-02-30";
     data.rehanTransactions[0].date = "15/09/2026";
-    (data.lenden[0] as unknown as Record<string, unknown>).date = 20260915;
-    data.jamaEntries[0].date = "";
-    expect(validateData(data, mediaSet())).toEqual([
-      "rehan row 1: openDate is not a valid date",
-      "rehan row 1: closedDate is not a valid date",
-      "rehanTransactions row 1: date is not a valid date",
-      "lenden row 1: date is missing",
-      "jamaEntries row 1: date is missing",
+    data.lenden[0].date = NOON; // readable: still converted
+    data.jamaEntries[0].date = "someday";
+    expect(validateData(data, mediaSet())).toEqual([]);
+
+    const r = validateBackup(build(data).input);
+    const out = dataOf(r);
+    expect(out.rehan[0]).toMatchObject({ openDate: "garbage", closedDate: "2026-02-30" });
+    expect(out.rehanTransactions[0].date).toBe("15/09/2026");
+    expect(out.jamaEntries[0].date).toBe("someday");
+    expect(out.lenden[0].date).toBe(toDay(new Date(NOON)));
+    expect(warningsOf(r)).toEqual(["4 dates could not be read and were kept exactly as stored"]);
+  });
+
+  it("says it in the singular for one date", () => {
+    const data = goodData();
+    data.lenden[0].date = "someday";
+    expect(warningsOf(validateBackup(build(data).input))).toEqual([
+      "1 date could not be read and was kept exactly as stored",
     ]);
   });
 
-  it("rejects such a backup and names the row", () => {
+  it("allows a closedDate of null or any text, keeping text it cannot read as it is", () => {
     const data = goodData();
-    data.lenden[0].date = "someday";
-    expect(errorsOf(validateBackup(build(data).input))).toEqual(["lenden row 1: date is not a valid date"]);
+    expect(warningsOf(validateBackup(build(data).input))).toEqual([]); // null: an open rehan
+    data.rehan[0].closedDate = "";
+    const r = validateBackup(build(data).input);
+    expect(dataOf(r).rehan[0].closedDate).toBe("");
+    expect(warningsOf(r)).toEqual(["1 date could not be read and was kept exactly as stored"]);
+  });
+
+  it("still flags a required calendar day that is missing, empty or not text, and a closedDate that is not text", () => {
+    const data = goodData();
+    delete (data.rehan[0] as unknown as Record<string, unknown>).openDate;
+    (data.rehan[0] as unknown as Record<string, unknown>).closedDate = 5;
+    (data.rehanTransactions[0] as unknown as Record<string, unknown>).date = null;
+    (data.lenden[0] as unknown as Record<string, unknown>).date = 20260915;
+    data.jamaEntries[0].date = "";
+    expect(validateData(data, mediaSet())).toEqual([
+      "rehan row 1: openDate is missing",
+      "rehan row 1: closedDate is missing",
+      "rehanTransactions row 1: date is missing",
+      "lenden row 1: date is missing",
+      "jamaEntries row 1: date is missing",
+    ]);
+    expect(errorsOf(validateBackup(build(data).input))).toHaveLength(5);
   });
 
   it("normalizeBackupDays returns a copy with local days and leaves its input alone", () => {
@@ -465,5 +511,15 @@ describe("calendar days", () => {
     expect(out.customers).toEqual(data.customers);
     expect(out.lendenItems).toEqual(data.lendenItems);
     expect(out.oldJewellery).toEqual(data.oldJewellery);
+  });
+
+  it("normalizeBackupDays keeps a value it cannot read exactly as it is", () => {
+    const data = olderData();
+    data.lenden[0].date = "someday";
+    data.rehan[0].closedDate = "";
+    const out = normalizeBackupDays(data);
+    expect(out.lenden[0].date).toBe("someday");
+    expect(out.rehan[0].closedDate).toBe("");
+    expect(out.rehan[0].openDate).toBe(toDay(new Date(IST_MIDNIGHT)));
   });
 });

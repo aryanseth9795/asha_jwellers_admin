@@ -39,7 +39,7 @@ import {
 import { replaceLendenItems, setLendenBillNo } from "../database/lendenItems";
 import { replaceLendenOldJewelleryItems } from "../database/lendenOldJewelleryItems";
 import { applyMerge, applyReplace, mediaKey, newUuids, readSnapshot } from "../database/backupQueries";
-import { isSafeMediaPath, photoFileName } from "../services/BackupImportService";
+import { isSafeMediaPath, photoFileName, previewWarnings } from "../services/BackupImportService";
 import { parseDay } from "../utils/dates";
 import type { SqliteStandIn } from "../test/sqliteStandIn";
 
@@ -319,6 +319,25 @@ describe("photo file names on import", () => {
     expect(isSafeMediaPath("media//a.jpg", "media")).toBe(false);
     expect(isSafeMediaPath("media/", "media")).toBe(false);
     expect(isSafeMediaPath("file:///data/x.jpg", "images")).toBe(false);
+  });
+});
+
+describe("import preview notes", () => {
+  it("shows the export's own notes, less the missing-photos one, then what the check found", () => {
+    expect(
+      previewWarnings(
+        [
+          "2 lenden_items rows had no parent record and were left out",
+          "3 photos listed on records were not found on the phone and were left out",
+          5,
+        ],
+        ["1 date could not be read and was kept exactly as stored"],
+      ),
+    ).toEqual([
+      "2 lenden_items rows had no parent record and were left out",
+      "1 date could not be read and was kept exactly as stored",
+    ]);
+    expect(previewWarnings(undefined, [])).toEqual([]);
   });
 });
 
@@ -721,5 +740,40 @@ describeDb("calendar days through a backup", () => {
     const plan = planMerge(stamped, await readSnapshot());
     await applyMerge(plan, fakeMediaMap([...plan.insert.rehan, ...plan.insert.lenden]));
     expect(storedDays()).toEqual(days);
+  });
+  it("an export holding dates that cannot be read passes its own check with a warning, restores exactly and re-plans as already here", async () => {
+    await seedPhone();
+    const raw = sqliteMock.__raw();
+    // Values the migration could not read and left exactly as they were.
+    raw.prepare("UPDATE rehan SET closedDate = 'garbage' WHERE closedDate IS NOT NULL").run();
+    raw.prepare("UPDATE lenden SET date = 'not a date' WHERE userId = 0").run();
+    raw.prepare("UPDATE jama_entries SET date = '2026-02-30' WHERE id = (SELECT MIN(id) FROM jama_entries)").run();
+    const phone = await readSnapshot();
+
+    // The same validateBackup call the export makes before it shares or keeps a backup: it passes, with a warning.
+    const check = validateBackup(backupOf(phone));
+    if (!check.ok) throw new Error(check.errors.join("; "));
+    expect(check.warnings).toEqual(["3 dates could not be read and were kept exactly as stored"]);
+    expect(check.data.rehan.map((r) => r.closedDate)).toEqual([null, "garbage"]);
+    expect(check.data.lenden.map((l) => l.date)).toEqual([D1, "not a date"]);
+    expect(check.data.jamaEntries.map((j) => j.date)).toEqual(["2026-02-30", D2]);
+
+    // Merging it into the phone it came from: every row is already here.
+    const plan = planMerge(check.data, phone);
+    for (const k of TABLE_KEYS) {
+      expect(plan.summary[k]).toEqual({ total: check.data[k].length, insert: 0, same: check.data[k].length, conflict: 0 });
+    }
+    expect(plan.conflicts).toEqual([]);
+
+    // Replace and restore stores every value exactly as it was.
+    await freshPhone();
+    await applyReplace(check.data, fakeMediaMap([...check.data.rehan, ...check.data.lenden]));
+    expect(canonical(await readSnapshot())).toEqual(canonical(phone));
+
+    // So does a safe merge into an empty phone.
+    await freshPhone();
+    const intoEmpty = planMerge(check.data, await readSnapshot());
+    await applyMerge(intoEmpty, fakeMediaMap([...intoEmpty.insert.rehan, ...intoEmpty.insert.lenden]));
+    expect(canonical(await readSnapshot())).toEqual(canonical(phone));
   });
 });

@@ -22,8 +22,9 @@ type Spec = Record<string, Kind>;
 /**
  * Field kinds per table (uuid and relationship fields are checked separately).
  *  str: non-empty string · text: any string · strN: string or null · num: finite number · numN: number or null
- *  day: a calendar day, either a plain YYYY-MM-DD or (in backups made before calendar days) an ISO timestamp
- *  dayN: day or null
+ *  day: a calendar day: a plain YYYY-MM-DD, an ISO timestamp (backups made before calendar days), or any other non-empty
+ *       text, which is kept exactly as stored (a date that cannot be read never stops a backup or a restore)
+ *  dayN: day, or any text, or null
  */
 const SPECS: Record<TableKey, Spec> = {
   customers: {
@@ -86,15 +87,21 @@ type Raw = Record<string, unknown>;
 
 const isNum = (v: unknown): boolean => typeof v === "number" && Number.isFinite(v);
 
-/** True when normalizeDay can read the text: a real plain day, or a timestamp of a real day. */
-const isCalendarDay = (v: string): boolean => {
+/** A calendar value as a plain local day: a plain day as it is, a timestamp as its local day; null when it cannot be read. */
+export const readDay = (value: string): string | null => {
   try {
-    normalizeDay(v);
-    return true;
+    return normalizeDay(value);
   } catch {
-    return false;
+    return null;
   }
 };
+
+/** A calendar value as an import stores it: its plain local day, or exactly as given when it cannot be read. */
+export const asStoredDay = (value: string): string => readDay(value) ?? value;
+
+/** The note shown when calendar values could not be read and were kept exactly as stored. */
+export const keptDatesWarning = (count: number): string =>
+  `${count} ${count === 1 ? "date" : "dates"} could not be read and ${count === 1 ? "was" : "were"} kept exactly as stored`;
 
 /** Problem text for one field, or null when the value is fine. */
 const checkKind = (kind: Kind, value: unknown, field: string): string | null => {
@@ -112,12 +119,9 @@ const checkKind = (kind: Kind, value: unknown, field: string): string | null => 
     case "media":
       return Array.isArray(value) && value.every((p) => typeof p === "string") ? null : `${field} is not a list`;
     case "day":
-      if (typeof value !== "string" || value === "") return `${field} is missing`;
-      return isCalendarDay(value) ? null : `${field} is not a valid date`;
+      return typeof value === "string" && value !== "" ? null : `${field} is missing`;
     case "dayN":
-      if (value === null) return null;
-      if (typeof value !== "string") return `${field} is missing`;
-      return isCalendarDay(value) ? null : `${field} is not a valid date`;
+      return value === null || typeof value === "string" ? null : `${field} is missing`;
   }
 };
 
@@ -125,20 +129,28 @@ const checkKind = (kind: Kind, value: unknown, field: string): string | null => 
  * The backup with its five calendar fields (rehan.openDate and closedDate, rehanTransactions.date, lenden.date,
  * jamaEntries.date) as plain local days. Backups made before calendar days carry timestamps, and the phone now holds
  * plain days: without this every dated row of a re-imported backup would differ from the phone and show as a conflict.
- * Pure: returns new rows and leaves `data` as it is. Only for data validateData accepted (it throws on a value that
- * is not a date).
+ * A value that cannot be read is kept exactly as it is. Pure: returns new rows and leaves `data` as it is.
  */
 export const normalizeBackupDays = (data: BackupData): BackupData => ({
   ...data,
   rehan: data.rehan.map((r) => ({
     ...r,
-    openDate: normalizeDay(r.openDate),
-    closedDate: r.closedDate === null ? null : normalizeDay(r.closedDate),
+    openDate: asStoredDay(r.openDate),
+    closedDate: r.closedDate === null ? null : asStoredDay(r.closedDate),
   })),
-  rehanTransactions: data.rehanTransactions.map((t) => ({ ...t, date: normalizeDay(t.date) })),
-  lenden: data.lenden.map((l) => ({ ...l, date: normalizeDay(l.date) })),
-  jamaEntries: data.jamaEntries.map((j) => ({ ...j, date: normalizeDay(j.date) })),
+  rehanTransactions: data.rehanTransactions.map((t) => ({ ...t, date: asStoredDay(t.date) })),
+  lenden: data.lenden.map((l) => ({ ...l, date: asStoredDay(l.date) })),
+  jamaEntries: data.jamaEntries.map((j) => ({ ...j, date: asStoredDay(j.date) })),
 });
+
+/** How many calendar values of a backup cannot be read as a date (they are kept exactly as stored). */
+const countUnreadableDays = (data: BackupData): number =>
+  [
+    ...data.rehan.flatMap((r) => (r.closedDate === null ? [r.openDate] : [r.openDate, r.closedDate])),
+    ...data.rehanTransactions.map((t) => t.date),
+    ...data.lenden.map((l) => l.date),
+    ...data.jamaEntries.map((j) => j.date),
+  ].filter((v) => readDay(v) === null).length;
 
 /** Structural + referential checks on parsed rows. Returns readable problems (empty = valid). */
 export const validateData = (data: BackupData, mediaPaths: Set<string>): string[] => {
@@ -207,7 +219,8 @@ export const validateData = (data: BackupData, mediaPaths: Set<string>): string[
   return problems;
 };
 
-type Result = { ok: true; manifest: Manifest; data: BackupData } | { ok: false; errors: string[] };
+/** warnings: notes for the owner about a backup that is accepted (for now only calendar values kept as stored). */
+type Result = { ok: true; manifest: Manifest; data: BackupData; warnings: string[] } | { ok: false; errors: string[] };
 
 const fail = (errors: string[]): Result => ({ ok: false, errors: errors.slice(0, MAX_MESSAGES) });
 
@@ -270,6 +283,14 @@ export const validateBackup = (input: {
   const problems = validateData(backupData, input.mediaPaths);
   if (problems.length > 0) return fail(problems);
 
-  // 6. Calendar days as plain days, before anything plans or imports them (the checksums above read the raw text).
-  return { ok: true, manifest, data: normalizeBackupDays(backupData) };
+  // 6. Calendar days as plain days, before anything plans or imports them (the checksums above read the raw text). A
+  // value that cannot be read is kept exactly as stored and counted: it never stops an export, the automatic backup
+  // before a restore, or the restore itself.
+  const unreadable = countUnreadableDays(backupData);
+  return {
+    ok: true,
+    manifest,
+    data: normalizeBackupDays(backupData),
+    warnings: unreadable > 0 ? [keptDatesWarning(unreadable)] : [],
+  };
 };

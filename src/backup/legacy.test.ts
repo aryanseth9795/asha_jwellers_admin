@@ -307,7 +307,10 @@ describe("convertLegacy", () => {
   });
 
   describe("calendar days", () => {
-    it("dates a record with no date 1 January 1970 and warns once with the count", () => {
+    /** The time of the import, for records that carry no date of their own. */
+    const NOW = new Date("2026-10-04T08:00:00.000Z");
+
+    it("dates a record with no date 1 January 1970, warns once with the count, and stamps updatedAt with the import time", () => {
       const { data, warnings } = convertLegacy(
         {
           users: [],
@@ -319,6 +322,7 @@ describe("convertLegacy", () => {
           lenden: [{ id: 1, userId: 1, media: "[]", date: null }],
         },
         counter(),
+        NOW,
       );
       expect(data.rehan.map((r) => r.openDate)).toEqual([
         "1970-01-01",
@@ -326,9 +330,8 @@ describe("convertLegacy", () => {
         toDay(new Date("2024-03-01T00:00:00.000Z")),
       ]);
       expect(data.lenden[0].date).toBe("1970-01-01");
-      // updatedAt stays a full timestamp.
-      expect(data.rehan[0].updatedAt).toBe("1970-01-01T00:00:00.000Z");
-      expect(data.lenden[0].updatedAt).toBe("1970-01-01T00:00:00.000Z");
+      expect(data.rehan.map((r) => r.updatedAt)).toEqual([NOW.toISOString(), NOW.toISOString(), "2024-03-01T00:00:00.000Z"]);
+      expect(data.lenden[0].updatedAt).toBe(NOW.toISOString());
       expect(warnings).toEqual([WARNING, "3 old records had no date and were saved with the date 1 January 1970"]);
       expect(validateData(data, new Set())).toEqual([]);
     });
@@ -341,7 +344,7 @@ describe("convertLegacy", () => {
       expect(warnings).toEqual([WARNING, "1 old record had no date and was saved with the date 1 January 1970"]);
     });
 
-    it("keeps a plain day as it is, with updatedAt the start of that day as a timestamp", () => {
+    it("keeps a plain day as it is, and its raw value as updatedAt", () => {
       const { data, warnings } = convertLegacy(
         {
           users: [],
@@ -349,13 +352,10 @@ describe("convertLegacy", () => {
           lenden: [{ id: 1, userId: 1, media: "[]", date: "2024-05-01" }],
         },
         counter(),
+        NOW,
       );
-      expect(data.rehan[0]).toMatchObject({
-        openDate: "2024-03-01",
-        closedDate: "2024-04-01",
-        updatedAt: new Date(2024, 2, 1).toISOString(),
-      });
-      expect(data.lenden[0]).toMatchObject({ date: "2024-05-01", updatedAt: new Date(2024, 4, 1).toISOString() });
+      expect(data.rehan[0]).toMatchObject({ openDate: "2024-03-01", closedDate: "2024-04-01", updatedAt: "2024-03-01" });
+      expect(data.lenden[0]).toMatchObject({ date: "2024-05-01", updatedAt: "2024-05-01" });
       expect(warnings).toEqual([WARNING]);
     });
 
@@ -369,22 +369,20 @@ describe("convertLegacy", () => {
       expect(data.rehan[0].updatedAt).toBe(picked);
     });
 
-    it("leaves a date it cannot read as it is, so the import's check rejects it and names the row", () => {
-      const { data } = convertLegacy(
+    it("keeps a date it cannot read exactly as stored, warns once with the count, and the import accepts it", () => {
+      const { data, warnings } = convertLegacy(
         {
           users: [],
           rehan: [{ id: 1, userId: 1, media: "[]", openDate: "garbage", closedDate: "31/12/2024" }],
           lenden: [{ id: 1, userId: 1, media: "[]", date: "someday" }],
         },
         counter(),
+        NOW,
       );
-      expect(data.rehan[0]).toMatchObject({ openDate: "garbage", closedDate: "31/12/2024" });
-      expect(data.lenden[0].date).toBe("someday");
-      expect(validateData(data, new Set())).toEqual([
-        "rehan row 1: openDate is not a valid date",
-        "rehan row 1: closedDate is not a valid date",
-        "lenden row 1: date is not a valid date",
-      ]);
+      expect(data.rehan[0]).toMatchObject({ openDate: "garbage", closedDate: "31/12/2024", updatedAt: "garbage" });
+      expect(data.lenden[0]).toMatchObject({ date: "someday", updatedAt: "someday" });
+      expect(warnings).toEqual([WARNING, "3 dates could not be read and were kept exactly as stored"]);
+      expect(validateData(data, new Set())).toEqual([]);
     });
   });
 });
