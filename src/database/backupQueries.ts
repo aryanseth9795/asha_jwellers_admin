@@ -13,6 +13,7 @@ import {
   TABLE_KEYS,
   TableKey,
 } from "../backup/format";
+import { normalizeDay } from "../utils/dates";
 import { UUID_SQL } from "./uuidSql";
 
 /**
@@ -116,6 +117,10 @@ const localMedia = (recordUuid: string, media: string[], mediaMap: Map<string, s
  * Inserts rows as they are (stored values, uuid, updatedAt), parents first. Parent uuids resolve through the ids
  * inserted in this run, then through the rows already on the phone. A customerUuid of null gives userId 0
  * ("customer not on file"). Any unresolved parent throws, which rolls the whole transaction back.
+ *
+ * The calendar fields (rehan openDate/closedDate, every other date) are stored as plain local days, whatever the
+ * caller hands in, so no import path can write a timestamp into them. validateBackup and convertLegacy already give
+ * plain days; a value that is not a date throws here and rolls everything back.
  */
 const insertRows = async (
   txn: Txn,
@@ -161,8 +166,8 @@ const insertRows = async (
       x.category,
       x.amount,
       x.status,
-      x.openDate,
-      x.closedDate,
+      normalizeDay(x.openDate),
+      x.closedDate == null ? null : normalizeDay(x.closedDate),
       localMedia(x.uuid, x.media, mediaMap),
       x.updatedAt,
     );
@@ -177,7 +182,7 @@ const insertRows = async (
       await idOf("rehan", t.rehanUuid),
       t.type,
       t.amount,
-      t.date,
+      normalizeDay(t.date),
       t.updatedAt,
     );
     counts.rehanTransactions++;
@@ -188,7 +193,7 @@ const insertRows = async (
       "INSERT INTO lenden (uuid, userId, date, amount, discount, remaining, jama, baki, status, billNo, amountOverridden, media, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       l.uuid,
       await customerId(l.customerUuid),
-      l.date,
+      normalizeDay(l.date),
       l.amount,
       l.discount,
       l.remaining,
@@ -245,7 +250,7 @@ const insertRows = async (
       j.uuid,
       await idOf("lenden", j.lendenUuid),
       j.amount,
-      j.date,
+      normalizeDay(j.date),
       j.updatedAt,
     );
     counts.jamaEntries++;
@@ -255,8 +260,9 @@ const insertRows = async (
 };
 
 /**
- * Replace and restore (spec §6.2): deletes every ledger row, then inserts the backup exactly as stored. Recalculates
- * nothing. `mediaMap` maps mediaKey(recordUuid, relative path) to the copied photo's absolute path.
+ * Replace and restore (spec §6.2): deletes every ledger row, then inserts the backup exactly as stored (calendar days
+ * as plain days, see insertRows). Recalculates nothing. `mediaMap` maps mediaKey(recordUuid, relative path) to the
+ * copied photo's absolute path.
  */
 export const applyReplace = async (
   data: BackupData,

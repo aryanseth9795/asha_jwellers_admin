@@ -12,15 +12,18 @@ import {
   TableKey,
   UUID_RE,
 } from "./format";
+import { normalizeDay } from "../utils/dates";
 
 const MAX_MESSAGES = 5;
 
-type Kind = "str" | "strN" | "text" | "num" | "numN" | "media";
+type Kind = "str" | "strN" | "text" | "num" | "numN" | "media" | "day" | "dayN";
 type Spec = Record<string, Kind>;
 
 /**
  * Field kinds per table (uuid and relationship fields are checked separately).
  *  str: non-empty string · text: any string · strN: string or null · num: finite number · numN: number or null
+ *  day: a calendar day, either a plain YYYY-MM-DD or (in backups made before calendar days) an ISO timestamp
+ *  dayN: day or null
  */
 const SPECS: Record<TableKey, Spec> = {
   customers: {
@@ -36,14 +39,14 @@ const SPECS: Record<TableKey, Spec> = {
     category: "strN",
     amount: "numN",
     status: "numN",
-    openDate: "str",
-    closedDate: "strN",
+    openDate: "day",
+    closedDate: "dayN",
     media: "media",
     updatedAt: "str",
   },
-  rehanTransactions: { amount: "num", date: "str", updatedAt: "str" },
+  rehanTransactions: { amount: "num", date: "day", updatedAt: "str" },
   lenden: {
-    date: "str",
+    date: "day",
     amount: "numN",
     discount: "numN",
     remaining: "numN",
@@ -76,12 +79,22 @@ const SPECS: Record<TableKey, Spec> = {
     value: "num",
     updatedAt: "str",
   },
-  jamaEntries: { amount: "num", date: "str", updatedAt: "str" },
+  jamaEntries: { amount: "num", date: "day", updatedAt: "str" },
 };
 
 type Raw = Record<string, unknown>;
 
 const isNum = (v: unknown): boolean => typeof v === "number" && Number.isFinite(v);
+
+/** True when normalizeDay can read the text: a real plain day, or a timestamp of a real day. */
+const isCalendarDay = (v: string): boolean => {
+  try {
+    normalizeDay(v);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /** Problem text for one field, or null when the value is fine. */
 const checkKind = (kind: Kind, value: unknown, field: string): string | null => {
@@ -98,8 +111,34 @@ const checkKind = (kind: Kind, value: unknown, field: string): string | null => 
       return value === null || isNum(value) ? null : `${field} is not a number`;
     case "media":
       return Array.isArray(value) && value.every((p) => typeof p === "string") ? null : `${field} is not a list`;
+    case "day":
+      if (typeof value !== "string" || value === "") return `${field} is missing`;
+      return isCalendarDay(value) ? null : `${field} is not a valid date`;
+    case "dayN":
+      if (value === null) return null;
+      if (typeof value !== "string") return `${field} is missing`;
+      return isCalendarDay(value) ? null : `${field} is not a valid date`;
   }
 };
+
+/**
+ * The backup with its five calendar fields (rehan.openDate and closedDate, rehanTransactions.date, lenden.date,
+ * jamaEntries.date) as plain local days. Backups made before calendar days carry timestamps, and the phone now holds
+ * plain days: without this every dated row of a re-imported backup would differ from the phone and show as a conflict.
+ * Pure: returns new rows and leaves `data` as it is. Only for data validateData accepted (it throws on a value that
+ * is not a date).
+ */
+export const normalizeBackupDays = (data: BackupData): BackupData => ({
+  ...data,
+  rehan: data.rehan.map((r) => ({
+    ...r,
+    openDate: normalizeDay(r.openDate),
+    closedDate: r.closedDate === null ? null : normalizeDay(r.closedDate),
+  })),
+  rehanTransactions: data.rehanTransactions.map((t) => ({ ...t, date: normalizeDay(t.date) })),
+  lenden: data.lenden.map((l) => ({ ...l, date: normalizeDay(l.date) })),
+  jamaEntries: data.jamaEntries.map((j) => ({ ...j, date: normalizeDay(j.date) })),
+});
 
 /** Structural + referential checks on parsed rows. Returns readable problems (empty = valid). */
 export const validateData = (data: BackupData, mediaPaths: Set<string>): string[] => {
@@ -231,5 +270,6 @@ export const validateBackup = (input: {
   const problems = validateData(backupData, input.mediaPaths);
   if (problems.length > 0) return fail(problems);
 
-  return { ok: true, manifest, data: backupData };
+  // 6. Calendar days as plain days, before anything plans or imports them (the checksums above read the raw text).
+  return { ok: true, manifest, data: normalizeBackupDays(backupData) };
 };

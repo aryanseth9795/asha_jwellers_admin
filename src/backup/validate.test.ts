@@ -7,7 +7,8 @@ import {
   TABLE_KEYS,
 } from "./format";
 import { fnv1a } from "./checksum";
-import { validateBackup, validateData } from "./validate";
+import { normalizeBackupDays, validateBackup, validateData } from "./validate";
+import { toDay } from "../utils/dates";
 
 const U = {
   cust: "11111111-1111-4111-8111-111111111111",
@@ -20,6 +21,8 @@ const U = {
   jama: "77777777-7777-4777-8777-777777777771",
 };
 const T = "2026-01-01T00:00:00.000Z";
+/** A calendar day, as the phone stores it and a current backup carries it. */
+const D = "2026-01-02";
 
 const goodData = (): BackupData => ({
   customers: [
@@ -34,18 +37,18 @@ const goodData = (): BackupData => ({
       category: "Ring",
       amount: 5000,
       status: 0,
-      openDate: T,
+      openDate: D,
       closedDate: null,
       media: [`media/${U.rehan}/1-a.jpg`],
       updatedAt: T,
     },
   ],
-  rehanTransactions: [{ uuid: U.tx, rehanUuid: U.rehan, type: "diya", amount: 100, date: T, updatedAt: T }],
+  rehanTransactions: [{ uuid: U.tx, rehanUuid: U.rehan, type: "diya", amount: 100, date: D, updatedAt: T }],
   lenden: [
     {
       uuid: U.lenden,
       customerUuid: null,
-      date: T,
+      date: D,
       amount: 1000,
       discount: 0,
       remaining: 1000,
@@ -87,7 +90,7 @@ const goodData = (): BackupData => ({
       updatedAt: T,
     },
   ],
-  jamaEntries: [{ uuid: U.jama, lendenUuid: U.lenden, amount: 50, date: T, updatedAt: T }],
+  jamaEntries: [{ uuid: U.jama, lendenUuid: U.lenden, amount: 50, date: D, updatedAt: T }],
 });
 
 const mediaSet = () => new Set([`media/${U.rehan}/1-a.jpg`]);
@@ -120,6 +123,11 @@ const build = (data: BackupData = goodData()): { input: Input; manifest: Manifes
 const errorsOf = (r: ReturnType<typeof validateBackup>): string[] => {
   if (r.ok) throw new Error("expected failure");
   return r.errors;
+};
+
+const dataOf = (r: ReturnType<typeof validateBackup>): BackupData => {
+  if (!r.ok) throw new Error(`expected a valid backup: ${r.errors.join("; ")}`);
+  return r.data;
 };
 
 describe("validateBackup", () => {
@@ -373,5 +381,89 @@ describe("validateData", () => {
     const data = goodData();
     (data.lenden[0] as unknown as Record<string, unknown>).media = "x.jpg";
     expect(validateData(data, mediaSet())).toEqual(["lenden row 1: media is not a list"]);
+  });
+});
+
+// Calendar days (rehan.openDate/closedDate, rehanTransactions.date, lenden.date, jamaEntries.date) are plain
+// YYYY-MM-DD days on the phone. Backups made before that carry timestamps. Expected days are built with
+// toDay(new Date(...)), so these tests are right in any timezone (they run in IST here).
+describe("calendar days", () => {
+  /** Local midnight of 15 September on a phone in IST, as an older backup carries a picked date. */
+  const IST_MIDNIGHT = "2026-09-14T18:30:00.000Z";
+  /** A noon timestamp, as the old "today" default wrote it. */
+  const NOON = new Date(2026, 8, 10, 12, 0, 0).toISOString();
+  /** 01:30 on 26 September in IST: its UTC day is the 25th. */
+  const LATE = "2026-09-25T20:00:00.000Z";
+
+  /** goodData as an older backup carries it: every calendar day a timestamp, and the rehan closed. */
+  const olderData = (): BackupData => {
+    const data = goodData();
+    data.rehan[0].openDate = IST_MIDNIGHT;
+    data.rehan[0].closedDate = LATE;
+    data.rehanTransactions[0].date = NOON;
+    data.lenden[0].date = IST_MIDNIGHT;
+    data.jamaEntries[0].date = LATE;
+    return data;
+  };
+
+  it("accepts an older backup whose calendar days are timestamps and returns each as its local day", () => {
+    const data = dataOf(validateBackup(build(olderData()).input));
+    const expected = goodData();
+    expected.rehan[0].openDate = toDay(new Date(IST_MIDNIGHT));
+    expected.rehan[0].closedDate = toDay(new Date(LATE));
+    expected.rehanTransactions[0].date = toDay(new Date(NOON));
+    expected.lenden[0].date = toDay(new Date(IST_MIDNIGHT));
+    expected.jamaEntries[0].date = toDay(new Date(LATE));
+    // Only the five calendar fields change: createdAt and every updatedAt stay full timestamps.
+    expect(data).toEqual(expected);
+    if (new Date(IST_MIDNIGHT).getTimezoneOffset() === -330) {
+      expect(data.rehan[0].openDate).toBe("2026-09-15");
+      expect(data.jamaEntries[0].date).toBe("2026-09-26");
+    }
+  });
+
+  it("keeps plain days and an open rehan's null closedDate as they are, next to a timestamp", () => {
+    const mixed = goodData();
+    mixed.lenden[0].date = NOON;
+    const data = dataOf(validateBackup(build(mixed).input));
+    expect(data.rehan[0]).toMatchObject({ openDate: D, closedDate: null });
+    expect(data.rehanTransactions[0].date).toBe(D);
+    expect(data.lenden[0].date).toBe(toDay(new Date(NOON)));
+  });
+
+  it("flags a calendar day that is neither a plain day nor a timestamp", () => {
+    const data = goodData();
+    data.rehan[0].openDate = "garbage";
+    data.rehan[0].closedDate = "2026-02-30";
+    data.rehanTransactions[0].date = "15/09/2026";
+    (data.lenden[0] as unknown as Record<string, unknown>).date = 20260915;
+    data.jamaEntries[0].date = "";
+    expect(validateData(data, mediaSet())).toEqual([
+      "rehan row 1: openDate is not a valid date",
+      "rehan row 1: closedDate is not a valid date",
+      "rehanTransactions row 1: date is not a valid date",
+      "lenden row 1: date is missing",
+      "jamaEntries row 1: date is missing",
+    ]);
+  });
+
+  it("rejects such a backup and names the row", () => {
+    const data = goodData();
+    data.lenden[0].date = "someday";
+    expect(errorsOf(validateBackup(build(data).input))).toEqual(["lenden row 1: date is not a valid date"]);
+  });
+
+  it("normalizeBackupDays returns a copy with local days and leaves its input alone", () => {
+    const data = olderData();
+    const before = JSON.parse(JSON.stringify(data));
+    const out = normalizeBackupDays(data);
+    expect(data).toEqual(before);
+    expect(out.rehan[0]).toEqual({ ...data.rehan[0], openDate: toDay(new Date(IST_MIDNIGHT)), closedDate: toDay(new Date(LATE)) });
+    expect(out.rehanTransactions[0]).toEqual({ ...data.rehanTransactions[0], date: toDay(new Date(NOON)) });
+    expect(out.lenden[0]).toEqual({ ...data.lenden[0], date: toDay(new Date(IST_MIDNIGHT)) });
+    expect(out.jamaEntries[0]).toEqual({ ...data.jamaEntries[0], date: toDay(new Date(LATE)) });
+    expect(out.customers).toEqual(data.customers);
+    expect(out.lendenItems).toEqual(data.lendenItems);
+    expect(out.oldJewellery).toEqual(data.oldJewellery);
   });
 });

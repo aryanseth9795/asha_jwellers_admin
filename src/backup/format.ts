@@ -57,7 +57,12 @@ export interface RehanRow {
   amount: number | null;
   /** null is accepted: a few old rows have no status. */
   status: number | null;
+  /**
+   * Calendar day, plain YYYY-MM-DD, as every date below. A backup made before calendar days carries an ISO timestamp
+   * instead; validateBackup returns it as the local day.
+   */
   openDate: string;
+  /** Calendar day; null while the rehan is open. */
   closedDate: string | null;
   /** Relative paths inside the zip: media/<uuid>/<n>-<name>. */
   media: string[];
@@ -69,6 +74,7 @@ export interface RehanTransactionRow {
   rehanUuid: string;
   type: "diya" | "jama";
   amount: number;
+  /** Calendar day (see RehanRow.openDate). */
   date: string;
   updatedAt: string;
 }
@@ -76,6 +82,7 @@ export interface RehanTransactionRow {
 export interface LendenRow {
   uuid: string;
   customerUuid: string | null;
+  /** Calendar day (see RehanRow.openDate). */
   date: string;
   amount: number | null;
   discount: number | null;
@@ -121,6 +128,7 @@ export interface JamaEntryRow {
   uuid: string;
   lendenUuid: string;
   amount: number;
+  /** Calendar day (see RehanRow.openDate). */
   date: string;
   updatedAt: string;
 }

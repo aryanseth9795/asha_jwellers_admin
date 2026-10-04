@@ -76,34 +76,89 @@ describeDb("failed reads reject instead of returning a default", () => {
   });
   afterEach(() => errorSpy.mockRestore());
 
-  type Reads = [string, (ids: { userId: number; rehanId: number; lendenId: number }) => Promise<unknown>][];
+  type Ids = { userId: number; rehanId: number; lendenId: number };
+  /** Each read, and what it must resolve with on the seeded phone (one record of every kind). */
+  type Reads = [string, (ids: Ids) => Promise<unknown>, (value: unknown, ids: Ids) => void][];
+
+  /** A list of at least one row, the seeded record among them. */
+  const listWith = (value: unknown, expected: Record<string, unknown>) => {
+    expect(Array.isArray(value)).toBe(true);
+    expect((value as unknown[]).length).toBeGreaterThanOrEqual(1);
+    expect(value).toContainEqual(expect.objectContaining(expected));
+  };
+  /** The seeded customer with one rehan and one len-den. */
+  const ramWithCounts = (v: unknown, { userId }: Ids) => listWith(v, { id: userId, name: "Ram", rehanCount: 1, lendenCount: 1 });
+  /** Both of Ram's records in a combined list. */
+  const bothRecords = (v: unknown, { userId, rehanId, lendenId }: Ids) => {
+    listWith(v, { type: "rehan", id: rehanId, userId, userName: "Ram" });
+    listWith(v, { type: "lenden", id: lendenId, userId, userName: "Ram" });
+  };
+
   const reads: Reads = [
-    ["checkDuplicateUser", () => checkDuplicateUser("Ram", "Manwal", "9876543210")],
-    ["getUserById", ({ userId }) => getUserById(userId)],
-    ["getRehanById", ({ rehanId }) => getRehanById(rehanId)],
-    ["getLendenById", ({ lendenId }) => getLendenById(lendenId)],
-    ["getAllUsers", () => getAllUsers()],
-    ["searchUsers", () => searchUsers("Ram")],
-    ["getRehanByUserId", ({ userId }) => getRehanByUserId(userId)],
-    ["getAllRehan", () => getAllRehan()],
-    ["getRehanTransactionsByRehanId", ({ rehanId }) => getRehanTransactionsByRehanId(rehanId)],
-    ["getLendenByUserId", ({ userId }) => getLendenByUserId(userId)],
-    ["getAllLenden", () => getAllLenden()],
-    ["getAllTransactions", () => getAllTransactions()],
-    ["searchTransactions", () => searchTransactions("Ram")],
-    ["getUsersWithCounts", () => getUsersWithCounts()],
-    ["searchUsersWithCounts", () => searchUsersWithCounts("Ram")],
-    ["filterUsersWithCounts", () => filterUsersWithCounts({ name: "Ram", dateFrom: "2026-09-01" })],
-    ["getTransactionsByUserId", ({ userId }) => getTransactionsByUserId(userId)],
-    ["getJamaEntriesByLendenId", ({ lendenId }) => getJamaEntriesByLendenId(lendenId)],
-    ["getLendenItems", ({ lendenId }) => getLendenItems(lendenId)],
-    ["getLendenOldJewelleryItems", ({ lendenId }) => getLendenOldJewelleryItems(lendenId)],
-    ["getTotalJamaByLendenId", ({ lendenId }) => getTotalJamaByLendenId(lendenId)],
+    ["checkDuplicateUser", () => checkDuplicateUser("Ram", "Manwal", "9876543210"), (v) => expect(v).toBe(true)],
+    [
+      "getUserById",
+      ({ userId }) => getUserById(userId),
+      (v, { userId }) => {
+        expect(v).not.toBeNull();
+        expect(v).toMatchObject({ id: userId, name: "Ram", address: "Manwal", mobileNumber: "9876543210" });
+      },
+    ],
+    [
+      "getRehanById",
+      ({ rehanId }) => getRehanById(rehanId),
+      (v, { userId, rehanId }) => {
+        expect(v).not.toBeNull();
+        // 1000 plus the 200 diya.
+        expect(v).toMatchObject({ id: rehanId, userId, productName: "Chain", amount: 1200 });
+      },
+    ],
+    [
+      "getLendenById",
+      ({ lendenId }) => getLendenById(lendenId),
+      (v, { userId, lendenId }) => {
+        expect(v).not.toBeNull();
+        expect(v).toMatchObject({ id: lendenId, userId, amount: 1500, remaining: 1000, baki: 700, status: 0 });
+      },
+    ],
+    ["getAllUsers", () => getAllUsers(), (v, { userId }) => listWith(v, { id: userId, name: "Ram" })],
+    ["searchUsers", () => searchUsers("Ram"), (v, { userId }) => listWith(v, { id: userId, name: "Ram" })],
+    ["getRehanByUserId", ({ userId }) => getRehanByUserId(userId), (v, { rehanId }) => listWith(v, { id: rehanId })],
+    ["getAllRehan", () => getAllRehan(), (v, { rehanId }) => listWith(v, { id: rehanId })],
+    [
+      "getRehanTransactionsByRehanId",
+      ({ rehanId }) => getRehanTransactionsByRehanId(rehanId),
+      (v, { rehanId }) => listWith(v, { rehanId, type: "diya", amount: 200 }),
+    ],
+    ["getLendenByUserId", ({ userId }) => getLendenByUserId(userId), (v, { lendenId }) => listWith(v, { id: lendenId })],
+    ["getAllLenden", () => getAllLenden(), (v, { lendenId }) => listWith(v, { id: lendenId })],
+    ["getAllTransactions", () => getAllTransactions(), bothRecords],
+    ["searchTransactions", () => searchTransactions("Ram"), bothRecords],
+    ["getUsersWithCounts", () => getUsersWithCounts(), ramWithCounts],
+    ["searchUsersWithCounts", () => searchUsersWithCounts("Ram"), ramWithCounts],
+    ["filterUsersWithCounts", () => filterUsersWithCounts({ name: "Ram", dateFrom: "2026-09-01" }), ramWithCounts],
+    ["getTransactionsByUserId", ({ userId }) => getTransactionsByUserId(userId), bothRecords],
+    [
+      "getJamaEntriesByLendenId",
+      ({ lendenId }) => getJamaEntriesByLendenId(lendenId),
+      (v, { lendenId }) => listWith(v, { lendenId, amount: 300 }),
+    ],
+    [
+      "getLendenItems",
+      ({ lendenId }) => getLendenItems(lendenId),
+      (v, { lendenId }) => listWith(v, { lendenId, name: "Ring", total: 1500 }),
+    ],
+    [
+      "getLendenOldJewelleryItems",
+      ({ lendenId }) => getLendenOldJewelleryItems(lendenId),
+      (v, { lendenId }) => listWith(v, { lendenId, description: "Old ring", value: 500 }),
+    ],
+    ["getTotalJamaByLendenId", ({ lendenId }) => getTotalJamaByLendenId(lendenId), (v) => expect(v).toBe(300)],
   ];
 
-  it.each(reads)("%s resolves with the real data while the database is healthy", async (_name, read) => {
+  it.each(reads)("%s resolves with the real data while the database is healthy", async (_name, read, check) => {
     const ids = await seed();
-    await expect(read(ids)).resolves.toBeDefined();
+    check(await read(ids), ids);
     expect(errorSpy).not.toHaveBeenCalled();
   });
 

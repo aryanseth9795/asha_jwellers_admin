@@ -11,6 +11,8 @@ import {
 } from "../types/entry";
 import { UUID_SQL } from "./uuidSql";
 import { ensureIndexes } from "./indexes";
+import { migrateCalendarDays } from "./calendarDays";
+import { normalizeDay, todayDay } from "../utils/dates";
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -112,7 +114,7 @@ export const initDatabase = async () => {
       );
     `);
 
-    // Create Rehan table
+    // Create Rehan table. openDate and closedDate are calendar days, plain YYYY-MM-DD (see calendarDays.ts).
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS rehan (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,7 +132,7 @@ export const initDatabase = async () => {
       );
     `);
 
-    // Create Lenden table
+    // Create Lenden table. date is a calendar day, plain YYYY-MM-DD (as are jama_entries.date and rehan_transactions.date).
     await database.execAsync(`
       CREATE TABLE IF NOT EXISTS lenden (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -383,6 +385,15 @@ export const initDatabase = async () => {
       console.error("Index creation failed (app continues, retried next launch):", error);
     }
 
+    // Calendar dates become plain YYYY-MM-DD days, once. It must run after ensureIdentityColumns, which seeds the
+    // updatedAt of old rows from these columns and needs the full timestamps. Non-fatal: every reader accepts both the
+    // old timestamps and plain days, so the app stays usable; the migration rolls back and runs again on the next start.
+    try {
+      await migrateCalendarDays(database);
+    } catch (error) {
+      console.error("Calendar dates: migration failed (the app continues; it runs again on the next start):", error);
+    }
+
     console.log("SQLite database initialized with User, Rehan, Lenden tables");
   } catch (error) {
     console.error("Error initializing database:", error);
@@ -557,7 +568,8 @@ export const updateUser = async (
 export const createRehan = async (rehan: NewRehan): Promise<number> => {
   try {
     const database = await openDatabase();
-    const openDate = rehan.openDate || new Date().toISOString();
+    // A calendar day; a timestamp from any caller is stored as its local day, and no date means today.
+    const openDate = rehan.openDate ? normalizeDay(rehan.openDate) : todayDay();
     const media = JSON.stringify(rehan.media || []);
 
     const result = await database.runAsync(
@@ -598,7 +610,7 @@ export const getRehanByUserId = async (userId: number): Promise<Rehan[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<Rehan>(
-      "SELECT * FROM rehan WHERE userId = ? ORDER BY openDate DESC",
+      "SELECT * FROM rehan WHERE userId = ? ORDER BY openDate DESC, id DESC",
       userId,
     );
     return rows;
@@ -613,7 +625,7 @@ export const getAllRehan = async (): Promise<Rehan[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<Rehan>(
-      "SELECT * FROM rehan ORDER BY openDate DESC",
+      "SELECT * FROM rehan ORDER BY openDate DESC, id DESC",
     );
     return rows;
   } catch (error) {
@@ -666,11 +678,12 @@ export const updateRehanDetails = async (
 export const closeRehan = async (id: number): Promise<void> => {
   try {
     const database = await openDatabase();
-    const closedDate = new Date().toISOString();
+    // closedDate is today's calendar day; updatedAt stays a full timestamp, like every updatedAt.
+    const now = new Date();
     await database.runAsync(
       "UPDATE rehan SET status = 1, closedDate = ?, updatedAt = ? WHERE id = ?",
-      closedDate,
-      closedDate,
+      todayDay(now),
+      now.toISOString(),
       id,
     );
   } catch (error) {
@@ -710,7 +723,7 @@ export const createRehanTransaction = async (
       transaction.rehanId,
       transaction.type,
       transaction.amount,
-      transaction.date,
+      normalizeDay(transaction.date),
       new Date().toISOString(),
     );
 
@@ -738,7 +751,7 @@ export const getRehanTransactionsByRehanId = async (
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<RehanTransaction>(
-      "SELECT * FROM rehan_transactions WHERE rehanId = ? ORDER BY date DESC",
+      "SELECT * FROM rehan_transactions WHERE rehanId = ? ORDER BY date DESC, id DESC",
       rehanId,
     );
     return rows;
@@ -790,7 +803,7 @@ export const createLenden = async (lenden: NewLenden): Promise<number> => {
     const result = await database.runAsync(
       `INSERT INTO lenden (userId, date, media, amount, discount, remaining, jama, baki, status, amountOverridden, uuid, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${UUID_SQL}, ?)`,
       lenden.userId,
-      lenden.date,
+      normalizeDay(lenden.date),
       media,
       lenden.amount || null,
       lenden.discount || null,
@@ -829,7 +842,7 @@ export const getLendenByUserId = async (userId: number): Promise<Lenden[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<Lenden>(
-      "SELECT * FROM lenden WHERE userId = ? ORDER BY date DESC",
+      "SELECT * FROM lenden WHERE userId = ? ORDER BY date DESC, id DESC",
       userId,
     );
     return rows;
@@ -844,7 +857,7 @@ export const getAllLenden = async (): Promise<Lenden[]> => {
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<Lenden>(
-      "SELECT * FROM lenden ORDER BY date DESC",
+      "SELECT * FROM lenden ORDER BY date DESC, id DESC",
     );
     return rows;
   } catch (error) {
@@ -924,6 +937,17 @@ export interface Transaction {
   baki?: number;
 }
 
+/**
+ * Newest day first for the combined Rehan + Len-Den lists. Plain days (and the old ISO timestamps) sort correctly as
+ * text, so nothing is parsed and a value that is not a date still sorts consistently. On the same day: Rehan before
+ * Len-Den, each newest record first (the order these lists already showed for entries on the same day).
+ */
+const byDateDesc = (a: Transaction, b: Transaction): number => {
+  if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+  if (a.type !== b.type) return a.type === "rehan" ? -1 : 1;
+  return b.id - a.id;
+};
+
 // Get all transactions (Rehan + Lenden) with user info, sorted by date
 export const getAllTransactions = async (): Promise<Transaction[]> => {
   try {
@@ -947,7 +971,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
               u.name, u.address, u.mobileNumber, u.nickname
        FROM rehan r
        JOIN users u ON r.userId = u.id
-       ORDER BY r.openDate DESC`,
+       ORDER BY r.openDate DESC, r.id DESC`,
     );
 
     // Get Lenden entries with user info
@@ -971,7 +995,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
               u.name, u.address, u.mobileNumber, u.nickname
        FROM lenden l
        JOIN users u ON l.userId = u.id
-       ORDER BY l.date DESC`,
+       ORDER BY l.date DESC, l.id DESC`,
     );
 
     // Combine and format
@@ -1010,9 +1034,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
     ];
 
     // Sort by date descending
-    transactions.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
+    transactions.sort(byDateDesc);
 
     return transactions;
   } catch (error) {
@@ -1048,7 +1070,7 @@ export const searchTransactions = async (
        FROM rehan r
        JOIN users u ON r.userId = u.id
        WHERE u.name LIKE ? OR u.address LIKE ? OR u.mobileNumber LIKE ? OR u.nickname LIKE ?
-       ORDER BY r.openDate DESC`,
+       ORDER BY r.openDate DESC, r.id DESC`,
       searchPattern,
       searchPattern,
       searchPattern,
@@ -1077,7 +1099,7 @@ export const searchTransactions = async (
        FROM lenden l
        JOIN users u ON l.userId = u.id
        WHERE u.name LIKE ? OR u.address LIKE ? OR u.mobileNumber LIKE ? OR u.nickname LIKE ?
-       ORDER BY l.date DESC`,
+       ORDER BY l.date DESC, l.id DESC`,
       searchPattern,
       searchPattern,
       searchPattern,
@@ -1120,9 +1142,7 @@ export const searchTransactions = async (
     ];
 
     // Sort by date descending
-    transactions.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
+    transactions.sort(byDateDesc);
 
     return transactions;
   } catch (error) {
@@ -1226,19 +1246,26 @@ export const filterUsersWithCounts = async (
       params.push(`%${filters.mobileNumber.trim()}%`);
     }
 
+    // Date range: rehan.openDate and lenden.date are plain YYYY-MM-DD days, which compare correctly as text, so they
+    // are compared directly with no date() call (date() read an old timestamp as its UTC day, and it kept SQLite from
+    // using the (userId, day) indexes). A picked date passed as a timestamp counts as its local day; a value that is
+    // not a date rejects instead of quietly matching nothing.
+    const dateFrom = filters.dateFrom ? normalizeDay(filters.dateFrom) : undefined;
+    const dateTo = filters.dateTo ? normalizeDay(filters.dateTo) : undefined;
+
     // Transaction type filter - only include users with transactions of the specified type
     if (filters.transactionType && filters.transactionType !== "both") {
       if (filters.transactionType === "rehan") {
         // Date filter for rehan
-        if (filters.dateFrom || filters.dateTo) {
+        if (dateFrom || dateTo) {
           let dateCondition = "(SELECT COUNT(*) FROM rehan WHERE userId = u.id";
-          if (filters.dateFrom) {
-            dateCondition += " AND date(openDate) >= date(?)";
-            params.push(filters.dateFrom);
+          if (dateFrom) {
+            dateCondition += " AND openDate >= ?";
+            params.push(dateFrom);
           }
-          if (filters.dateTo) {
-            dateCondition += " AND date(openDate) <= date(?)";
-            params.push(filters.dateTo);
+          if (dateTo) {
+            dateCondition += " AND openDate <= ?";
+            params.push(dateTo);
           }
           dateCondition += ") > 0";
           conditions.push(dateCondition);
@@ -1249,16 +1276,16 @@ export const filterUsersWithCounts = async (
         }
       } else if (filters.transactionType === "lenden") {
         // Date filter for lenden
-        if (filters.dateFrom || filters.dateTo) {
+        if (dateFrom || dateTo) {
           let dateCondition =
             "(SELECT COUNT(*) FROM lenden WHERE userId = u.id";
-          if (filters.dateFrom) {
-            dateCondition += " AND date(date) >= date(?)";
-            params.push(filters.dateFrom);
+          if (dateFrom) {
+            dateCondition += " AND date >= ?";
+            params.push(dateFrom);
           }
-          if (filters.dateTo) {
-            dateCondition += " AND date(date) <= date(?)";
-            params.push(filters.dateTo);
+          if (dateTo) {
+            dateCondition += " AND date <= ?";
+            params.push(dateTo);
           }
           dateCondition += ") > 0";
           conditions.push(dateCondition);
@@ -1268,18 +1295,18 @@ export const filterUsersWithCounts = async (
           );
         }
       }
-    } else if (filters.dateFrom || filters.dateTo) {
+    } else if (dateFrom || dateTo) {
       // Date filter for both transaction types
       let rehanCondition = "(SELECT COUNT(*) FROM rehan WHERE userId = u.id";
       let lendenCondition = "(SELECT COUNT(*) FROM lenden WHERE userId = u.id";
 
-      if (filters.dateFrom) {
-        rehanCondition += " AND date(openDate) >= date(?)";
-        lendenCondition += " AND date(date) >= date(?)";
+      if (dateFrom) {
+        rehanCondition += " AND openDate >= ?";
+        lendenCondition += " AND date >= ?";
       }
-      if (filters.dateTo) {
-        rehanCondition += " AND date(openDate) <= date(?)";
-        lendenCondition += " AND date(date) <= date(?)";
+      if (dateTo) {
+        rehanCondition += " AND openDate <= ?";
+        lendenCondition += " AND date <= ?";
       }
 
       rehanCondition += ")";
@@ -1287,8 +1314,8 @@ export const filterUsersWithCounts = async (
 
       // Add parameters in the correct order
       const dateParams: string[] = [];
-      if (filters.dateFrom) dateParams.push(filters.dateFrom);
-      if (filters.dateTo) dateParams.push(filters.dateTo);
+      if (dateFrom) dateParams.push(dateFrom);
+      if (dateTo) dateParams.push(dateTo);
 
       // Params for rehan condition
       params.push(...dateParams);
@@ -1331,13 +1358,13 @@ export const getTransactionsByUserId = async (
 
     // Get Rehan entries
     const rehanRows = await database.getAllAsync<Rehan>(
-      "SELECT * FROM rehan WHERE userId = ? ORDER BY openDate DESC",
+      "SELECT * FROM rehan WHERE userId = ? ORDER BY openDate DESC, id DESC",
       userId,
     );
 
     // Get Lenden entries
     const lendenRows = await database.getAllAsync<Lenden>(
-      "SELECT * FROM lenden WHERE userId = ? ORDER BY date DESC",
+      "SELECT * FROM lenden WHERE userId = ? ORDER BY date DESC, id DESC",
       userId,
     );
 
@@ -1377,9 +1404,7 @@ export const getTransactionsByUserId = async (
     ];
 
     // Sort by date descending
-    transactions.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-    );
+    transactions.sort(byDateDesc);
 
     return transactions;
   } catch (error) {
@@ -1398,7 +1423,7 @@ export const createJamaEntry = async (entry: NewJamaEntry): Promise<number> => {
       `INSERT INTO jama_entries (lendenId, amount, date, uuid, updatedAt) VALUES (?, ?, ?, ${UUID_SQL}, ?)`,
       entry.lendenId,
       entry.amount,
-      entry.date,
+      normalizeDay(entry.date),
       new Date().toISOString(),
     );
     return result.lastInsertRowId;
@@ -1415,7 +1440,7 @@ export const getJamaEntriesByLendenId = async (
   try {
     const database = await openDatabase();
     const rows = await database.getAllAsync<JamaEntry>(
-      "SELECT * FROM jama_entries WHERE lendenId = ? ORDER BY date ASC",
+      "SELECT * FROM jama_entries WHERE lendenId = ? ORDER BY date ASC, id ASC",
       lendenId,
     );
     return rows;
@@ -1493,7 +1518,7 @@ export const editJamaEntry = async (
     await database.runAsync(
       "UPDATE jama_entries SET amount = ?, date = ?, updatedAt = ? WHERE id = ?",
       amount,
-      date,
+      normalizeDay(date),
       new Date().toISOString(),
       id,
     );

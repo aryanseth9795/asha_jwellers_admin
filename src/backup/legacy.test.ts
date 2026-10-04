@@ -1,5 +1,7 @@
 import { BackupError, UUID_RE } from "./format";
 import { convertLegacy } from "./legacy";
+import { validateData } from "./validate";
+import { toDay } from "../utils/dates";
 
 const WARNING =
   "This is an old backup: jama payments, rehan diya/jama, bill items and old jewellery are not in it and cannot be restored.";
@@ -85,8 +87,9 @@ describe("convertLegacy", () => {
         category: null,
         amount: 5000,
         status: 1,
-        openDate: "2024-03-01T00:00:00.000Z",
-        closedDate: "2024-04-01T00:00:00.000Z",
+        // Calendar days become local days; updatedAt keeps the raw timestamp.
+        openDate: toDay(new Date("2024-03-01T00:00:00.000Z")),
+        closedDate: toDay(new Date("2024-04-01T00:00:00.000Z")),
         media: ["images/a.jpg", "images/b.jpg"],
         updatedAt: "2024-03-01T00:00:00.000Z",
       },
@@ -95,7 +98,7 @@ describe("convertLegacy", () => {
       {
         uuid: "00000000-0000-4000-8000-000000000004",
         customerUuid: "00000000-0000-4000-8000-000000000001",
-        date: "2024-05-01T00:00:00.000Z",
+        date: toDay(new Date("2024-05-01T00:00:00.000Z")),
         amount: 900,
         discount: 100,
         remaining: 800,
@@ -301,5 +304,87 @@ describe("convertLegacy", () => {
     expect(data.customers).toHaveLength(1);
     expect(data.rehan).toHaveLength(0);
     expect(data.lenden).toHaveLength(0);
+  });
+
+  describe("calendar days", () => {
+    it("dates a record with no date 1 January 1970 and warns once with the count", () => {
+      const { data, warnings } = convertLegacy(
+        {
+          users: [],
+          rehan: [
+            { id: 1, userId: 1, media: "[]" },
+            { id: 2, userId: 1, media: "[]", openDate: "" },
+            { id: 3, userId: 1, media: "[]", openDate: "2024-03-01T00:00:00.000Z" },
+          ],
+          lenden: [{ id: 1, userId: 1, media: "[]", date: null }],
+        },
+        counter(),
+      );
+      expect(data.rehan.map((r) => r.openDate)).toEqual([
+        "1970-01-01",
+        "1970-01-01",
+        toDay(new Date("2024-03-01T00:00:00.000Z")),
+      ]);
+      expect(data.lenden[0].date).toBe("1970-01-01");
+      // updatedAt stays a full timestamp.
+      expect(data.rehan[0].updatedAt).toBe("1970-01-01T00:00:00.000Z");
+      expect(data.lenden[0].updatedAt).toBe("1970-01-01T00:00:00.000Z");
+      expect(warnings).toEqual([WARNING, "3 old records had no date and were saved with the date 1 January 1970"]);
+      expect(validateData(data, new Set())).toEqual([]);
+    });
+
+    it("says it in the singular for one record", () => {
+      const { warnings } = convertLegacy(
+        { users: [], rehan: [], lenden: [{ id: 1, userId: 1, media: "[]" }] },
+        counter(),
+      );
+      expect(warnings).toEqual([WARNING, "1 old record had no date and was saved with the date 1 January 1970"]);
+    });
+
+    it("keeps a plain day as it is, with updatedAt the start of that day as a timestamp", () => {
+      const { data, warnings } = convertLegacy(
+        {
+          users: [],
+          rehan: [{ id: 1, userId: 1, media: "[]", openDate: "2024-03-01", closedDate: "2024-04-01" }],
+          lenden: [{ id: 1, userId: 1, media: "[]", date: "2024-05-01" }],
+        },
+        counter(),
+      );
+      expect(data.rehan[0]).toMatchObject({
+        openDate: "2024-03-01",
+        closedDate: "2024-04-01",
+        updatedAt: new Date(2024, 2, 1).toISOString(),
+      });
+      expect(data.lenden[0]).toMatchObject({ date: "2024-05-01", updatedAt: new Date(2024, 4, 1).toISOString() });
+      expect(warnings).toEqual([WARNING]);
+    });
+
+    it("turns a picked date stored at local midnight into that day, not the UTC day before", () => {
+      const picked = new Date(2024, 2, 15).toISOString(); // 2024-03-14T18:30:00.000Z in IST
+      const { data } = convertLegacy(
+        { users: [], rehan: [{ id: 1, userId: 1, media: "[]", openDate: picked }], lenden: [] },
+        counter(),
+      );
+      expect(data.rehan[0].openDate).toBe("2024-03-15");
+      expect(data.rehan[0].updatedAt).toBe(picked);
+    });
+
+    it("leaves a date it cannot read as it is, so the import's check rejects it and names the row", () => {
+      const { data } = convertLegacy(
+        {
+          users: [],
+          rehan: [{ id: 1, userId: 1, media: "[]", openDate: "garbage", closedDate: "31/12/2024" }],
+          lenden: [{ id: 1, userId: 1, media: "[]", date: "someday" }],
+        },
+        counter(),
+      );
+      expect(data.rehan[0]).toMatchObject({ openDate: "garbage", closedDate: "31/12/2024" });
+      expect(data.lenden[0].date).toBe("someday");
+      expect(validateData(data, new Set())).toEqual([
+        "rehan row 1: openDate is not a valid date",
+        "rehan row 1: closedDate is not a valid date",
+        "lenden row 1: date is not a valid date",
+      ]);
+    });
   });
 });

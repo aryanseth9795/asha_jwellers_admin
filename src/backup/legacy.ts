@@ -3,11 +3,15 @@
  * Pure: the caller supplies the uuid generator.
  */
 import { BackupData, BackupError, CustomerRow, LendenRow, RehanRow, UUID_RE } from "./format";
+import { isDay, normalizeDay, parseDay } from "../utils/dates";
 
 export const LEGACY_WARNING =
   "This is an old backup: jama payments, rehan diya/jama, bill items and old jewellery are not in it and cannot be restored.";
 
+/** Timestamp for a record with no date (createdAt, updatedAt). */
 const EPOCH = "1970-01-01T00:00:00.000Z";
+/** Calendar day for a record with no date. Not normalizeDay(EPOCH): that is 31 December 1969 west of UTC. */
+const EPOCH_DAY = "1970-01-01";
 const NO_NAME = "(no name)";
 
 type Raw = Record<string, unknown>;
@@ -87,10 +91,31 @@ export const convertLegacy = (
     return id !== null ? (byId.get(id) ?? null) : null;
   };
 
+  // Calendar days (openDate, closedDate, date) are stored as plain local days. Old backups carry the timestamps the
+  // app used to store. A value that is not a date is kept as it is, so the import's check rejects the backup and names
+  // the row, instead of the record being quietly dated 1970.
+  let undated = 0;
+  const dayOf = (raw: string): string => {
+    try {
+      return normalizeDay(raw);
+    } catch {
+      return raw;
+    }
+  };
+  /** A required calendar day: EPOCH_DAY (counted for one warning) when the record has none. */
+  const requiredDay = (raw: string | null): string => {
+    if (raw !== null) return dayOf(raw);
+    undated++;
+    return EPOCH_DAY;
+  };
+  /** updatedAt stays a full timestamp: the record's own stored date, or the start of the day for a plain day. */
+  const stampOf = (raw: string | null): string => (raw === null ? EPOCH : isDay(raw) ? parseDay(raw).toISOString() : raw);
+
   const rehanRows: RehanRow[] = [];
   for (const r of rehan) {
     if (!isRecord(r)) continue;
-    const openDate = str(r.openDate) ?? EPOCH;
+    const openDate = str(r.openDate);
+    const closedDate = str(r.closedDate);
     rehanRows.push({
       uuid: uuidFor(r),
       customerUuid: customerOf(r),
@@ -98,21 +123,21 @@ export const convertLegacy = (
       category: str(r.category),
       amount: num(r.amount),
       status: num(r.status) ?? 0,
-      openDate,
-      closedDate: str(r.closedDate),
+      openDate: requiredDay(openDate),
+      closedDate: closedDate === null ? null : dayOf(closedDate),
       media: parseMedia(r.media),
-      updatedAt: openDate,
+      updatedAt: stampOf(openDate),
     });
   }
 
   const lendenRows: LendenRow[] = [];
   for (const l of lenden) {
     if (!isRecord(l)) continue;
-    const date = str(l.date) ?? EPOCH;
+    const date = str(l.date);
     lendenRows.push({
       uuid: uuidFor(l),
       customerUuid: customerOf(l),
-      date,
+      date: requiredDay(date),
       amount: num(l.amount),
       discount: num(l.discount),
       remaining: num(l.remaining),
@@ -123,7 +148,7 @@ export const convertLegacy = (
       // Old rows predate line items, so their stored amount is authoritative.
       amountOverridden: num(l.amountOverridden) ?? 1,
       media: parseMedia(l.media),
-      updatedAt: date,
+      updatedAt: stampOf(date),
     });
   }
 
@@ -138,6 +163,14 @@ export const convertLegacy = (
 
   if (unnamed > 0) {
     warnings.push(`${unnamed} ${unnamed === 1 ? "customer had" : "customers had"} no name and ${unnamed === 1 ? "was" : "were"} saved as ${NO_NAME}`);
+  }
+
+  if (undated > 0) {
+    warnings.push(
+      `${undated} old ${undated === 1 ? "record" : "records"} had no date and ${
+        undated === 1 ? "was" : "were"
+      } saved with the date 1 January 1970`,
+    );
   }
 
   return {

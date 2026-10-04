@@ -40,12 +40,16 @@ import { replaceLendenItems, setLendenBillNo } from "../database/lendenItems";
 import { replaceLendenOldJewelleryItems } from "../database/lendenOldJewelleryItems";
 import { applyMerge, applyReplace, mediaKey, newUuids, readSnapshot } from "../database/backupQueries";
 import { isSafeMediaPath, photoFileName } from "../services/BackupImportService";
+import { parseDay } from "../utils/dates";
 import type { SqliteStandIn } from "../test/sqliteStandIn";
 
 const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const T1 = "2026-01-01T10:00:00.000Z";
 const T2 = "2026-02-01T10:00:00.000Z";
 const CREATED = "2026-10-03T12:00:00.000Z";
+// Calendar days (rehan.openDate/closedDate and every other date) are plain YYYY-MM-DD on the phone.
+const D1 = "2026-01-01";
+const D2 = "2026-02-01";
 
 const baseName = (p: string) => p.split("/").pop() as string;
 
@@ -74,7 +78,7 @@ const fullSnapshot = (): LocalSnapshot => ({
       category: "Chain",
       amount: 1150,
       status: 0,
-      openDate: T1,
+      openDate: D1,
       closedDate: null,
       media: ["file:///phone/images/a.jpg", "file:///phone/images/b.jpg"],
       updatedAt: T2,
@@ -87,8 +91,8 @@ const fullSnapshot = (): LocalSnapshot => ({
       category: null,
       amount: null,
       status: null,
-      openDate: T1,
-      closedDate: T2,
+      openDate: D1,
+      closedDate: D2,
       media: [],
       updatedAt: T2,
     },
@@ -101,22 +105,22 @@ const fullSnapshot = (): LocalSnapshot => ({
       category: "Ring",
       amount: 400,
       status: 1,
-      openDate: T1,
-      closedDate: T2,
+      openDate: D1,
+      closedDate: D2,
       media: [],
       updatedAt: T1,
     },
   ],
   rehanTransactions: [
-    { id: 1, uuid: u(13), rehanId: 5, type: "diya", amount: 200, date: T1, updatedAt: T1 },
-    { id: 2, uuid: u(14), rehanId: 5, type: "jama", amount: 50, date: T2, updatedAt: T2 },
+    { id: 1, uuid: u(13), rehanId: 5, type: "diya", amount: 200, date: D1, updatedAt: T1 },
+    { id: 2, uuid: u(14), rehanId: 5, type: "jama", amount: 50, date: D2, updatedAt: T2 },
   ],
   lenden: [
     {
       id: 3,
       uuid: u(20),
       userId: 1,
-      date: T1,
+      date: D1,
       amount: 5000,
       discount: 100,
       remaining: 4900,
@@ -133,7 +137,7 @@ const fullSnapshot = (): LocalSnapshot => ({
       id: 4,
       uuid: u(21),
       userId: 0,
-      date: T2,
+      date: D2,
       amount: null,
       discount: null,
       remaining: null,
@@ -183,8 +187,8 @@ const fullSnapshot = (): LocalSnapshot => ({
     { id: 2, uuid: u(25), lendenId: 4, position: 1, description: "Scrap", metal: null, purity: null, weight: null, value: 50, updatedAt: T2 },
   ],
   jamaEntries: [
-    { id: 1, uuid: u(26), lendenId: 3, amount: 300, date: T2, updatedAt: T2 },
-    { id: 2, uuid: u(27), lendenId: 4, amount: 0, date: T2, updatedAt: T2 },
+    { id: 1, uuid: u(26), lendenId: 3, amount: 300, date: D2, updatedAt: T2 },
+    { id: 2, uuid: u(27), lendenId: 4, amount: 0, date: D2, updatedAt: T2 },
   ],
 });
 
@@ -360,19 +364,19 @@ const seedPhone = async () => {
   const chain = await createRehan({
     userId: ram,
     media: ["file:///phone/images/a.jpg", "file:///phone/images/b.jpg"],
-    openDate: T1,
+    openDate: D1,
     productName: "Chain",
     category: "Chain",
     amount: 1000,
   });
-  await createRehanTransaction({ rehanId: chain, type: "diya", amount: 200, date: T1 });
-  await createRehanTransaction({ rehanId: chain, type: "jama", amount: 50, date: T2 });
-  const ring = await createRehan({ userId: shyam, openDate: T1, productName: "Ring" });
-  sqliteMock.__raw().prepare("UPDATE rehan SET status = NULL, closedDate = ? WHERE id = ?").run(T2, ring);
+  await createRehanTransaction({ rehanId: chain, type: "diya", amount: 200, date: D1 });
+  await createRehanTransaction({ rehanId: chain, type: "jama", amount: 50, date: D2 });
+  const ring = await createRehan({ userId: shyam, openDate: D1, productName: "Ring" });
+  sqliteMock.__raw().prepare("UPDATE rehan SET status = NULL, closedDate = ? WHERE id = ?").run(D2, ring);
 
   const bill = await createLenden({
     userId: ram,
-    date: T1,
+    date: D1,
     media: ["file:///phone/other/a.jpg"],
     amount: 5000,
     discount: 100,
@@ -387,11 +391,11 @@ const seedPhone = async () => {
   await replaceLendenOldJewelleryItems(bill, [
     { description: "Old ring", metal: "silver", purity: "Desi", weight: 2.5, value: 300 },
   ]);
-  await createJamaEntry({ lendenId: bill, amount: 300, date: T2 });
+  await createJamaEntry({ lendenId: bill, amount: 300, date: D2 });
   await updateLendenBaki(bill);
-  const orphan = await createLenden({ userId: 0, date: T2, amount: 800, remaining: 800 });
+  const orphan = await createLenden({ userId: 0, date: D2, amount: 800, remaining: 800 });
   await replaceLendenOldJewelleryItems(orphan, [{ description: "Scrap", value: 50 }]);
-  await createJamaEntry({ lendenId: orphan, amount: 100, date: T2 });
+  await createJamaEntry({ lendenId: orphan, amount: 100, date: D2 });
   return { ram, shyam, chain, ring, bill, orphan };
 };
 
@@ -463,7 +467,7 @@ describeDb("backupQueries on SQLite", () => {
 
     await freshPhone();
     const other = await createUser({ name: "Someone else" });
-    await createRehan({ userId: other, openDate: T1, productName: "Kada", amount: 99 });
+    await createRehan({ userId: other, openDate: D1, productName: "Kada", amount: 99 });
     await applyReplace(data, fakeMediaMap([...data.rehan, ...data.lenden]));
     expect(canonical(await readSnapshot())).toEqual(canonical(backup));
   });
@@ -544,7 +548,7 @@ describeDb("backupQueries on SQLite", () => {
       ...data,
       jamaEntries: [
         ...data.jamaEntries,
-        { uuid: u(900), lendenUuid: billUuid, amount: 5000, date: T2, updatedAt: T2 },
+        { uuid: u(900), lendenUuid: billUuid, amount: 5000, date: D2, updatedAt: T2 },
       ],
     };
     const plan = planMerge(extra, full);
@@ -587,5 +591,135 @@ describeDb("backupQueries on SQLite", () => {
     expect(new Set(ids).size).toBe(50);
     for (const id of ids) expect(UUID_RE.test(id)).toBe(true);
     expect(await newUuids(0)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Part 3: calendar days. Backups made before the change carry timestamps; the phone holds plain days once migrated.
+
+describeDb("calendar days through a backup", () => {
+  let log: jest.SpyInstance;
+  let warn: jest.SpyInstance;
+  beforeAll(() => {
+    log = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+  });
+  afterAll(() => {
+    log.mockRestore();
+    warn.mockRestore();
+  });
+
+  const CALENDAR = [
+    ["rehan", "openDate"],
+    ["rehan", "closedDate"],
+    ["lenden", "date"],
+    ["jama_entries", "date"],
+    ["rehan_transactions", "date"],
+  ] as const;
+
+  /** Every stored calendar value per column, in id order. */
+  const storedDays = () =>
+    Object.fromEntries(
+      CALENDAR.map(([table, column]) => [
+        `${table}.${column}`,
+        sqliteMock.__raw().prepare(`SELECT ${column} AS value FROM ${table} ORDER BY id`).all().map((r) => r.value),
+      ]),
+    );
+
+  /** The timestamp the old app stored for a picked day: local midnight. */
+  const oldStamp = (day: string) => parseDay(day).toISOString();
+  /** Noon of that day: the kind of timestamp the old "today" defaults wrote. */
+  const noonStamp = (day: string) => {
+    const d = parseDay(day);
+    d.setHours(12);
+    return d.toISOString();
+  };
+
+  /** The phone before the update: seedPhone with every calendar value as the old app stored it, user_version unset. */
+  const oldPhone = async () => {
+    await seedPhone();
+    const raw = sqliteMock.__raw();
+    for (const [table, column] of CALENDAR) {
+      for (const r of raw.prepare(`SELECT id, ${column} AS value FROM ${table} WHERE ${column} IS NOT NULL`).all()) {
+        raw.prepare(`UPDATE ${table} SET ${column} = ? WHERE id = ?`).run(oldStamp(String(r.value)), r.id);
+      }
+    }
+    raw.exec("PRAGMA user_version = 0");
+  };
+
+  /** A backup of that phone as the old app exported it: the stored timestamps, as they are. */
+  const backupOf = (snapshot: LocalSnapshot) => {
+    const result = serializeSnapshot(snapshot, { createdAt: CREATED, mediaExists: () => true });
+    return {
+      manifestText: JSON.stringify(result.manifest, null, 2),
+      files: result.files,
+      mediaPaths: new Set(result.mediaCopies.map((m) => m.to)),
+    };
+  };
+
+  it("imports an older backup as plain days, and merging it after the migration finds every row already here", async () => {
+    await oldPhone();
+    const before = await readSnapshot();
+    const older = backupOf(before);
+    // Export writes what is stored: the older backup carries timestamps.
+    expect(JSON.parse(older.files["data/rehan.json"])[0].openDate).toBe(oldStamp(D1));
+
+    // The update arrives and the migration rewrites the phone's own values, leaving updatedAt alone.
+    await initDatabase();
+    const migrated = await readSnapshot();
+    expect(migrated.rehan.map((r) => [r.openDate, r.closedDate])).toEqual([
+      [D1, null],
+      [D1, D2],
+    ]);
+    expect(migrated.jamaEntries.map((j) => j.date)).toEqual([D2, D2]);
+    for (const k of TABLE_KEYS) {
+      expect(migrated[k].map((r) => r.updatedAt)).toEqual(before[k].map((r) => r.updatedAt));
+    }
+
+    // The import validates the older backup into plain days before planning...
+    const check = validateBackup(older);
+    if (!check.ok) throw new Error(check.errors.join("; "));
+    // ...so a merge into the migrated phone finds every row already here: no inserts and no conflicts.
+    const plan = planMerge(check.data, migrated);
+    for (const k of TABLE_KEYS) {
+      expect(plan.summary[k]).toEqual({ total: check.data[k].length, insert: 0, same: check.data[k].length, conflict: 0 });
+    }
+    expect(plan.conflicts).toEqual([]);
+    expect(plan.applyToBalance).toEqual([]);
+    expect(plan.recomputeLenden).toEqual([]);
+    await applyMerge(plan, new Map());
+    expect(await readSnapshot()).toEqual(migrated);
+
+    // Replace and restore of the older backup lands as the same plain days.
+    await freshPhone();
+    await applyReplace(check.data, fakeMediaMap([...check.data.rehan, ...check.data.lenden]));
+    expect(canonical(await readSnapshot())).toEqual(canonical(migrated));
+  });
+
+  it("stores plain days even when the rows handed to the importer carry timestamps", async () => {
+    await seedPhone();
+    const days = storedDays();
+    const { data } = validated(await readSnapshot());
+    // Rows that skipped validation, with timestamps in every calendar field.
+    const stamped: BackupData = {
+      ...data,
+      rehan: data.rehan.map((r) => ({
+        ...r,
+        openDate: oldStamp(r.openDate),
+        closedDate: r.closedDate === null ? null : noonStamp(r.closedDate),
+      })),
+      rehanTransactions: data.rehanTransactions.map((t) => ({ ...t, date: noonStamp(t.date) })),
+      lenden: data.lenden.map((l) => ({ ...l, date: oldStamp(l.date) })),
+      jamaEntries: data.jamaEntries.map((j) => ({ ...j, date: noonStamp(j.date) })),
+    };
+
+    await freshPhone();
+    await applyReplace(stamped, fakeMediaMap([...stamped.rehan, ...stamped.lenden]));
+    expect(storedDays()).toEqual(days);
+
+    await freshPhone();
+    const plan = planMerge(stamped, await readSnapshot());
+    await applyMerge(plan, fakeMediaMap([...plan.insert.rehan, ...plan.insert.lenden]));
+    expect(storedDays()).toEqual(days);
   });
 });
