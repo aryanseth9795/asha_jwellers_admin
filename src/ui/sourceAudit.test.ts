@@ -12,6 +12,16 @@ const tsxUnder = (dir: string): string[] =>
   });
 /** App code: App.tsx and every .tsx under src except the UI layer itself. */
 const appFiles = ["App.tsx", ...tsxUnder("src").filter((f) => !f.startsWith("src/ui/"))];
+/** A split screen leaves `src/screen/<Name>Screen.tsx` as a one-line re-export of its folder; returns that folder name. */
+const shimFolder = (src: string): string | null => {
+  const m = src.trim().match(/^export\s*\{\s*default\s*\}\s*from\s*["']\.\/(\w+)["'];?$/);
+  return m ? m[1] : null;
+};
+/** The sources that really hold a screen's code: the file itself, or, for a re-export shim, every .tsx in its folder. */
+const screenSources = (rel: string): string[] => {
+  const folder = shimFolder(read(rel));
+  return folder ? tsxUnder(`src/screen/${folder}`).map(read) : [read(rel)];
+};
 /** Names imported with `import { … } from "react-native"`. */
 const rnImports = (src: string): string[] =>
   [...src.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']react-native["']/g)].flatMap((m) =>
@@ -44,13 +54,24 @@ describe("source audit (UI revamp spec §6)", () => {
       "src/screen/AddEditCategoryScreen.tsx",
       "src/screen/AddEditProductScreen.tsx",
     ];
-    expect(forms.filter((f) => !read(f).includes("<KeyboardArea"))).toEqual([]);
+    // A split form's shim is checked through its folder: some part of it must hold the KeyboardArea.
+    expect(forms.filter((f) => !screenSources(f).some((src) => src.includes("<KeyboardArea")))).toEqual([]);
   });
 
-  const screens = tsxUnder("src/screen");
-
   it("roots every screen in Screen (spec §6 rule 1)", () => {
-    expect(screens.filter((f) => !read(f).includes("<Screen"))).toEqual([]);
+    const entries = fs.readdirSync(path.join(ROOT, "src/screen"), { withFileTypes: true });
+    // Top-level screen files: a re-export shim defers to its folder's index.tsx, anything else must root itself.
+    const roots = entries
+      .filter((e) => e.isFile() && e.name.endsWith(".tsx"))
+      .map((e) => {
+        const rel = `src/screen/${e.name}`;
+        const folder = shimFolder(read(rel));
+        return folder ? `src/screen/${folder}/index.tsx` : rel;
+      });
+    // Every screen folder is rooted through its index.tsx only; its other parts are exempt.
+    const folders = entries.filter((e) => e.isDirectory()).map((e) => `src/screen/${e.name}/index.tsx`);
+    const rooted = [...new Set([...roots, ...folders])];
+    expect(rooted.filter((f) => !fs.existsSync(path.join(ROOT, f)) || !read(f).includes("<Screen"))).toEqual([]);
   });
 
   it("never uses SafeAreaView or KeyboardAvoidingView directly outside the UI layer", () => {
@@ -63,7 +84,10 @@ describe("source audit (UI revamp spec §6)", () => {
   });
 
   it("opens pop-ups only through BottomSheet; the photo viewer is the one full-screen Modal", () => {
-    expect(appFiles.filter((f) => /<Modal\b/.test(read(f)))).toEqual(["src/screen/TransactionDetailScreen.tsx"]);
+    // Matched by screen, so the Modal may sit in TransactionDetailScreen.tsx or in any part of its split folder.
+    const screenOf = (f: string) => f.replace(/^src\/screen\/(\w+?)(Screen\.tsx|\/.*)$/, "$1");
+    const withModal = appFiles.filter((f) => /<Modal\b/.test(read(f)));
+    expect([...new Set(withModal.map(screenOf))]).toEqual(["TransactionDetail"]);
   });
 
   it("exports through BackupExportService; the old ExportService is gone (backup spec §8)", () => {
