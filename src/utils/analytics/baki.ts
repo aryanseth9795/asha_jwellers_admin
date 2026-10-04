@@ -40,17 +40,24 @@ const AGING = [
   { label: "> 1 year", maxDays: Infinity },
 ];
 
-/** Open entries' stored baki grouped by how old the bill is. */
+/** Label of the extra bucket for open bills whose date cannot be read. */
+export const UNREADABLE_AGING = "Date unreadable";
+
+/**
+ * Open entries' stored baki grouped by how old the bill is. A bill whose date cannot be read
+ * cannot be aged, but its baki must not vanish: it goes in a last "Date unreadable" bucket,
+ * added only when it has a bill, so the buckets always add up to the open baki.
+ */
 export const baakiAging = (data: AnalyticsData, now: Date = new Date()): AgingBucket[] => {
   const buckets = AGING.map(({ label }) => ({ label, count: 0, amount: 0 }));
+  const unreadable = { label: UNREADABLE_AGING, count: 0, amount: 0 };
   for (const bill of data.lenden) {
     const baki = bill.baki ?? 0;
     if ((bill.status ?? 0) !== 0 || baki <= 0) continue;
     const age = Math.max(0, daysSince(bill.date, now));
-    if (Number.isNaN(age)) continue; // a date that cannot be read cannot be aged
-    const bucket = buckets[AGING.findIndex((a) => age <= a.maxDays)];
+    const bucket = Number.isNaN(age) ? unreadable : buckets[AGING.findIndex((a) => age <= a.maxDays)];
     bucket.count++;
     bucket.amount += baki;
   }
-  return buckets;
+  return unreadable.count > 0 ? [...buckets, unreadable] : buckets;
 };

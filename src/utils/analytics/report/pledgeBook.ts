@@ -112,8 +112,9 @@ export const pledgeStats = (rows: PledgeRow[]): PledgeStats => {
 
 /** Opened, redeemed and still-open principal for every month from the first pledge to now. */
 export const monthlyBook = (rows: PledgeRow[], now: Date): MonthPoint[] => {
-  if (rows.length === 0) return [];
-  const first = rows.map((r) => r.month).sort()[0];
+  const dated = rows.filter((r) => r.month !== ""); // a pledge with an unreadable open date has no month
+  if (dated.length === 0) return [];
+  const first = dated.map((r) => r.month).sort()[0];
   const last = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
   return monthKeysBetween(first, last > first ? last : first).map((key) => {
     const y = Number(key.slice(0, 4));
@@ -209,8 +210,8 @@ export const interestWhatIf = (rows: PledgeRow[], ratePerMonth: number): Interes
 
 /** Longest run (≥ 2 months) with no pledge opened, between the first and last month that have one. */
 export const loggingGap = (rows: PledgeRow[]): LoggingGap | null => {
-  if (rows.length === 0) return null;
-  const has = new Set(rows.map((r) => r.month));
+  const has = new Set(rows.map((r) => r.month).filter((m) => m !== ""));
+  if (has.size === 0) return null;
   const sorted = [...has].sort();
   const keys = monthKeysBetween(sorted[0], sorted[sorted.length - 1]);
   let best: LoggingGap | null = null;

@@ -205,7 +205,7 @@ export const buildOverview = (
     }
   }
 
-  const stale = baakiAging(data, now).slice(3); // older than 180 days
+  const stale = baakiAging(data, now).slice(3, 5); // older than 180 days (not the "Date unreadable" bucket)
   const staleAmount = stale.reduce((s, b) => s + b.amount, 0);
   if (staleAmount > 0) {
     const bills = stale.reduce((s, b) => s + b.count, 0);

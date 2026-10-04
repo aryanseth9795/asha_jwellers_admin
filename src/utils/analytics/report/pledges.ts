@@ -22,8 +22,8 @@ export interface PledgeRow {
   daysOpen: number | null; // open pledges only
   daysToRedeem: number | null; // redeemed pledges only
   year: string; // year opened, e.g. "2026"
-  month: string; // month opened, e.g. "2026-01"
-  weekday: number; // day opened, 0 = Sunday
+  month: string; // month opened, e.g. "2026-01"; "" when the open date cannot be read
+  weekday: number; // day opened, 0 = Sunday; -1 when the open date cannot be read
 }
 
 export interface PledgeFilters {
@@ -48,6 +48,9 @@ export const hasPhoto = (media: string | null | undefined): boolean => {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/** Year shown for a pledge whose open date cannot be read; its month is "" and weekday -1. */
+export const UNKNOWN_YEAR = "Unknown";
+
 export const buildPledgeRows = (
   data: AnalyticsData,
   now: Date = new Date(),
@@ -63,6 +66,7 @@ export const buildPledgeRows = (
   return data.rehan.map((r) => {
     // the local day opened (a plain day is local midnight), so year, month and weekday are the day picked
     const opened = new Date(toTime(r.openDate));
+    const known = !Number.isNaN(opened.getTime());
     const open = (r.status ?? 0) === 0;
     return {
       id: r.id,
@@ -80,9 +84,9 @@ export const buildPledgeRows = (
       photo: hasPhoto(r.media),
       daysOpen: open ? dayCountOrNull(Math.max(0, daysSince(r.openDate, now))) : null,
       daysToRedeem: !open && r.closedDate ? dayCountOrNull(daysBetween(r.openDate, r.closedDate)) : null,
-      year: String(opened.getFullYear()),
-      month: `${opened.getFullYear()}-${pad(opened.getMonth() + 1)}`,
-      weekday: opened.getDay(),
+      year: known ? String(opened.getFullYear()) : UNKNOWN_YEAR,
+      month: known ? `${opened.getFullYear()}-${pad(opened.getMonth() + 1)}` : "",
+      weekday: known ? opened.getDay() : -1,
     };
   });
 };

@@ -1,4 +1,4 @@
-import { baakiAging, baakiAt } from "./baki";
+import { UNREADABLE_AGING, baakiAging, baakiAt } from "./baki";
 import { buildCategoryView } from "./categories";
 import { buildCustomersView, countNewCustomers } from "./customers";
 import { buildImportanceView } from "./importance";
@@ -22,7 +22,7 @@ import {
 import {
   concentration, customerSegments, customersAdded, exposures, repeatCustomers, villageStats,
 } from "./report/pledgeCustomers";
-import { buildPledgeRows } from "./report/pledges";
+import { buildPledgeRows, filterOptions } from "./report/pledges";
 import { dataQuality } from "./report/quality";
 import { ledgerScale, villageShares } from "./report/together";
 import { normalizeDay, parseDay } from "../dates";
@@ -280,12 +280,43 @@ describe("a ledger with dates that cannot be read", () => {
     expect(bills.find((b) => b.id === 1)!.daysOpen).toBeNull(); // bill 1 has no readable date
   });
 
-  it("leaves a bill it cannot age out of the aging buckets and keeps the others", () => {
-    const open = (id: number, date: string): LendenRow => ({
-      id, userId: 1, date, amount: 100, discount: null, jama: null, baki: 100, status: 0,
+  it("keeps the baki of a bill it cannot age in a Date unreadable bucket, so the buckets add up", () => {
+    const open = (id: number, date: string, baki: number): LendenRow => ({
+      id, userId: 1, date, amount: 1000, discount: null, jama: null, baki, status: 0,
     });
-    const aging = baakiAging({ ...garbled, lenden: [open(1, BAD), open(2, "2026-09-20")] }, NOW);
-    expect(aging.map((b) => b.count)).toEqual([1, 0, 0, 0, 0]);
+    const lenden = [open(1, BAD, 700), open(2, "2026-09-20", 100), open(3, "2025-01-01", 200), open(4, "2026-02-30", 50)];
+    const aging = baakiAging({ ...garbled, lenden }, NOW);
+    expect(aging.map((b) => b.label)).toEqual([
+      "0–30 days", "31–90 days", "91–180 days", "181–365 days", "> 1 year", UNREADABLE_AGING,
+    ]);
+    expect(aging.map((b) => b.amount)).toEqual([100, 0, 0, 0, 200, 750]); // 2026-02-30 is not a day either
+    expect(aging.reduce((total, b) => total + b.amount, 0)).toBe(1050);
+    expect(aging.reduce((total, b) => total + b.count, 0)).toBe(4);
+  });
+
+  it("adds the Date unreadable bucket only when a bill needs it", () => {
+    expect(baakiAging(reference, NOW).map((b) => b.label)).not.toContain(UNREADABLE_AGING);
+    expect(baakiAging(garbled, NOW).map((b) => b.label)).toContain(UNREADABLE_AGING);
+  });
+
+  it("does not count unreadable baki as older than six months in the overview", () => {
+    const data: AnalyticsData = {
+      ...reference,
+      lenden: [{ id: 1, userId: 1, date: BAD, amount: 1000, discount: null, jama: null, baki: 1000, status: 0 }],
+      jama: [], rehan: [], rehanTx: [], soldItems: [], oldItems: [],
+    };
+    const view = buildOverview(data, monthPeriod(NOW), null, null, NOW);
+    expect(view.insights.some((i) => i.text.includes("over 6 months old"))).toBe(false);
+  });
+
+  it("gives a pledge with an unreadable open date no NaN year, month or weekday", () => {
+    const rows = buildPledgeRows(garbled, NOW, groupVillages(garbled.users));
+    const bad = rows.find((r) => r.id === 1)!;
+    expect([bad.year, bad.month, bad.weekday]).toEqual(["Unknown", "", -1]);
+    const text = JSON.stringify([filterOptions(rows, groupVillages(garbled.users)), cohorts(rows), monthlyBook(rows, NOW), loggingGap(rows)]);
+    expect(text).not.toContain("NaN");
+    expect(filterOptions(rows, groupVillages(garbled.users)).years).toContain("Unknown");
+    expect(weekdays(rows).reduce((n, w) => n + w.count, 0)).toBe(rows.length - 4); // pledges 1, 4, 7, 10 are unreadable
   });
 
   it("builds the all-time period from the dates it can read", () => {

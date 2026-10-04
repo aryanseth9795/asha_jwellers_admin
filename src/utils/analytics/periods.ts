@@ -3,7 +3,7 @@
 // timestamps, which are stored in UTC. Either way a 1 a.m. IST sale must not slide
 // into the previous day, week, month or financial year.
 
-import { toDay, toLocalDate } from "../dates";
+import { DAY_RE, isDay, toDay, toLocalDate } from "../dates";
 
 export type Grain = "week" | "month" | "quarter" | "fy" | "custom" | "all";
 export type Unit = "day" | "week" | "month" | "year";
@@ -38,7 +38,8 @@ const timeCache = new Map<string, number>();
 export const toTime = (stored: string): number => {
   let t = timeCache.get(stored);
   if (t === undefined) {
-    t = toLocalDate(stored)?.getTime() ?? NaN;
+    // 2026-02-30 looks like a day but is not one; V8 would roll it into 2 March, so it is unreadable
+    t = DAY_RE.test(stored) && !isDay(stored) ? NaN : toLocalDate(stored)?.getTime() ?? NaN;
     timeCache.set(stored, t);
   }
   return t;

@@ -241,7 +241,7 @@ describe("toTime", () => {
   });
 
   it("is NaN, never a throw, for text that is not a date", () => {
-    for (const bad of ["", "garbage", "2026-13-01"]) expect(toTime(bad)).toBeNaN();
+    for (const bad of ["", "garbage", "2026-13-01", "2026-02-30", "2025-02-29", "2026-04-31"]) expect(toTime(bad)).toBeNaN();
     expect(inPeriod("garbage", fyPeriod(2026))).toBe(false);
   });
 });
