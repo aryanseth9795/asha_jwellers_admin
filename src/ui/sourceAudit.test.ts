@@ -4,14 +4,16 @@ import * as path from "path";
 /** Static checks that pin the UI revamp's layout rules (spec §6) on the whole source tree. */
 const ROOT = path.join(__dirname, "..", "..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
-const tsxUnder = (dir: string): string[] =>
+/** Every file under a directory with one of the extensions (e.g. [".ts", ".tsx"]); test files are left out unless asked for. */
+const sourceUnder = (dir: string, exts: string[], withTests = false): string[] =>
   fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
     const rel = `${dir}/${e.name}`;
-    if (e.isDirectory()) return tsxUnder(rel);
-    return rel.endsWith(".tsx") ? [rel] : [];
+    if (e.isDirectory()) return sourceUnder(rel, exts, withTests);
+    if (!exts.some((x) => rel.endsWith(x))) return [];
+    return !withTests && /\.test\.tsx?$/.test(rel) ? [] : [rel];
   });
-/** App code: App.tsx and every .tsx under src except the UI layer itself. */
-const appFiles = ["App.tsx", ...tsxUnder("src").filter((f) => !f.startsWith("src/ui/"))];
+/** App code: App.tsx and every .ts / .tsx under src (hooks, services and utils included) except the UI layer itself and tests. */
+const appFiles = ["App.tsx", ...sourceUnder("src", [".ts", ".tsx"]).filter((f) => !f.startsWith("src/ui/"))];
 /** A split screen leaves `src/screen/<Name>Screen.tsx` as a one-line re-export of its folder; returns that folder name. */
 const shimFolder = (src: string): string | null => {
   const m = src.trim().match(/^export\s*\{\s*default\s*\}\s*from\s*["']\.\/(\w+)["'];?$/);
@@ -20,7 +22,7 @@ const shimFolder = (src: string): string | null => {
 /** The sources that really hold a screen's code: the file itself, or, for a re-export shim, every .tsx in its folder. */
 const screenSources = (rel: string): string[] => {
   const folder = shimFolder(read(rel));
-  return folder ? tsxUnder(`src/screen/${folder}`).map(read) : [read(rel)];
+  return folder ? sourceUnder(`src/screen/${folder}`, [".tsx"], true).map(read) : [read(rel)];
 };
 /** Names imported with `import { … } from "react-native"`. */
 const rnImports = (src: string): string[] =>
@@ -91,14 +93,8 @@ describe("source audit (UI revamp spec §6)", () => {
   });
 
   it("exports through BackupExportService; the old ExportService is gone (backup spec §8)", () => {
-    const codeUnder = (dir: string): string[] =>
-      fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
-        const rel = `${dir}/${e.name}`;
-        if (e.isDirectory()) return codeUnder(rel);
-        return /\.tsx?$/.test(rel) ? [rel] : [];
-      });
     const importsOld = /from\s*["'][^"']*services\/ExportService["']|require\(\s*["'][^"']*services\/ExportService["']\s*\)/;
-    expect(["App.tsx", ...codeUnder("src")].filter((f) => importsOld.test(read(f)))).toEqual([]);
+    expect(["App.tsx", ...sourceUnder("src", [".ts", ".tsx"], true)].filter((f) => importsOld.test(read(f)))).toEqual([]);
     expect(fs.existsSync(path.join(ROOT, "src/services/ExportService.ts"))).toBe(false);
   });
 
@@ -109,19 +105,53 @@ describe("source audit (UI revamp spec §6)", () => {
 });
 
 describe("source audit (calendar days, hardening item 8)", () => {
-  /** Every .ts / .tsx file under a directory, tests excluded (hooks and style files of a split screen included). */
-  const sourceUnder = (dir: string): string[] =>
-    fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
-      const rel = `${dir}/${e.name}`;
-      if (e.isDirectory()) return sourceUnder(rel);
-      return /\.tsx?$/.test(rel) && !/\.test\.tsx?$/.test(rel) ? [rel] : [];
-    });
+  /** A calendar day is stored as plain `YYYY-MM-DD` (written with toDay), so no code outside the database and backup layers should cut one out of a UTC instant. */
+  const cutFromUtc = /\.toISOString\(|\.toJSON\(|\.split\(\s*[`"']T[`"']|\.(slice|substring|substr)\(\s*0\s*,\s*10\s*\)/;
+  /**
+   * The few legitimate hits, each a narrow snippet in one named file, removed from the text before the check.
+   * Everything else in these folders is still scanned, so a new violation in the same file would still fail.
+   */
+  const allowed: { file: string; snippet: string; why: string }[] = [
+    {
+      file: "src/services/BackupExportService.ts",
+      snippet: "createdAt: new Date().toISOString(),",
+      why: "the manifest's createdAt is a real instant (when the backup was made), not a calendar day",
+    },
+    {
+      file: "src/services/BackupImportService.ts",
+      snippet: "new Date(Number(m[1])).toISOString()",
+      why: "an old export_<ms>.zip name carries only an instant, kept as the backup's timestamp",
+    },
+    {
+      file: "src/utils/analytics/report/findings.ts",
+      snippet: "ranked.slice(0, 10)",
+      why: "the ten largest customers: an array slice, not a date",
+    },
+    {
+      file: "src/utils/analytics/report/fixture.ts",
+      snippet: "new Date(y, m - 1, d, 12).toISOString()",
+      why: "shared test ledger (not a *.test.ts file) deliberately building legacy timestamp fixtures",
+    },
+    {
+      file: "src/utils/analytics/report/fixture.ts",
+      snippet: "new Date(y, m - 1, d).toISOString()",
+      why: "shared test ledger: the old picker's local-midnight timestamp, built on purpose",
+    },
+    {
+      file: "src/utils/analytics/report/fixture.ts",
+      snippet: "parseDay(normalizeDay(stored)).toISOString()",
+      why: "shared test ledger: the same legacy local-midnight timestamp, built from a stored day",
+    },
+  ];
+  const scanned = (f: string): string => allowed.filter((a) => a.file === f).reduce((src, a) => src.split(a.snippet).join(""), read(f));
 
-  it("writes a picked date with toDay, never as a UTC timestamp", () => {
-    // Screens and components never write createdAt / updatedAt (the database layer does), so a toISOString() or a
-    // split("T") there cuts a calendar day out of a UTC instant: 15 Sept picked in IST would be stored as ...-14T18:30Z.
-    const cutFromUtc = /\.toISOString\(\)|\.split\(\s*["']T["']\s*\)/;
-    const files = [...sourceUnder("src/screen"), ...sourceUnder("src/components")];
-    expect(files.filter((f) => cutFromUtc.test(read(f)))).toEqual([]);
+  it("never cuts a calendar day out of a UTC timestamp", () => {
+    // src/database and src/backup are left out: they legitimately write createdAt / updatedAt instants.
+    const files = ["src/screen", "src/components", "src/services", "src/utils"].flatMap((d) => sourceUnder(d, [".ts", ".tsx"]));
+    expect(files.filter((f) => cutFromUtc.test(scanned(f)))).toEqual([]);
+  });
+
+  it("keeps every allowed exception live, so the list cannot go stale", () => {
+    expect(allowed.filter((a) => !read(a.file).includes(a.snippet))).toEqual([]);
   });
 });

@@ -190,6 +190,7 @@ const TransactionDetailScreen: React.FC<Props> = (props) => {
         selectedImageIndex={t.selectedImageIndex}
         setSelectedImageIndex={t.setSelectedImageIndex}
         mediaPaths={t.mediaPaths}
+        onClose={t.closeImageViewer}
         insets={t.insets}
       />
     </Screen>

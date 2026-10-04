@@ -73,6 +73,7 @@ export function todayDay(now: Date = new Date()): string {
 /**
  * Converts a value to a local Date, or null if it cannot be parsed.
  * - If the value is a plain `YYYY-MM-DD` that `isDay` accepts, returns `parseDay(value)` (local midnight).
+ * - A value shaped like a day that is not a real one (`2026-02-30`) gives null.
  * - Otherwise tries `new Date(value)` and returns it if valid.
  * - Returns null for empty, null, undefined, or invalid input.
  * - Never throws.
@@ -89,6 +90,9 @@ export function toLocalDate(value: string | null | undefined): Date | null {
       return null;
     }
   }
+
+  // Day-shaped but not a real day (e.g. 2026-02-30): new Date() would roll it over to 2 March, so reject it.
+  if (DAY_RE.test(value)) return null;
 
   // Try as an ISO timestamp or other date format
   const date = new Date(value);

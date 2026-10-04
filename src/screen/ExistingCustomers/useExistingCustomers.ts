@@ -58,9 +58,10 @@ export const useExistingCustomers = () => {
     filterDateTo !== null ||
     filterTransactionType !== "both";
 
-  // Resolves true when the list loaded, false when the read failed (the retry state is then showing). afterSave: a write
-  // has just succeeded, so a failed read is reported as "Saved, but couldn't refresh" rather than "Couldn't load".
-  const loadUsers = async (afterSave = false): Promise<boolean> => {
+  // Resolves true when the list loaded, false when the read failed (the retry state is then showing). afterWrite: a write
+  // has just succeeded ("Saved" for a save, "Done" for a delete), so a failed read is reported as "<verb>, but couldn't
+  // refresh" rather than "Couldn't load".
+  const loadUsers = async (afterWrite: "Saved" | "Done" | null = null): Promise<boolean> => {
     try {
       let data: UserWithCounts[];
 
@@ -85,8 +86,8 @@ export const useExistingCustomers = () => {
     } catch (error) {
       console.error("Error loading users:", error);
       setLoadError(true);
-      if (afterSave) {
-        notify.error("Saved, but couldn't refresh", "Pull down to see the latest list.");
+      if (afterWrite) {
+        notify.error(`${afterWrite}, but couldn't refresh`, "Pull down to see the latest list.");
       } else {
         notify.error("Couldn't load customers", "Pull down to try again.");
       }
@@ -173,7 +174,7 @@ export const useExistingCustomers = () => {
 
       // Refresh list. The customer is saved either way, so the sheet closes; success is announced only if the refresh
       // worked (otherwise loadUsers has already said "Saved, but couldn't refresh").
-      const refreshed = await loadUsers(true);
+      const refreshed = await loadUsers("Saved");
       closeEditModal();
       if (refreshed) {
         notify.success("Customer updated", "Customer details updated successfully!");
@@ -201,8 +202,8 @@ export const useExistingCustomers = () => {
     ) {
       try {
         await deleteUser(user.id);
-        // The customer is deleted either way; announce it only if the refresh worked.
-        if (await loadUsers(true)) {
+        // The customer is deleted either way; announce it only if the refresh worked (otherwise loadUsers says "Done, but couldn't refresh").
+        if (await loadUsers("Done")) {
           notify.success("Customer deleted", "Customer and all transactions deleted.");
         }
       } catch (error) {

@@ -339,9 +339,10 @@ export const useTransactionDetail = ({ navigation, route }: Props) => {
 
   // A write that succeeded must not be reported as failed because the read after it failed, and the screen must not
   // keep showing numbers that no longer match what was saved. Show the retry state instead.
-  const showRefreshFailed = (error: unknown) => {
+  // verb: "Saved" after a save, "Done" after a delete.
+  const showRefreshFailed = (error: unknown, verb: "Saved" | "Done" = "Saved") => {
     console.error("Error refreshing after save:", error);
-    notify.error("Saved, but couldn't refresh", "Tap Retry to see the latest numbers.");
+    notify.error(`${verb}, but couldn't refresh`, "Tap Retry to see the latest numbers.");
     setLoadError(true);
   };
 
@@ -687,7 +688,7 @@ export const useTransactionDetail = ({ navigation, route }: Props) => {
         const lendenData = await getLendenById(transactionId);
         if (lendenData) setLenden(lendenData);
       } catch (error) {
-        showRefreshFailed(error);
+        showRefreshFailed(error, "Done");
       }
     }
   };
@@ -717,7 +718,7 @@ export const useTransactionDetail = ({ navigation, route }: Props) => {
         const rehanData = await getRehanById(transactionId);
         if (rehanData) setRehan(rehanData);
       } catch (error) {
-        showRefreshFailed(error);
+        showRefreshFailed(error, "Done");
       }
     }
   };

@@ -17,7 +17,7 @@ const item = (over: Partial<LendenItem> = {}): LendenItem => ({
 
 const data = (over: Partial<BillData> = {}): BillData => ({
   billNo: 9267,
-  date: "2026-08-27T00:00:00.000Z",
+  date: "2026-08-27",
   customer: { name: "सरिता शर्मा", address: "रामदशपुर, जौनपुर", mobile: "9415501122" },
   items: [item()],
   oldJewelleryItems: [],
@@ -137,7 +137,7 @@ describe("buildBillHtml", () => {
         data({
           showPaymentDetails: true,
           discount: 650,
-          jamaEntries: [{ amount: 50000, date: "2026-08-27T00:00:00.000Z" }],
+          jamaEntries: [{ amount: 50000, date: "2026-08-27" }],
           baki: 100,
         }),
       );
@@ -155,7 +155,7 @@ describe("buildBillHtml", () => {
           pichlaBaki: 20000,
           amount: 50000,
           discount: 0,
-          jamaEntries: [{ amount: 10000, date: "2026-08-27T00:00:00.000Z" }],
+          jamaEntries: [{ amount: 10000, date: "2026-08-27" }],
         }),
       );
       expect(html).toContain("पिछला बाकी");
@@ -272,7 +272,7 @@ describe("buildBillHtml", () => {
         showTotalBaki: true,
         discount: 650,
         pichlaBaki: 25000,
-        jamaEntries: [{ amount: 50000, date: "2026-08-27T00:00:00.000Z" }],
+        jamaEntries: [{ amount: 50000, date: "2026-08-27" }],
       }),
     );
     expect(html).toContain("25,100/-");

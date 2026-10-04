@@ -11,6 +11,7 @@ interface Props {
   selectedImageIndex: number | null;
   setSelectedImageIndex: (index: number | null) => void;
   mediaPaths: string[];
+  onClose: () => void;
   insets: EdgeInsets;
 }
 
@@ -18,6 +19,7 @@ const ImageViewerModal: React.FC<Props> = ({
   selectedImageIndex,
   setSelectedImageIndex,
   mediaPaths,
+  onClose,
   insets,
 }) => {
   return (
@@ -30,12 +32,12 @@ const ImageViewerModal: React.FC<Props> = ({
         animationType="fade"
         statusBarTranslucent
         navigationBarTranslucent
-        onRequestClose={() => setSelectedImageIndex(null)}
+        onRequestClose={onClose}
       >
         <View style={styles.modalContainer}>
           <TouchableOpacity
             style={[styles.modalCloseButton, { top: insets.top + 8 }]}
-            onPress={() => setSelectedImageIndex(null)}
+            onPress={onClose}
           >
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>

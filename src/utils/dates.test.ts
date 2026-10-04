@@ -215,6 +215,14 @@ describe("toLocalDate", () => {
     expect(toLocalDate("2026-13-01")).toBeNull();
   });
 
+  it("returns null for a day-shaped value that is not a real calendar day", () => {
+    // Without the guard, new Date("2026-02-30") may roll over to 2 March instead of failing.
+    expect(toLocalDate("2026-02-30")).toBeNull();
+    expect(toLocalDate("2026-04-31")).toBeNull();
+    expect(toLocalDate("2025-02-29")).toBeNull();
+    expect(toLocalDate("2024-02-29")).not.toBeNull();
+  });
+
   it("never throws", () => {
     expect(() => toLocalDate(null)).not.toThrow();
     expect(() => toLocalDate(undefined)).not.toThrow();
