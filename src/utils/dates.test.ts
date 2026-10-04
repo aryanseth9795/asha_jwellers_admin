@@ -1,4 +1,4 @@
-import { DAY_RE, isDay, normalizeDay, parseDay, toDay, todayDay } from "./dates";
+import { DAY_RE, isDay, normalizeDay, parseDay, toDay, todayDay, toLocalDate, daysBetweenDays } from "./dates";
 
 // Jest runs in the machine's timezone (Asia/Kolkata here). Every expected value below is built
 // from local constructors, never from a hard-coded UTC string, so the suite is correct anywhere.
@@ -179,5 +179,87 @@ describe("isDay", () => {
     expect(isDay(20260915)).toBe(false);
     expect(isDay(new Date(2026, 8, 15))).toBe(false);
     expect(isDay({})).toBe(false);
+  });
+});
+
+describe("toLocalDate", () => {
+  it("converts a plain day to local midnight of that day", () => {
+    const result = toLocalDate("2026-09-15");
+    const expected = new Date(2026, 8, 15);
+    expect(result).not.toBeNull();
+    expect(result?.getTime()).toBe(expected.getTime());
+  });
+
+  it("converts an ISO timestamp to a Date", () => {
+    const timestamp = new Date(2026, 8, 15, 12, 30, 45).toISOString();
+    const result = toLocalDate(timestamp);
+    expect(result).not.toBeNull();
+    expect(result?.getFullYear()).toBe(2026);
+    expect(result?.getMonth()).toBe(8);
+  });
+
+  it("returns null for null input", () => {
+    expect(toLocalDate(null)).toBeNull();
+  });
+
+  it("returns null for undefined input", () => {
+    expect(toLocalDate(undefined)).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(toLocalDate("")).toBeNull();
+  });
+
+  it("returns null for garbage input", () => {
+    expect(toLocalDate("not a date")).toBeNull();
+    expect(toLocalDate("2026-13-01")).toBeNull();
+  });
+
+  it("never throws", () => {
+    expect(() => toLocalDate(null)).not.toThrow();
+    expect(() => toLocalDate(undefined)).not.toThrow();
+    expect(() => toLocalDate("")).not.toThrow();
+    expect(() => toLocalDate("invalid")).not.toThrow();
+  });
+});
+
+describe("daysBetweenDays", () => {
+  it("returns 0 for the same day in plain format", () => {
+    expect(daysBetweenDays("2026-09-15", "2026-09-15")).toBe(0);
+  });
+
+  it("returns 0 for the same day given as ISO timestamps", () => {
+    const timestamp = new Date(2026, 8, 15, 12, 30).toISOString();
+    expect(daysBetweenDays(timestamp, timestamp)).toBe(0);
+  });
+
+  it("returns the correct count across a month boundary", () => {
+    const result = daysBetweenDays("2026-08-31", "2026-09-05");
+    expect(result).toBe(5);
+  });
+
+  it("handles negative differences", () => {
+    const result = daysBetweenDays("2026-09-15", "2026-09-10");
+    expect(result).toBe(-5);
+  });
+
+  it("mixes a plain day with an ISO timestamp of local midnight", () => {
+    const plainDay = "2026-09-15";
+    const midnight = new Date(2026, 8, 15).toISOString();
+    expect(daysBetweenDays(plainDay, midnight)).toBe(0);
+  });
+
+  it("mixes a plain day with a timestamp of local midnight from the previous UTC day, resulting in 0", () => {
+    // A Date created as new Date(y, m, d) is local midnight.
+    // Its toISOString() may show the previous UTC day (e.g., 2026-09-14T18:30:00Z in IST for local 2026-09-15)
+    const plainDay = "2026-09-15";
+    const localMidnight = new Date(2026, 8, 15);
+    const isoString = localMidnight.toISOString();
+    expect(daysBetweenDays(plainDay, isoString)).toBe(0);
+  });
+
+  it("throws on an invalid date from normalizeDay", () => {
+    expect(() => daysBetweenDays("2026-02-30", "2026-09-15")).toThrow("Not a date");
+    expect(() => daysBetweenDays("2026-09-15", "invalid-date")).toThrow("Not a date");
   });
 });

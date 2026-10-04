@@ -69,3 +69,49 @@ export function parseDay(day: string): Date {
 export function todayDay(now: Date = new Date()): string {
   return toDay(now);
 }
+
+/**
+ * Converts a value to a local Date, or null if it cannot be parsed.
+ * - If the value is a plain `YYYY-MM-DD` that `isDay` accepts, returns `parseDay(value)` (local midnight).
+ * - Otherwise tries `new Date(value)` and returns it if valid.
+ * - Returns null for empty, null, undefined, or invalid input.
+ * - Never throws.
+ */
+export function toLocalDate(value: string | null | undefined): Date | null {
+  // Handle null and undefined
+  if (value == null || value === "") return null;
+
+  // Try as a plain day first
+  if (isDay(value)) {
+    try {
+      return parseDay(value);
+    } catch {
+      return null;
+    }
+  }
+
+  // Try as an ISO timestamp or other date format
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return date;
+  }
+
+  return null;
+}
+
+/**
+ * Calculates the number of whole calendar days from `from` to `to`.
+ * - Each value can be a plain `YYYY-MM-DD` or an ISO timestamp.
+ * - Uses local calendar days.
+ * - Returns the rounded difference in milliseconds divided by 86400000.
+ * - Throws if either value is not a valid date (same error as `normalizeDay`).
+ */
+export function daysBetweenDays(from: string, to: string): number {
+  const normalizedFrom = normalizeDay(from);
+  const normalizedTo = normalizeDay(to);
+
+  const dateFrom = parseDay(normalizedFrom);
+  const dateTo = parseDay(normalizedTo);
+
+  return Math.round((dateTo.getTime() - dateFrom.getTime()) / 86400000);
+}
