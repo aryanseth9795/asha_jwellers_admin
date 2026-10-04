@@ -273,6 +273,12 @@ describeDb("query plans use the indexes", () => {
     const l = plan(raw, "SELECT * FROM lenden WHERE userId = ? ORDER BY date DESC, id DESC", 1);
     noTableScan(l, ["lenden"]);
     noTempBTree(l);
+    const t = plan(raw, "SELECT * FROM rehan_transactions WHERE rehanId = ? ORDER BY date DESC, id DESC", 1);
+    noTableScan(t, ["rehan_transactions"]);
+    noTempBTree(t);
+    const j = plan(raw, "SELECT * FROM jama_entries WHERE lendenId = ? ORDER BY date ASC, id ASC", 1);
+    noTableScan(j, ["jama_entries"]);
+    noTempBTree(j);
   });
 
   it("jama entries of a bill", async () => {
@@ -342,23 +348,27 @@ describeDb("query plans use the indexes", () => {
     usesIndex(whole, "lenden", "idx_lenden_userId");
   });
 
-  it("the filterUsersWithCounts date subqueries seek by customer first", async () => {
+  it("the filterUsersWithCounts date subqueries seek by customer and day range in one index search", async () => {
+    // The stored days are plain YYYY-MM-DD, compared directly: the range is part of the index search. (The old
+    // date(openDate) >= date(?) form could only seek by customer and then test every row of that customer.)
     const raw = await setup();
     const r = plan(
       raw,
-      "SELECT * FROM users u WHERE (SELECT COUNT(*) FROM rehan WHERE userId = u.id AND date(openDate) >= date(?) AND date(openDate) <= date(?)) > 0",
+      "SELECT * FROM users u WHERE (SELECT COUNT(*) FROM rehan WHERE userId = u.id AND openDate >= ? AND openDate <= ?) > 0",
       "2026-01-01",
       "2026-12-31",
     );
     noTableScan(r, ["rehan"]);
     usesIndex(r, "rehan", "idx_rehan_userId");
+    expect(r.some((d) => d.includes("(userId=? AND openDate>? AND openDate<?)"))).toBe(true);
     const l = plan(
       raw,
-      "SELECT * FROM users u WHERE (SELECT COUNT(*) FROM lenden WHERE userId = u.id AND date(date) >= date(?)) > 0",
+      "SELECT * FROM users u WHERE (SELECT COUNT(*) FROM lenden WHERE userId = u.id AND date >= ?) > 0",
       "2026-01-01",
     );
     noTableScan(l, ["lenden"]);
     usesIndex(l, "lenden", "idx_lenden_userId");
+    expect(l.some((d) => d.includes("(userId=? AND date>?)"))).toBe(true);
   });
 
   it("deleting a customer finds its bills and rehans by index", async () => {
@@ -382,6 +392,9 @@ describeDb("query plans use the indexes", () => {
     expect(r).toEqual(["SCAN rehan USING INDEX idx_rehan_openDate"]);
     const l = plan(raw, "SELECT * FROM lenden ORDER BY date DESC");
     expect(l).toEqual(["SCAN lenden USING INDEX idx_lenden_date"]);
+    // The app's ", id DESC" tie-break is answered by the same backward walk.
+    expect(plan(raw, "SELECT * FROM rehan ORDER BY openDate DESC, id DESC")).toEqual(r);
+    expect(plan(raw, "SELECT * FROM lenden ORDER BY date DESC, id DESC")).toEqual(l);
   });
 
   it("the joined lists in getAllTransactions and searchTransactions are also read in date order, no sort step", async () => {
@@ -401,6 +414,11 @@ describeDb("query plans use the indexes", () => {
       [plan(raw, `${rehanJoin} ${search} ORDER BY r.openDate DESC`, ...like), "idx_rehan_openDate"],
       [plan(raw, `${lendenJoin} ORDER BY l.date DESC`), "idx_lenden_date"],
       [plan(raw, `${lendenJoin} ${search} ORDER BY l.date DESC`, ...like), "idx_lenden_date"],
+      // As the app sends them, with the id tie-break.
+      [plan(raw, `${rehanJoin} ORDER BY r.openDate DESC, r.id DESC`), "idx_rehan_openDate"],
+      [plan(raw, `${rehanJoin} ${search} ORDER BY r.openDate DESC, r.id DESC`, ...like), "idx_rehan_openDate"],
+      [plan(raw, `${lendenJoin} ORDER BY l.date DESC, l.id DESC`), "idx_lenden_date"],
+      [plan(raw, `${lendenJoin} ${search} ORDER BY l.date DESC, l.id DESC`, ...like), "idx_lenden_date"],
     ] as [string[], string][]) {
       expect(d.some((x) => x.includes(`USING INDEX ${idx}`))).toBe(true);
       noTempBTree(d);

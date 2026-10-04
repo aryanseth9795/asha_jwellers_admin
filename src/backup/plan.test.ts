@@ -5,6 +5,8 @@ import {
   TableKey,
 } from "./format";
 import { countRows, planMerge } from "./plan";
+import { normalizeBackupDays } from "./validate";
+import { normalizeDay } from "../utils/dates";
 
 const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const T = "2026-01-01T00:00:00.000Z";
@@ -487,5 +489,38 @@ describe("conflicts list and tables", () => {
       { table: "customers", uuid: C2 },
       { table: "lendenItems", uuid: LI1 },
     ]);
+  });
+});
+
+describe("calendar days", () => {
+  it("an older backup (timestamps) matches a phone holding plain days once validation has normalised it", () => {
+    const backup = makeBackup(); // every calendar day a timestamp, as backups made before calendar days carry them
+    const phone = toSnapshot(backup);
+    // The phone after the migration: the same days, stored plain.
+    phone.rehan.forEach((r) => {
+      r.openDate = normalizeDay(r.openDate);
+      r.closedDate = r.closedDate === null ? null : normalizeDay(r.closedDate);
+    });
+    phone.rehanTransactions.forEach((t) => (t.date = normalizeDay(t.date)));
+    phone.lenden.forEach((l) => (l.date = normalizeDay(l.date)));
+    phone.jamaEntries.forEach((j) => (j.date = normalizeDay(j.date)));
+
+    // Compared raw, every dated row would differ.
+    expect(planMerge(backup, phone).conflicts.map((c) => c.table)).toEqual([
+      "rehan",
+      "rehanTransactions",
+      "rehanTransactions",
+      "lenden",
+      "jamaEntries",
+      "jamaEntries",
+    ]);
+
+    // validateBackup hands the planner normalised days: everything is already on the phone.
+    const plan = planMerge(normalizeBackupDays(backup), phone);
+    const counts = countRows(backup);
+    for (const k of TABLE_KEYS) {
+      expect(plan.summary[k]).toEqual({ total: counts[k], insert: 0, same: counts[k], conflict: 0 });
+    }
+    expect(plan.conflicts).toEqual([]);
   });
 });

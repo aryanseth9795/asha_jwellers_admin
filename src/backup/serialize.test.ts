@@ -133,6 +133,26 @@ describe("serializeSnapshot", () => {
     expect(empty.mediaCopies).toEqual([]);
   });
 
+  it("exports the calendar days exactly as stored", () => {
+    const s = snapshot();
+    s.rehan[0].openDate = "2026-09-15";
+    s.rehan[0].closedDate = "2026-09-20";
+    s.rehanTransactions[0].date = "2026-09-16";
+    s.lenden[0].date = "2026-09-17";
+    s.jamaEntries[0].date = "2026-09-18";
+    // A timestamp not yet migrated goes out unchanged too; the import reads it as its local day.
+    s.rehan[1].openDate = T;
+    const r = serializeSnapshot(s, { createdAt: T, mediaExists: exists });
+    const out = (k: keyof typeof DATA_FILES) => JSON.parse(r.files[DATA_FILES[k]]);
+    expect(out("rehan").map((x: { openDate: string; closedDate: string | null }) => [x.openDate, x.closedDate])).toEqual([
+      ["2026-09-15", "2026-09-20"],
+      [T, null],
+    ]);
+    expect(out("rehanTransactions")[0].date).toBe("2026-09-16");
+    expect(out("lenden")[0].date).toBe("2026-09-17");
+    expect(out("jamaEntries")[0].date).toBe("2026-09-18");
+  });
+
   it("drops rehan transactions and len-den items whose parent is not in the snapshot", () => {
     const s = snapshot();
     s.rehanTransactions.push({ id: 21, uuid: U(21), rehanId: 404, type: "jama", amount: 1, date: T, updatedAt: T });
