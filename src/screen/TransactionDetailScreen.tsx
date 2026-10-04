@@ -71,6 +71,7 @@ import {
   calculateLendenSettlement,
   sumOldJewelleryValues,
 } from "../utils/lendenSettlement";
+import { toDay, toLocalDate } from "../utils/dates";
 import AddJamaModal from "../components/AddJamaModal";
 import AddRehanTransactionModal from "../components/AddRehanTransactionModal";
 import RehanTransactionTable from "../components/RehanTransactionTable";
@@ -260,7 +261,9 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     originalOldJewelleryItems,
   ]);
 
-  const loadData = async () => {
+  // Resolves true when everything loaded, false when a read failed (the retry state is then showing). afterSave: a write
+  // has just succeeded, so a failed read is reported as "Saved, but couldn't refresh" rather than "Couldn't load".
+  const loadData = async (afterSave = false): Promise<boolean> => {
     try {
       if (transactionType === "rehan") {
         const rehanData = await getRehanById(transactionId);
@@ -352,10 +355,16 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         }
       }
       setLoadError(false);
+      return true;
     } catch (error) {
-      console.error("Error loading transaction data:", error);
-      setLoadError(true);
-      notify.error("Couldn't load this transaction", "Tap Retry to try again.");
+      if (afterSave) {
+        showRefreshFailed(error);
+      } else {
+        console.error("Error loading transaction data:", error);
+        setLoadError(true);
+        notify.error("Couldn't load this transaction", "Tap Retry to try again.");
+      }
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -369,12 +378,24 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     setLoadError(true);
   };
 
+  // Recalculates the bill's baki after a jama change. The flag stays set until a recalculation succeeds. A failed one sets
+  // it again, because an overlapping recalculation that succeeded may have cleared it while this one was still running.
+  const recomputeBaki = async () => {
+    bakiRecomputePending.current = true;
+    try {
+      await updateLendenBaki(transactionId);
+      bakiRecomputePending.current = false;
+    } catch (error) {
+      bakiRecomputePending.current = true;
+      throw error;
+    }
+  };
+
   const retryLoad = async () => {
     setIsLoading(true);
     if (bakiRecomputePending.current) {
       try {
-        await updateLendenBaki(transactionId);
-        bakiRecomputePending.current = false;
+        await recomputeBaki();
       } catch (error) {
         console.error("Error recalculating baki:", error);
         notify.error("Couldn't update the balance", "Tap Retry to try again.");
@@ -386,7 +407,8 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = toLocalDate(dateString);
+    if (!date) return "—";
     return date.toLocaleDateString("en-IN", {
       weekday: "long",
       day: "2-digit",
@@ -618,10 +640,12 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     ) {
       try {
         await closeRehan(transactionId);
-        // Reload data to reflect changes
+        // Reload data to reflect changes. The entry is closed either way, so a failed reload says "Saved, but couldn't
+        // refresh" (loadData shows it) instead of announcing success on a screen that still shows the old state.
         setIsLoading(true);
-        await loadData();
-        notify.success("Entry closed", "Rehan entry has been closed.");
+        if (await loadData(true)) {
+          notify.success("Entry closed", "Rehan entry has been closed.");
+        }
       } catch (error) {
         console.error("Error closing Rehan:", error);
         notify.error("Couldn't close entry", "Failed to close entry. Please try again.");
@@ -809,15 +833,15 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 <View style={styles.dateBadge}>
                   <Ionicons name="calendar" size={14} color="#007AFF" />
                   <Text style={styles.dateBadgeText}>
-                    {new Date(
+                    {toLocalDate(
                       transactionType === "rehan"
-                        ? rehan?.openDate || ""
-                        : lenden?.date || "",
-                    ).toLocaleDateString("en-IN", {
+                        ? rehan?.openDate
+                        : lenden?.date,
+                    )?.toLocaleDateString("en-IN", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
-                    })}
+                    }) ?? "—"}
                   </Text>
                 </View>
               </View>
@@ -1049,9 +1073,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     return;
                   }
                   try {
-                    bakiRecomputePending.current = true;
-                    await updateLendenBaki(transactionId);
-                    bakiRecomputePending.current = false;
+                    await recomputeBaki();
                     const entries =
                       await getJamaEntriesByLendenId(transactionId);
                     setJamaEntries(entries);
@@ -1125,7 +1147,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 rehanId: transactionId,
                 amount,
                 type,
-                date: date.toISOString(),
+                date: toDay(date),
               });
             } catch (error) {
               notify.error("Couldn't add transaction", "Failed to add transaction");
@@ -1165,14 +1187,14 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 // Edit existing entry
                 const entry = jamaEntries[editingJamaIndex!];
                 if (entry?.id) {
-                  await editJamaEntry(entry.id, amount, date.toISOString());
+                  await editJamaEntry(entry.id, amount, toDay(date));
                 }
               } else {
                 // Add new entry
                 await createJamaEntry({
                   lendenId: transactionId,
                   amount,
-                  date: date.toISOString(),
+                  date: toDay(date),
                 });
               }
             } catch (error) {
@@ -1185,9 +1207,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               return;
             }
             try {
-              bakiRecomputePending.current = true;
-              await updateLendenBaki(transactionId);
-              bakiRecomputePending.current = false;
+              await recomputeBaki();
               // Reload data
               const entries = await getJamaEntriesByLendenId(transactionId);
               setJamaEntries(entries);

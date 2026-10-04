@@ -2,6 +2,7 @@ import React from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "../ui";
 import { formatInr } from "../utils/analytics/format";
+import { toLocalDate } from "../utils/dates";
 import { Ionicons } from "@expo/vector-icons";
 import { RehanTransaction } from "../types/entry";
 
@@ -17,7 +18,9 @@ const RehanTransactionTable: React.FC<RehanTransactionTableProps> = ({
   isLoading = false,
 }) => {
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-IN", {
+    const date = toLocalDate(dateString);
+    if (!date) return "—";
+    return date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
     });

@@ -60,7 +60,7 @@ export interface BillJama {
 
 export interface BillData {
   billNo: number;
-  date: string; // ISO; the entry's own date, not today
+  date: string; // the entry's own date, not today: a plain YYYY-MM-DD (older rows may hold an ISO timestamp)
   customer: BillCustomer;
   items: LendenItem[];
   oldJewelleryItems: OldJewelleryItem[];

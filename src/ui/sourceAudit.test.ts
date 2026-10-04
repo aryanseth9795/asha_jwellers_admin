@@ -83,3 +83,21 @@ describe("source audit (UI revamp spec §6)", () => {
     expect(appFiles.filter((f) => systemAlert.test(read(f)))).toEqual([]);
   });
 });
+
+describe("source audit (calendar days, hardening item 8)", () => {
+  /** Every .ts / .tsx file under a directory, tests excluded (hooks and style files of a split screen included). */
+  const sourceUnder = (dir: string): string[] =>
+    fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+      const rel = `${dir}/${e.name}`;
+      if (e.isDirectory()) return sourceUnder(rel);
+      return /\.tsx?$/.test(rel) && !/\.test\.tsx?$/.test(rel) ? [rel] : [];
+    });
+
+  it("writes a picked date with toDay, never as a UTC timestamp", () => {
+    // Screens and components never write createdAt / updatedAt (the database layer does), so a toISOString() or a
+    // split("T") there cuts a calendar day out of a UTC instant: 15 Sept picked in IST would be stored as ...-14T18:30Z.
+    const cutFromUtc = /\.toISOString\(\)|\.split\(\s*["']T["']\s*\)/;
+    const files = [...sourceUnder("src/screen"), ...sourceUnder("src/components")];
+    expect(files.filter((f) => cutFromUtc.test(read(f)))).toEqual([]);
+  });
+});

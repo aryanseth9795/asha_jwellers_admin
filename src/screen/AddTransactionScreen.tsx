@@ -41,6 +41,7 @@ import {
   calculateLendenSettlement,
   sumOldJewelleryValues,
 } from "../utils/lendenSettlement";
+import { toDay } from "../utils/dates";
 
 type AddTransactionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -221,7 +222,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
         await createRehan({
           userId,
           media: savedImagePaths,
-          openDate: selectedDate.toISOString(),
+          openDate: toDay(selectedDate),
           productName: productName.trim() || undefined,
           category: resolveCategory(category, categoryOptions),
           amount: amount ? parseInt(amount, 10) : undefined,
@@ -236,7 +237,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
 
         const lendenId = await createLenden({
           userId,
-          date: selectedDate.toISOString(),
+          date: toDay(selectedDate),
           media: savedImagePaths,
           amount: lendenAmountVal,
           discount: discountVal,
@@ -604,7 +605,7 @@ const AddTransactionScreen: React.FC<Props> = ({ navigation, route }) => {
             onAdd={(amount, date) => {
               setJamaEntries((prev) => [
                 ...prev,
-                { amount, date: date.toISOString() },
+                { amount, date: toDay(date) },
               ]);
             }}
           />

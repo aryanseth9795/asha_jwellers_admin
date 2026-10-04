@@ -247,6 +247,18 @@ describe("buildBillHtml", () => {
     });
   });
 
+  it("prints the invoice date and each jama date of plain stored days as that same day", () => {
+    const html = buildBillHtml(
+      data({
+        date: "2026-09-15",
+        showPaymentDetails: true,
+        jamaEntries: [{ amount: 10000, date: "2026-09-01" }],
+      }),
+    );
+    expect(html).toContain("15/09/2026");
+    expect(html).toContain("जमा (01/09/2026)");
+  });
+
   it("does not print the amount in words", () => {
     const html = buildBillHtml(data({ showPaymentDetails: true, showTotalBaki: true, pichlaBaki: 25000 }));
     expect(html).not.toContain("Rupees in words");

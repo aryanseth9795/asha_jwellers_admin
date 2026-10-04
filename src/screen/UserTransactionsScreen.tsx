@@ -23,6 +23,7 @@ import {
   Transaction,
 } from "../database/entryDatabase";
 import { User } from "../types/entry";
+import { toLocalDate } from "../utils/dates";
 
 type UserTransactionsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -91,7 +92,8 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = toLocalDate(dateString);
+    if (!date) return "—";
     return date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",

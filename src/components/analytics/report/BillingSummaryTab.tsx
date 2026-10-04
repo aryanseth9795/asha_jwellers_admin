@@ -5,6 +5,7 @@ import {
   BillGroup, BillRow, billLabel, billingSummary, discountPerBill, numberedVsEarlier, waterfall,
 } from "../../../utils/analytics/report/billing";
 import { formatCompactRupees, formatInr, formatPct } from "../../../utils/analytics/format";
+import { toLocalDate } from "../../../utils/dates";
 import BarChart from "../BarChart";
 import { StatGrid, StatTile } from "../StatTile";
 import ReportCard from "./ReportCard";
@@ -13,8 +14,8 @@ import TagPill from "./TagPill";
 
 const inrC = (n: number) => `₹${formatCompactRupees(n)}`;
 const pct1 = (r: number) => `${(r * 100).toFixed(1)}%`;
-const shortDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+const shortDate = (stored: string) =>
+  toLocalDate(stored)?.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) ?? "—";
 
 const RECENT_BILLS = 30;
 const TABLE_BILLS = 50;
@@ -118,7 +119,7 @@ const BillingSummaryTab: React.FC<{ bills: BillRow[] }> = ({ bills }) => {
           rowKey={(b) => String(b.id)}
           initialSort={{ key: "date", desc: true }}
           columns={[
-            { key: "date", title: "Date", width: 96, text: (b) => shortDate(b.date), sortValue: (b) => new Date(b.date).getTime() },
+            { key: "date", title: "Date", width: 96, text: (b) => shortDate(b.date), sortValue: (b) => toLocalDate(b.date)?.getTime() ?? 0 },
             { key: "bill", title: "Bill", width: 56, text: (b) => billLabel(b) },
             { key: "customer", title: "Customer", width: 130, text: (b) => b.customer, sortValue: (b) => b.customer },
             { key: "village", title: "Village", width: 96, text: (b) => b.village, sortValue: (b) => b.village },

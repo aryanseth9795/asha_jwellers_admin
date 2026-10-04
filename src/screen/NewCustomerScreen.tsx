@@ -29,6 +29,7 @@ import CategoryPicker from "../components/CategoryPicker";
 import { getCategoryOptions } from "../database/itemCategories";
 import { BASE_CATEGORIES, resolveCategory } from "../utils/itemCategories";
 import { normaliseVillageForSave } from "../utils/villageNames";
+import { toDay } from "../utils/dates";
 
 type NewCustomerScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -265,7 +266,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
         await createRehan({
           userId,
           media: savedImagePaths,
-          openDate: selectedDate.toISOString(),
+          openDate: toDay(selectedDate),
           productName: productName.trim() || undefined,
           category: resolveCategory(category, categoryOptions),
           amount: rehanAmount ? parseInt(rehanAmount, 10) : undefined,
@@ -273,7 +274,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       } else {
         const lendenId = await createLenden({
           userId,
-          date: selectedDate.toISOString(),
+          date: toDay(selectedDate),
           media: savedImagePaths,
           amount: lendenAmount ? parseInt(lendenAmount, 10) : undefined,
           discount: discount ? parseInt(discount, 10) : undefined,
@@ -533,7 +534,7 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
             onAdd={(amount, date) => {
               setJamaEntries((prev) => [
                 ...prev,
-                { amount, date: date.toISOString() },
+                { amount, date: toDay(date) },
               ]);
             }}
           />

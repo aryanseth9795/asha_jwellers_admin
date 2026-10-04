@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { BottomSheet, Text, TextInput } from "../ui";
 import { Ionicons } from "@expo/vector-icons";
 import CustomDatePicker from "./CustomDatePicker";
+import { toLocalDate } from "../utils/dates";
 
 interface AddJamaModalProps {
   visible: boolean;
@@ -34,7 +35,8 @@ const AddJamaModal: React.FC<AddJamaModalProps> = ({
         setAmount("");
       }
       if (editMode && initialDate) {
-        setSelectedDate(new Date(initialDate));
+        // The stored day is local midnight of that day; an unreadable value falls back to today.
+        setSelectedDate(toLocalDate(initialDate) ?? new Date());
       } else {
         setSelectedDate(new Date());
       }

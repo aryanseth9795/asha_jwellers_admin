@@ -1,6 +1,7 @@
 // Formatting helpers for the printed bill. Pure — safe to unit test.
 
 import { JewelleryMetal, Purity } from "../types/entry";
+import { toLocalDate } from "./dates";
 
 /**
  * 3.5 -> { main: "3.500 ग्राम", sub: "(3 ग्राम 500 मिली)" }
@@ -32,10 +33,10 @@ export function formatRupees(value: number): string {
   return `${grouped},${last3}/-`;
 }
 
-/** ISO date string -> "27/08/2026" */
-export function formatBillDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
+/** Stored date (a plain "2026-08-27", or an older ISO timestamp) -> "27/08/2026"; "" when it is not a date. */
+export function formatBillDate(stored: string): string {
+  const d = toLocalDate(stored);
+  if (d === null) return "";
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}/${d.getFullYear()}`;

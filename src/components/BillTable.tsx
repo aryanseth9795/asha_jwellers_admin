@@ -2,6 +2,7 @@ import React from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
 import { Text } from "../ui";
 import { formatInr } from "../utils/analytics/format";
+import { toLocalDate } from "../utils/dates";
 import { Ionicons } from "@expo/vector-icons";
 
 interface JamaEntryDisplay {
@@ -35,7 +36,8 @@ const BillTable: React.FC<BillTableProps> = ({
   const totalJama = jamaEntries.reduce((sum, entry) => sum + entry.amount, 0);
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = toLocalDate(dateString);
+    if (!date) return "—";
     return date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",

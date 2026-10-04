@@ -54,6 +54,16 @@ describe("formatBillDate", () => {
   it("handles invalid dates gracefully", () => {
     expect(formatBillDate("garbage")).toBe("");
   });
+
+  it("renders a plain stored day as that same day, in any timezone", () => {
+    // A plain YYYY-MM-DD must be read as a local calendar day; read as UTC midnight it is the previous evening west of UTC.
+    expect(formatBillDate("2026-08-27")).toBe("27/08/2026");
+    expect(formatBillDate("2026-01-01")).toBe("01/01/2026");
+  });
+
+  it("handles an empty value gracefully", () => {
+    expect(formatBillDate("")).toBe("");
+  });
 });
 
 describe("formatMetalPurity", () => {

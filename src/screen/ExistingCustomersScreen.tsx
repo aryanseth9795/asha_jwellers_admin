@@ -26,6 +26,7 @@ import {
 import VillagePicker from "../components/VillagePicker";
 import { getVillages } from "../database/villages";
 import { normaliseVillageForSave } from "../utils/villageNames";
+import { toDay } from "../utils/dates";
 
 type ExistingCustomersScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -80,7 +81,9 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
     filterDateTo !== null ||
     filterTransactionType !== "both";
 
-  const loadUsers = async () => {
+  // Resolves true when the list loaded, false when the read failed (the retry state is then showing). afterSave: a write
+  // has just succeeded, so a failed read is reported as "Saved, but couldn't refresh" rather than "Couldn't load".
+  const loadUsers = async (afterSave = false): Promise<boolean> => {
     try {
       let data: UserWithCounts[];
 
@@ -89,12 +92,9 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           name: filterName.trim() || undefined,
           address: filterAddress.trim() || undefined,
           mobileNumber: filterMobile.trim() || undefined,
-          dateFrom: filterDateFrom
-            ? filterDateFrom.toISOString().split("T")[0]
-            : undefined,
-          dateTo: filterDateTo
-            ? filterDateTo.toISOString().split("T")[0]
-            : undefined,
+          // Plain local days, like the stored dates they are compared with; the UTC day of a picked date is off by one.
+          dateFrom: filterDateFrom ? toDay(filterDateFrom) : undefined,
+          dateTo: filterDateTo ? toDay(filterDateTo) : undefined,
           transactionType: filterTransactionType,
         };
         data = await filterUsersWithCounts(filters);
@@ -104,10 +104,16 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
 
       setUsers(data);
       setLoadError(false);
+      return true;
     } catch (error) {
       console.error("Error loading users:", error);
       setLoadError(true);
-      notify.error("Couldn't load customers", "Pull down to try again.");
+      if (afterSave) {
+        notify.error("Saved, but couldn't refresh", "Pull down to see the latest list.");
+      } else {
+        notify.error("Couldn't load customers", "Pull down to try again.");
+      }
+      return false;
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -197,10 +203,13 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
         editNickname.trim() || undefined,
       );
 
-      // Refresh list
-      await loadUsers();
+      // Refresh list. The customer is saved either way, so the sheet closes; success is announced only if the refresh
+      // worked (otherwise loadUsers has already said "Saved, but couldn't refresh").
+      const refreshed = await loadUsers(true);
       closeEditModal();
-      notify.success("Customer updated", "Customer details updated successfully!");
+      if (refreshed) {
+        notify.success("Customer updated", "Customer details updated successfully!");
+      }
     } catch (error) {
       console.error("Error updating user:", error);
       notify.error("Update failed", "Failed to update customer. Please try again.");
@@ -224,8 +233,10 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
     ) {
       try {
         await deleteUser(user.id);
-        await loadUsers();
-        notify.success("Customer deleted", "Customer and all transactions deleted.");
+        // The customer is deleted either way; announce it only if the refresh worked.
+        if (await loadUsers(true)) {
+          notify.success("Customer deleted", "Customer and all transactions deleted.");
+        }
       } catch (error) {
         console.error("Error deleting user:", error);
         notify.error("Delete failed", "Failed to delete customer.");
