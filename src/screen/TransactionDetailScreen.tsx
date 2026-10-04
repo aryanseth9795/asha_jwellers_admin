@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -16,6 +16,7 @@ import {
   Screen,
   KeyboardArea,
   FooterBar,
+  LoadError,
   useLayout,
   confirm,
   notify,
@@ -101,6 +102,10 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
 
   const [isLoading, setIsLoading] = useState(true);
+  // A failed read shows a retry state, never "Transaction not found" or a half-filled bill.
+  const [loadError, setLoadError] = useState(false);
+  // Set while a baki recalculation after a jama change has not finished, so Retry finishes it before reloading.
+  const bakiRecomputePending = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [rehan, setRehan] = useState<Rehan | null>(null);
@@ -346,11 +351,38 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
           setOriginalOldJewelleryItems(mappedOldJewelleryItems);
         }
       }
+      setLoadError(false);
     } catch (error) {
       console.error("Error loading transaction data:", error);
+      setLoadError(true);
+      notify.error("Couldn't load this transaction", "Tap Retry to try again.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // A write that succeeded must not be reported as failed because the read after it failed, and the screen must not
+  // keep showing numbers that no longer match what was saved. Show the retry state instead.
+  const showRefreshFailed = (error: unknown) => {
+    console.error("Error refreshing after save:", error);
+    notify.error("Saved, but couldn't refresh", "Tap Retry to see the latest numbers.");
+    setLoadError(true);
+  };
+
+  const retryLoad = async () => {
+    setIsLoading(true);
+    if (bakiRecomputePending.current) {
+      try {
+        await updateLendenBaki(transactionId);
+        bakiRecomputePending.current = false;
+      } catch (error) {
+        console.error("Error recalculating baki:", error);
+        notify.error("Couldn't update the balance", "Tap Retry to try again.");
+        setIsLoading(false);
+        return;
+      }
+    }
+    await loadData();
   };
 
   const formatDate = (dateString: string) => {
@@ -616,6 +648,14 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
       <Screen style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading details...</Text>
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen style={styles.container}>
+        <LoadError title="Couldn't load this transaction" onRetry={retryLoad} />
       </Screen>
     );
   }
@@ -1004,14 +1044,21 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 if (entry?.id) {
                   try {
                     await deleteJamaEntry(entry.id);
+                  } catch (error) {
+                    notify.error("Couldn't delete jama", "Failed to delete jama entry");
+                    return;
+                  }
+                  try {
+                    bakiRecomputePending.current = true;
                     await updateLendenBaki(transactionId);
+                    bakiRecomputePending.current = false;
                     const entries =
                       await getJamaEntriesByLendenId(transactionId);
                     setJamaEntries(entries);
                     const lendenData = await getLendenById(transactionId);
                     if (lendenData) setLenden(lendenData);
                   } catch (error) {
-                    notify.error("Couldn't delete jama", "Failed to delete jama entry");
+                    showRefreshFailed(error);
                   }
                 }
               }}
@@ -1047,6 +1094,11 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 ) {
                   try {
                     await deleteRehanTransaction(id);
+                  } catch (error) {
+                    notify.error("Couldn't delete transaction", "Failed to delete transaction");
+                    return;
+                  }
+                  try {
                     // Refresh data
                     const updated =
                       await getRehanTransactionsByRehanId(transactionId);
@@ -1055,7 +1107,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     const rehanData = await getRehanById(transactionId);
                     if (rehanData) setRehan(rehanData);
                   } catch (error) {
-                    notify.error("Couldn't delete transaction", "Failed to delete transaction");
+                    showRefreshFailed(error);
                   }
                 }
               }}
@@ -1075,6 +1127,11 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 type,
                 date: date.toISOString(),
               });
+            } catch (error) {
+              notify.error("Couldn't add transaction", "Failed to add transaction");
+              return;
+            }
+            try {
               // Refresh data
               const updated =
                 await getRehanTransactionsByRehanId(transactionId);
@@ -1083,7 +1140,7 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
               const rehanData = await getRehanById(transactionId);
               if (rehanData) setRehan(rehanData);
             } catch (error) {
-              notify.error("Couldn't add transaction", "Failed to add transaction");
+              showRefreshFailed(error);
             }
           }}
         />
@@ -1118,13 +1175,6 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   date: date.toISOString(),
                 });
               }
-              await updateLendenBaki(transactionId);
-              // Reload data
-              const entries = await getJamaEntriesByLendenId(transactionId);
-              setJamaEntries(entries);
-              const lendenData = await getLendenById(transactionId);
-              if (lendenData) setLenden(lendenData);
-              setEditingJamaIndex(null);
             } catch (error) {
               notify.error(
                 isEditingJama ? "Couldn't update jama" : "Couldn't add jama",
@@ -1132,6 +1182,21 @@ const TransactionDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                   ? "Failed to update jama entry"
                   : "Failed to add jama entry",
               );
+              return;
+            }
+            try {
+              bakiRecomputePending.current = true;
+              await updateLendenBaki(transactionId);
+              bakiRecomputePending.current = false;
+              // Reload data
+              const entries = await getJamaEntriesByLendenId(transactionId);
+              setJamaEntries(entries);
+              const lendenData = await getLendenById(transactionId);
+              if (lendenData) setLenden(lendenData);
+              setEditingJamaIndex(null);
+            } catch (error) {
+              setEditingJamaIndex(null);
+              showRefreshFailed(error);
             }
           }}
         />

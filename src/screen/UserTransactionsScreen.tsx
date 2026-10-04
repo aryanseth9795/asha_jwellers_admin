@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Text, Screen, confirm, notify } from "../ui";
+import { Text, Screen, LoadError, confirm, notify } from "../ui";
 import { formatInr } from "../utils/analytics/format";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -46,6 +46,8 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // A failed read shows a retry state, never an empty list or zero totals.
+  const [loadError, setLoadError] = useState(false);
 
   // Filter state
   const [typeFilter, setTypeFilter] = useState<"all" | "rehan" | "lenden">(
@@ -58,11 +60,14 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
   const loadTransactions = async () => {
     try {
       const userData = await getUserById(userId);
-      setUser(userData);
       const data = await getTransactionsByUserId(userId);
+      setUser(userData);
       setTransactions(data);
+      setLoadError(false);
     } catch (error) {
       console.error("Error loading transactions:", error);
+      setLoadError(true);
+      notify.error("Couldn't load transactions", "Pull down to try again.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -77,6 +82,11 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const onRefresh = () => {
     setIsRefreshing(true);
+    loadTransactions();
+  };
+
+  const onRetry = () => {
+    setIsLoading(true);
     loadTransactions();
   };
 
@@ -346,6 +356,19 @@ const UserTransactionsScreen: React.FC<Props> = ({ navigation, route }) => {
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading transactions...</Text>
         </View>
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen style={styles.container}>
+        <LoadError
+          title="Couldn't load transactions"
+          onRetry={onRetry}
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+        />
       </Screen>
     );
   }

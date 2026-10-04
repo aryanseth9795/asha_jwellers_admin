@@ -9,7 +9,7 @@ import {
   Switch,
   Platform,
 } from "react-native";
-import { Text, TextInput, Screen, BottomSheet, confirm, notify } from "../ui";
+import { Text, TextInput, Screen, BottomSheet, LoadError, confirm, notify } from "../ui";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -40,6 +40,8 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
   const [users, setUsers] = useState<UserWithCounts[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // A failed read shows a retry state, never "No Customers Found" or a zero count.
+  const [loadError, setLoadError] = useState(false);
 
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
@@ -101,8 +103,11 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
       }
 
       setUsers(data);
+      setLoadError(false);
     } catch (error) {
       console.error("Error loading users:", error);
+      setLoadError(true);
+      notify.error("Couldn't load customers", "Pull down to try again.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -124,6 +129,11 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
 
   const onRefresh = () => {
     setIsRefreshing(true);
+    loadUsers();
+  };
+
+  const onRetry = () => {
+    setIsLoading(true);
     loadUsers();
   };
 
@@ -405,7 +415,9 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
         )}
 
         <Text style={styles.resultCount}>
-          {users.length} customer{users.length !== 1 ? "s" : ""}
+          {loadError
+            ? "—"
+            : `${users.length} customer${users.length !== 1 ? "s" : ""}`}
         </Text>
       </View>
 
@@ -604,6 +616,13 @@ const ExistingCustomersScreen: React.FC<Props> = ({ navigation }) => {
           <ActivityIndicator size="large" color="#007AFF" />
           <Text style={styles.loadingText}>Loading customers...</Text>
         </View>
+      ) : loadError ? (
+        <LoadError
+          title="Couldn't load customers"
+          onRetry={onRetry}
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+        />
       ) : (
         <FlatList
           data={displayedUsers}

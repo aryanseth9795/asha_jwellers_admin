@@ -383,6 +383,9 @@ export const initDatabase = async () => {
 
 // ============ USER CRUD ============
 
+// Read functions log a failure and rethrow it, so a failed read never looks like real data (an empty list, "not
+// found", false or 0). null / [] / false / 0 are returned only for a successful query that found nothing.
+
 // Check if user with same name, address, and mobile exists
 export const checkDuplicateUser = async (
   name: string,
@@ -405,7 +408,7 @@ export const checkDuplicateUser = async (
     return (row?.count ?? 0) > 0;
   } catch (error) {
     console.error("Error checking duplicate user:", error);
-    return false;
+    throw error;
   }
 };
 
@@ -443,7 +446,7 @@ export const getUserById = async (id: number): Promise<User | null> => {
     return row || null;
   } catch (error) {
     console.error("Error getting user by ID:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -457,7 +460,7 @@ export const getAllUsers = async (): Promise<User[]> => {
     return rows;
   } catch (error) {
     console.error("Error getting all users:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -477,7 +480,7 @@ export const searchUsers = async (query: string): Promise<User[]> => {
     return rows;
   } catch (error) {
     console.error("Error searching users:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -577,7 +580,7 @@ export const getRehanById = async (id: number): Promise<Rehan | null> => {
     return row || null;
   } catch (error) {
     console.error("Error getting Rehan by ID:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -592,7 +595,7 @@ export const getRehanByUserId = async (userId: number): Promise<Rehan[]> => {
     return rows;
   } catch (error) {
     console.error("Error getting Rehan by user ID:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -606,7 +609,7 @@ export const getAllRehan = async (): Promise<Rehan[]> => {
     return rows;
   } catch (error) {
     console.error("Error getting all Rehan:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -732,7 +735,7 @@ export const getRehanTransactionsByRehanId = async (
     return rows;
   } catch (error) {
     console.error("Error getting Rehan Transactions:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -808,7 +811,7 @@ export const getLendenById = async (id: number): Promise<Lenden | null> => {
     return row || null;
   } catch (error) {
     console.error("Error getting Lenden by ID:", error);
-    return null;
+    throw error;
   }
 };
 
@@ -823,7 +826,7 @@ export const getLendenByUserId = async (userId: number): Promise<Lenden[]> => {
     return rows;
   } catch (error) {
     console.error("Error getting Lenden by user ID:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -837,7 +840,7 @@ export const getAllLenden = async (): Promise<Lenden[]> => {
     return rows;
   } catch (error) {
     console.error("Error getting all Lenden:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -1005,7 +1008,7 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
     return transactions;
   } catch (error) {
     console.error("Error getting all transactions:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -1115,7 +1118,7 @@ export const searchTransactions = async (
     return transactions;
   } catch (error) {
     console.error("Error searching transactions:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -1146,7 +1149,7 @@ export const getUsersWithCounts = async (): Promise<UserWithCounts[]> => {
     return rows;
   } catch (error) {
     console.error("Error getting users with counts:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -1171,7 +1174,7 @@ export const searchUsersWithCounts = async (
     return rows;
   } catch (error) {
     console.error("Error searching users with counts:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -1302,7 +1305,7 @@ export const filterUsersWithCounts = async (
     return rows;
   } catch (error) {
     console.error("Error filtering users with counts:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -1372,7 +1375,7 @@ export const getTransactionsByUserId = async (
     return transactions;
   } catch (error) {
     console.error("Error getting transactions by user ID:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -1409,7 +1412,7 @@ export const getJamaEntriesByLendenId = async (
     return rows;
   } catch (error) {
     console.error("Error getting jama entries:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -1424,7 +1427,7 @@ export const deleteJamaEntry = async (id: number): Promise<void> => {
   }
 };
 
-// Get total Jama amount for a Lenden
+// Get total Jama amount for a Lenden. A failed read rejects: 0 must only ever mean "no payments".
 export const getTotalJamaByLendenId = async (
   lendenId: number,
 ): Promise<number> => {
@@ -1437,11 +1440,12 @@ export const getTotalJamaByLendenId = async (
     return row?.total ?? 0;
   } catch (error) {
     console.error("Error getting total jama:", error);
-    return 0;
+    throw error;
   }
 };
 
-// Update Lenden baki based on jama entries and auto-close if baki = 0
+// Update Lenden baki based on jama entries and auto-close if baki = 0.
+// If the bill or its jama total cannot be read this rejects before anything is written, never a guessed baki.
 export const updateLendenBaki = async (lendenId: number): Promise<void> => {
   try {
     const database = await openDatabase();

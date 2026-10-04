@@ -12,3 +12,5 @@ export type { MenuCardProps } from "./MenuCard";
 export { notify, confirm, notifier } from "./notify/notifier";
 export type { ConfirmOptions, Toast } from "./notify/notifier";
 export { default as NotifyRoot } from "./notify/NotifyRoot";
+export { default as LoadError } from "./LoadError";
+export type { LoadErrorProps } from "./LoadError";

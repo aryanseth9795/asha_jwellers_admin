@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   Switch,
 } from "react-native";
-import { Text, TextInput, Screen, notify } from "../ui";
+import { Text, TextInput, Screen, LoadError, notify } from "../ui";
 import { WebView } from "react-native-webview";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp } from "@react-navigation/native";
@@ -40,6 +40,8 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
   const { lendenId } = route.params;
 
   const [isLoading, setIsLoading] = useState(true);
+  // A failed read must not leave the spinner running or print a bill with guessed numbers.
+  const [loadError, setLoadError] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [html, setHtml] = useState("");
   const [billNo, setBillNo] = useState(0);
@@ -51,6 +53,7 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
   const load = useCallback(async () => {
     try {
       setIsLoading(true);
+      setLoadError(false);
 
       const lenden: Lenden | null = await getLendenById(lendenId);
       if (!lenden) throw new Error("Entry not found");
@@ -103,7 +106,8 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
       setData(billData);
     } catch (error) {
       console.error("Error loading bill:", error);
-      notify.error("Could not load bill", "Could not load this bill.");
+      setLoadError(true);
+      notify.error("Couldn't load this bill", "Tap Retry to try again.");
     } finally {
       setIsLoading(false);
     }
@@ -152,6 +156,14 @@ const BillPreviewScreen: React.FC<Props> = ({ route }) => {
       setIsBusy(false);
     }
   };
+
+  if (loadError) {
+    return (
+      <Screen style={styles.container}>
+        <LoadError title="Couldn't load this bill" onRetry={load} />
+      </Screen>
+    );
+  }
 
   if (isLoading || !html) {
     return (

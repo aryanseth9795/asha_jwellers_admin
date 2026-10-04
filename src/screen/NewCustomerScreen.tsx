@@ -189,7 +189,12 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       // Mark that the duplicate check has been performed
       setHasDuplicateCheckRun(true);
     } catch (error) {
+      // Not marked as run, so it is tried again; Save checks for duplicates too and stops if that fails.
       console.error("Error checking for duplicates:", error);
+      notify.error(
+        "Couldn't check for duplicates",
+        "It will be checked again when you save.",
+      );
     }
   };
 
@@ -216,12 +221,22 @@ const NewCustomerScreen: React.FC<Props> = ({ navigation }) => {
       const village = normaliseVillageForSave(address, villages);
       setAddress(village ?? "");
 
-      // Check for duplicate user
-      const isDuplicate = await checkDuplicateUser(
-        name.trim(),
-        village || undefined,
-        mobileNumber.trim() || undefined,
-      );
+      // Check for duplicate user. If the check itself fails, nothing is saved: a failed check must not pass as "no duplicate".
+      let isDuplicate: boolean;
+      try {
+        isDuplicate = await checkDuplicateUser(
+          name.trim(),
+          village || undefined,
+          mobileNumber.trim() || undefined,
+        );
+      } catch (error) {
+        console.error("Error checking for duplicate customer:", error);
+        notify.error(
+          "Couldn't check for duplicates",
+          "Nothing was saved. Please try again.",
+        );
+        return;
+      }
 
       if (isDuplicate) {
         notify.error(

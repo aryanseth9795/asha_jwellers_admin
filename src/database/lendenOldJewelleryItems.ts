@@ -58,7 +58,7 @@ export const getLendenOldJewelleryItems = async (
     return rows.map(toOldJewelleryItem);
   } catch (error) {
     console.error("Error getting old jewellery items:", error);
-    return [];
+    throw error;
   }
 };
 

@@ -61,7 +61,7 @@ export const getLendenItems = async (
     return rows.map(toLendenItem);
   } catch (error) {
     console.error("Error getting Lenden items:", error);
-    return [];
+    throw error;
   }
 };
 

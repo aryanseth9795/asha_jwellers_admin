@@ -10,78 +10,7 @@
  * the transaction object. It is skipped where node:sqlite is not available.
  */
 
-jest.mock("expo-sqlite", () => {
-  type Row = Record<string, unknown>;
-  type Statement = {
-    run: (...p: unknown[]) => { lastInsertRowid: number | bigint; changes: number | bigint };
-    all: (...p: unknown[]) => Row[];
-    get: (...p: unknown[]) => Row | undefined;
-  };
-  type Sync = { exec: (sql: string) => void; prepare: (sql: string) => Statement };
-  let sqlite: { DatabaseSync: new (path: string) => Sync } | null = null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    sqlite = require("node:sqlite");
-  } catch {
-    sqlite = null;
-  }
-  const state: { db: Sync | null; exclusive: boolean } = { db: null, exclusive: false };
-  const reset = () => {
-    state.db = sqlite ? new sqlite.DatabaseSync(":memory:") : null;
-    // As on the phone (backup spec §4.4): foreign keys are off, so "customer not on file" rows (userId 0) exist.
-    state.db?.exec("PRAGMA foreign_keys = OFF");
-    state.exclusive = false;
-  };
-  reset();
-  const args = (p: unknown[]) => (p.length === 1 && Array.isArray(p[0]) ? (p[0] as unknown[]) : p);
-  const plain = (row: Row | undefined) => (row ? { ...row } : null);
-  const make = (isTxn: boolean): Record<string, unknown> => {
-    const db = () => {
-      if (state.exclusive && !isTxn) throw new Error("statement sent outside the exclusive transaction");
-      return state.db as Sync;
-    };
-    return {
-      execAsync: async (sql: string) => db().exec(sql),
-      runAsync: async (sql: string, ...p: unknown[]) => {
-        const r = db().prepare(sql).run(...args(p));
-        return { lastInsertRowId: Number(r.lastInsertRowid), changes: Number(r.changes) };
-      },
-      getAllAsync: async (sql: string, ...p: unknown[]) => db().prepare(sql).all(...args(p)).map((r) => plain(r)),
-      getFirstAsync: async (sql: string, ...p: unknown[]) => plain(db().prepare(sql).get(...args(p))),
-      withTransactionAsync: async (task: () => Promise<void>) => {
-        db().exec("BEGIN");
-        try {
-          await task();
-          db().exec("COMMIT");
-        } catch (e) {
-          db().exec("ROLLBACK");
-          throw e;
-        }
-      },
-      withExclusiveTransactionAsync: async (task: (txn: unknown) => Promise<void>) => {
-        const raw = db();
-        raw.exec("BEGIN");
-        state.exclusive = true;
-        try {
-          await task(make(true));
-          raw.exec("COMMIT");
-        } catch (e) {
-          raw.exec("ROLLBACK");
-          throw e;
-        } finally {
-          state.exclusive = false;
-        }
-      },
-    };
-  };
-  const main = make(false);
-  return {
-    openDatabaseAsync: async () => main,
-    __available: sqlite !== null,
-    __reset: reset,
-    __raw: () => state.db,
-  };
-});
+jest.mock("expo-sqlite", () => require("../test/sqliteStandIn").createSqliteStandIn());
 // The services are loaded only for their pure photo-name helpers; their native modules are never called here.
 jest.mock("expo-file-system", () => ({ File: {} }));
 jest.mock("expo-file-system/legacy", () => ({}));
@@ -111,6 +40,7 @@ import { replaceLendenItems, setLendenBillNo } from "../database/lendenItems";
 import { replaceLendenOldJewelleryItems } from "../database/lendenOldJewelleryItems";
 import { applyMerge, applyReplace, mediaKey, newUuids, readSnapshot } from "../database/backupQueries";
 import { isSafeMediaPath, photoFileName } from "../services/BackupImportService";
+import type { SqliteStandIn } from "../test/sqliteStandIn";
 
 const u = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const T1 = "2026-01-01T10:00:00.000Z";
@@ -391,11 +321,7 @@ describe("photo file names on import", () => {
 // ---------------------------------------------------------------------------------------------------------------------
 // Part 2: the database layer on real SQLite.
 
-const sqliteMock = jest.requireMock("expo-sqlite") as {
-  __available: boolean;
-  __reset: () => void;
-  __raw: () => { exec: (sql: string) => void; prepare: (sql: string) => { run: (...p: unknown[]) => unknown } };
-};
+const sqliteMock = jest.requireMock("expo-sqlite") as SqliteStandIn;
 const describeDb = sqliteMock.__available ? describe : describe.skip;
 
 /** Snapshot with numeric ids replaced by uuids, so two phones can be compared. Rows stay in id order. */
