@@ -1,42 +1,34 @@
-import { LendenItem, OldJewelleryItem } from "../types/entry";
+import { LendenItem } from "../types/entry";
+import { formatBillDate, formatMetalPurity, formatRupees, formatWeight } from "../utils/billFormat";
+import { estimateBillMetrics } from "./bill/estimate";
 import {
-  formatBillDate,
-  formatMetalPurity,
-  formatRupees,
-  formatWeight,
-} from "../utils/billFormat";
-import {
-  calculateLendenSettlement,
-  sumOldJewelleryValues,
-} from "../utils/lendenSettlement";
+  CONT_STRIP_MM,
+  FOOTER_MM,
+  HEADER_CROP_PCT,
+  HEADER_MAX_MM,
+  HEADER_MIN_MM,
+  MIDDLE_PAD_TOP_MM,
+  MIN_FILLER_MM,
+  MORE_STRIP_MM,
+  PAGE_H_MM,
+  PAGE_W_MM,
+  TEMPLATE_H,
+  TEMPLATE_W,
+  TPL_H_MM,
+} from "./bill/geometry";
+import { BillLayoutPlan, Density, PagePlan, planBillLayout } from "./bill/layoutPlan";
+import { billSummaryRows } from "./bill/summary";
+import { BillData } from "./bill/types";
+
+export type { BillCustomer, BillData, BillJama } from "./bill/types";
 
 // ---------------------------------------------------------------------------
-// Template banding. See agent/2026-08-31-lenden-bill-design.md §5.2 and §5.3.
-//
-// The template (1024x1536, ratio 1:1.500) is TALLER than A5 (1:1.419). Both
-// bands render at natural aspect ratio across the full page width and the
-// rebuilt middle absorbs the difference.
-//
-// CALIBRATION: aligned to the Asha Jewellers final bill template artwork.
+// The bill is laid out from a plan (see bill/layoutPlan.ts and
+// agent/2026-10-05-adaptive-bill-layout-plan.md): the header band's height,
+// a ruled filler for spare space, the row density, and — for long bills —
+// which rows go on which explicit A5 page. The output never holds a script:
+// the Android PDF renderer runs none.
 // ---------------------------------------------------------------------------
-const TEMPLATE_W = 1024;
-const TEMPLATE_H = 1536;
-
-// Header extends down to just above the customer box (captures proprietor box at y=646).
-export const HEADER_CROP_PCT = 0.422;
-// Header display compression factor to compact the artwork header slightly and leave more room for items.
-export const HEADER_COMPRESS_RATIO = 0.7;
-
-// Footer visible fraction: from y=1308 to 1536 (captures Terms & Conditions, Signature, and Thank you flourish).
-export const FOOTER_CROP_PCT = 0.1484;
-
-const PAGE_W_MM = 148;
-const PAGE_H_MM = 210;
-
-const TPL_H_MM = PAGE_W_MM * (TEMPLATE_H / TEMPLATE_W);
-const HEADER_H_MM = TPL_H_MM * HEADER_CROP_PCT * HEADER_COMPRESS_RATIO;
-const FOOTER_H_MM = TPL_H_MM * FOOTER_CROP_PCT;
-const MIDDLE_H_MM = PAGE_H_MM - HEADER_H_MM - FOOTER_H_MM;
 
 const GOLD = "#C08A2E";
 const GOLD_SOFT = "#E3C489";
@@ -44,36 +36,20 @@ const CREAM = "#FDFBF7";
 const HEAD_BG = "#FAF1E2";
 const INK = "#1A1A1A";
 
-/** Above this many items the milligram sub-line is dropped so the table still fits. */
-export const COMPACT_ITEM_THRESHOLD = 5;
+/** The header band maps the template's top HEADER_CROP_PCT onto whatever height it is given. */
+const HEADER_BG_PCT = (100 / HEADER_CROP_PCT).toFixed(3);
 
-export interface BillCustomer {
-  name: string;
-  address: string | null;
-  mobile: string | null;
-}
-
-export interface BillJama {
-  amount: number;
-  date: string;
-}
-
-export interface BillData {
-  billNo: number;
-  date: string; // the entry's own date, not today: a plain YYYY-MM-DD (older rows may hold an ISO timestamp)
-  customer: BillCustomer;
-  items: LendenItem[];
-  oldJewelleryItems: OldJewelleryItem[];
-  amount: number; // effective amount, per resolveEffectiveAmount
-  discount: number;
-  jamaEntries: BillJama[];
-  baki: number;
-  pichlaBaki: number; // sum of baki across other transactions (except current)
-  totalBaki: number; // sum of baki across ALL customer transactions
-  showPaymentDetails: boolean;
-  showTotalBaki: boolean;
-  templateDataUri: string;
-}
+// The necklace watermark inside the template's printed table, clear of its column lines (template px).
+const WM_X = 165;
+const WM_Y = 908;
+const WM_W = 345;
+const WM_H = 344;
+/** Faint enough that item text and column lines stay crisp over it. */
+const WM_OPACITY = 0.35;
+const WM_MAX_H_MM = 60;
+// The crop box's background maps that template rectangle onto the box, whatever size the box ends up.
+const WM_BG_SIZE = `${((TEMPLATE_W / WM_W) * 100).toFixed(2)}% ${((TEMPLATE_H / WM_H) * 100).toFixed(2)}%`;
+const WM_BG_POS = `${((WM_X / (TEMPLATE_W - WM_W)) * 100).toFixed(2)}% ${((WM_Y / (TEMPLATE_H - WM_H)) * 100).toFixed(2)}%`;
 
 const esc = (value: string): string =>
   value
@@ -84,147 +60,12 @@ const esc = (value: string): string =>
 
 const mm = (value: number): string => `${value.toFixed(2)}mm`;
 
-const summaryRow = (label: string, value: string, cls = ""): string =>
-  `<tr class="${cls}"><td class="sl">${esc(label)}</td><td class="sv">${esc(
-    value,
-  )}</td></tr>`;
-
-// Old jewellery is credited per metal: every old gold item adds to one line,
-// every old silver item to another. Items saved before metal was tracked get
-// their own line so they are never counted as gold or silver.
-const OLD_JEWELLERY_LINES: { metal: OldJewelleryItem["metal"]; label: string }[] = [
-  { metal: "gold", label: "पुराना सोना" },
-  { metal: "silver", label: "पुरानी चाँदी" },
-  { metal: null, label: "पुराना (अन्य)" },
-];
-
-const oldJewelleryRows = (items: OldJewelleryItem[]): string[] =>
-  OLD_JEWELLERY_LINES.map(({ metal, label }) => ({
-    label,
-    value: sumOldJewelleryValues(items.filter((item) => (item.metal ?? null) === metal)),
-  }))
-    .filter((line) => line.value > 0)
-    .map((line) => summaryRow(line.label, `-${formatRupees(line.value)}`));
-
-export function buildBillHtml(data: BillData): string {
-  const { items, customer } = data;
-  const compact = items.length > COMPACT_ITEM_THRESHOLD;
-
-  // const totalWeight = items.reduce((sum, i) => sum + (i.weight ?? 0), 0);
-  const totalQty = items.reduce((sum, i) => sum + (i.qty ?? 1), 0);
-  const itemsTotal = items.reduce((sum, i) => sum + i.total, 0);
-  const oldJewelleryCredit = sumOldJewelleryValues(data.oldJewelleryItems);
-  const totalJama = data.jamaEntries.reduce(
-    (sum, jama) => sum + jama.amount,
-    0,
-  );
-  const settlement = calculateLendenSettlement({
-    grossTotal: data.amount,
-    oldJewelleryCredit,
-    discount: data.discount,
-    jamaTotal: totalJama,
-  });
-
-  // A single summary rate is only meaningful when every line shares it.
-  const rates = items.map((i) => i.rate);
-  const uniformRate =
-    rates.length > 0 && rates.every((r) => r !== null && r === rates[0])
-      ? (rates[0] as number)
-      : null;
-
-  const itemRows = items
-    .map((item) => {
-      let weightCell = "";
-      if (item.weight !== null) {
-        const w = formatWeight(item.weight);
-        weightCell =
-          compact || !w.sub
-            ? esc(w.main)
-            : `${esc(w.main)}<div class="sub">${esc(w.sub)}</div>`;
-      }
-      const metalPurity = formatMetalPurity(item.metal, item.purity);
-
-      return `<tr>
-        <td class="c">${item.position}</td>
-        <td class="desc">${esc(item.name)}</td>
-        <td class="c">${weightCell}</td>
-        <td class="c">${item.qty ?? 1}</td>
-        <td class="c">${esc(metalPurity)}</td>
-        <td class="r">${esc(formatRupees(item.total))}</td>
-      </tr>`;
-    })
-    .join("");
-
-  const summary: string[] = [
-    // summaryRow("कुल वजन", formatWeight(totalWeight).main),
-  ];
-
-  if (data.showPaymentDetails) {
-    // Order: कुल राशि − पुराना सोना − पुरानी चाँदी − छूट − जमा = बाकी, then पिछला बाकी → कुल बाकी
-    summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
-    summary.push(...oldJewelleryRows(data.oldJewelleryItems));
-    if (data.discount > 0) {
-      summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
-    }
-    for (const jama of data.jamaEntries) {
-      summary.push(
-        summaryRow(
-          `जमा (${formatBillDate(jama.date)})`,
-          `-${formatRupees(jama.amount)}`,
-        ),
-      );
-    }
-    summary.push(summaryRow("बाकी", formatRupees(settlement.baki), "final"));
-    // Optional पिछला बाकी + कुल बाकी rows — only visible when the nested toggle is on
-    if (data.showTotalBaki) {
-      summary.push(summaryRow("पिछला बाकी", formatRupees(data.pichlaBaki)));
-      summary.push(summaryRow("कुल बाकी", formatRupees(data.pichlaBaki + settlement.baki), "final"));
-    }
-  } else {
-    if (oldJewelleryCredit > 0) {
-      summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
-      summary.push(...oldJewelleryRows(data.oldJewelleryItems));
-      if (data.discount > 0) {
-        summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
-      }
-      summary.push(
-        summaryRow(
-          "कुल देय राशि",
-          formatRupees(settlement.netPayable),
-          "final",
-        ),
-      );
-    }
-    if (uniformRate !== null) {
-      summary.push(summaryRow("दर प्रति ग्राम", formatRupees(uniformRate)));
-    }
-    if (data.discount > 0 && oldJewelleryCredit === 0) {
-      summary.push(summaryRow("कुल राशि", formatRupees(data.amount)));
-      summary.push(summaryRow("छूट", `-${formatRupees(data.discount)}`));
-      summary.push(
-        summaryRow(
-          "कुल देय राशि",
-          formatRupees(data.amount - data.discount),
-          "final",
-        ),
-      );
-    }
-  }
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  :root { --tpl: url("${data.templateDataUri}"); }
+function billCss(templateDataUri: string, headerMm: number): string {
+  return `
+  :root { --tpl: url("${templateDataUri}"); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   @page { size: A5; margin: 0; }
-  html, body {
-    width: ${mm(PAGE_W_MM)};
-    min-height: ${mm(PAGE_H_MM)};
-    height: 100%;
-  }
+  html, body { width: ${mm(PAGE_W_MM)}; }
   body {
     background: ${CREAM};
     color: ${INK};
@@ -234,38 +75,38 @@ export function buildBillHtml(data: BillData): string {
   }
   .page {
     width: ${mm(PAGE_W_MM)};
-    min-height: ${mm(PAGE_H_MM)};
+    height: ${mm(PAGE_H_MM)};
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    break-after: page;
+    page-break-after: always;
   }
+  .page:last-child { break-after: auto; page-break-after: auto; }
 
   .band {
     width: 100%;
-    flex: none;
     background-image: var(--tpl);
     background-repeat: no-repeat;
   }
   .band-header {
-    height: ${mm(HEADER_H_MM)};
-    background-size: ${mm(PAGE_W_MM)} ${mm(TPL_H_MM * HEADER_COMPRESS_RATIO)};
+    height: ${mm(headerMm)};
+    flex: 0 1 auto;
+    min-height: ${mm(HEADER_MIN_MM)};
+    background-size: 100% ${HEADER_BG_PCT}%;
     background-position: center top;
   }
   .band-footer {
-    height: ${mm(FOOTER_H_MM)};
+    height: ${mm(FOOTER_MM)};
+    flex: none;
+    margin-top: auto;
     background-size: ${mm(PAGE_W_MM)} ${mm(TPL_H_MM)};
     background-position: left bottom;
-    margin-top: auto;
-    flex-shrink: 0;
-    break-inside: avoid;
-    page-break-inside: avoid;
   }
 
   .middle {
-    min-height: ${mm(MIDDLE_H_MM)};
-    flex: 1;
+    flex: 1 1 auto;
     background: ${CREAM};
-    padding: 1.5mm 8mm 0;
+    padding: ${mm(MIDDLE_PAD_TOP_MM)} 8mm 0;
     display: flex;
     flex-direction: column;
   }
@@ -328,6 +169,25 @@ export function buildBillHtml(data: BillData): string {
   .items .r { text-align: right; }
   .items .desc { font-weight: 700; }
   .items .sub { font-size: 6.5pt; font-weight: 400; opacity: 0.75; }
+  .items tr.filler td { border-top: none; border-bottom: none; padding: 0; }
+
+  /* The template's necklace, faint and centred behind the items table, as on the printed stationery. */
+  .items-wrap { position: relative; z-index: 0; }
+  .items-wrap .wm {
+    position: absolute;
+    z-index: -1;
+    left: 50%;
+    top: 50%;
+    height: 80%;
+    max-height: ${mm(WM_MAX_H_MM)};
+    aspect-ratio: ${WM_W} / ${WM_H};
+    transform: translate(-50%, -50%);
+    background-image: var(--tpl);
+    background-repeat: no-repeat;
+    background-size: ${WM_BG_SIZE};
+    background-position: ${WM_BG_POS};
+    opacity: ${WM_OPACITY};
+  }
 
   .table-total-row td {
     background: ${HEAD_BG};
@@ -354,14 +214,43 @@ export function buildBillHtml(data: BillData): string {
   .summary .sv { text-align: right; font-weight: 700; white-space: nowrap; }
   .summary .final td { background: ${HEAD_BG}; font-weight: 800; font-size: 9pt; }
 
-</style>
-</head>
-<body>
-  <div class="page">
-    <div class="band band-header"></div>
+  /* Multi-page bills: page 2 onward opens with this strip; every page but the last ends with the next one. */
+  .cont {
+    flex: none;
+    height: ${mm(CONT_STRIP_MM)};
+    margin: 0 8mm;
+    padding-bottom: 1.5mm;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 0.35mm solid ${GOLD};
+    color: #8C5B14;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+  .cont b { font-size: 11pt; letter-spacing: 2px; }
+  .more {
+    flex: none;
+    height: ${mm(MORE_STRIP_MM)};
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #8C5B14;
+    font-size: 7.5pt;
+    font-weight: 700;
+  }
 
-    <div class="middle">
-      <div class="inv-frame">
+  /* Compact density: the last step before a second page (plan §7). */
+  .density-compact .items td { padding: 0.8mm 1mm; }
+  .density-compact .summary { line-height: 1.25; }
+  .density-compact .summary td { padding: 0.4mm 2mm; }
+`;
+}
+
+function customerFrameHtml(data: BillData): string {
+  const { customer } = data;
+  return `<div class="inv-frame">
         <div class="inv-frame-left">
           <div class="field-line">
             <span class="field-label">Name :</span>
@@ -387,8 +276,37 @@ export function buildBillHtml(data: BillData): string {
             <span class="field-text">${esc(formatBillDate(data.date))}</span>
           </div>
         </div>
-      </div>
+      </div>`;
+}
 
+/** Compact density drops the "(3 ग्राम 500 मिली)" sub-line so more rows fit. */
+function itemRowHtml(item: LendenItem, density: Density): string {
+  let weightCell = "";
+  if (item.weight !== null) {
+    const w = formatWeight(item.weight);
+    weightCell = density === "compact" || !w.sub ? esc(w.main) : `${esc(w.main)}<div class="sub">${esc(w.sub)}</div>`;
+  }
+  return `<tr>
+        <td class="c">${item.position}</td>
+        <td class="desc">${esc(item.name)}</td>
+        <td class="c">${weightCell}</td>
+        <td class="c">${item.qty ?? 1}</td>
+        <td class="c">${esc(formatMetalPurity(item.metal, item.purity))}</td>
+        <td class="r">${esc(formatRupees(item.total))}</td>
+      </tr>`;
+}
+
+/** Spare space drawn as an empty table row, so the page reads as a printed bill rather than a blank gap. */
+function fillerRowHtml(fillerMm: number): string {
+  if (fillerMm < MIN_FILLER_MM) return "";
+  return `<tr class="filler" style="height:${mm(fillerMm)}"><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+}
+
+function itemsTableHtml(data: BillData, rows: LendenItem[], density: Density, fillerMm: number, withTotal: boolean): string {
+  const totalQty = data.items.reduce((sum, i) => sum + (i.qty ?? 1), 0);
+  const itemsTotal = data.items.reduce((sum, i) => sum + i.total, 0);
+  return `<div class="items-wrap">
+      <div class="wm"></div>
       <table class="items">
         <thead>
           <tr>
@@ -401,8 +319,10 @@ export function buildBillHtml(data: BillData): string {
           </tr>
         </thead>
         <tbody>
-          ${itemRows}
-        </tbody>
+          ${rows.map((item) => itemRowHtml(item, density)).join("")}${fillerRowHtml(fillerMm)}
+        </tbody>${
+          withTotal
+            ? `
         <tfoot>
           <tr class="table-total-row">
             <td colspan="3" class="r-total">Total</td>
@@ -410,25 +330,112 @@ export function buildBillHtml(data: BillData): string {
             <td></td>
             <td class="r">${esc(formatRupees(itemsTotal))}</td>
           </tr>
-        </tfoot>
-      </table>
-
-      <div class="foot">
-        ${
-          data.showPaymentDetails ||
-          data.discount > 0 ||
-          oldJewelleryCredit > 0 ||
-          uniformRate !== null
-            ? `<div class="summary-wrap">
-          <table class="summary">${summary.join("")}</table>
-        </div>`
+        </tfoot>`
             : ""
         }
-      </div>
-    </div>
+      </table>
+      </div>`;
+}
 
+function footHtml(data: BillData): string {
+  const rows = billSummaryRows(data);
+  const summary = rows
+    .map((r) => `<tr class="${r.final ? "final" : ""}"><td class="sl">${esc(r.label)}</td><td class="sv">${esc(r.value)}</td></tr>`)
+    .join("");
+  return `<div class="foot">${
+    rows.length > 0 ? `<div class="summary-wrap"><table class="summary">${summary}</table></div>` : ""
+  }</div>`;
+}
+
+function singlePageHtml(data: BillData, density: Density, fillerMm: number): string {
+  return `<div class="page">
+    <div class="band band-header"></div>
+    <div class="middle">
+      ${customerFrameHtml(data)}
+      ${itemsTableHtml(data, data.items, density, fillerMm, true)}
+      ${footHtml(data)}
+    </div>
     <div class="band band-footer"></div>
-  </div>
+  </div>`;
+}
+
+function continuedHeadHtml(data: BillData, pageNo: number, pageCount: number): string {
+  return `<div class="cont"><b>ASHA JEWELLERS</b><span>Invoice No. ${data.billNo} · ${esc(
+    data.customer.name,
+  )} · पृष्ठ ${pageNo} / ${pageCount}</span></div>`;
+}
+
+function continuedFootHtml(pageNo: number, pageCount: number): string {
+  return `<div class="more"><span>पृष्ठ ${pageNo} / ${pageCount}</span><span>क्रमशः — पृष्ठ ${
+    pageNo + 1
+  } पर जारी →</span></div>`;
+}
+
+/** One page of a long bill: the header band and customer box open page 1, the totals and footer close the last. */
+function planPageHtml(data: BillData, page: PagePlan, index: number, count: number): string {
+  const first = index === 0;
+  const last = index === count - 1;
+  return `<div class="page">
+    ${first ? `<div class="band band-header"></div>` : continuedHeadHtml(data, index + 1, count)}
+    <div class="middle">
+      ${first ? customerFrameHtml(data) : ""}
+      ${itemsTableHtml(data, data.items.slice(page.start, page.end), "normal", page.fillerMm, last)}
+      ${last ? footHtml(data) : continuedFootHtml(index + 1, count)}
+    </div>
+    ${last ? `<div class="band band-footer"></div>` : ""}
+  </div>`;
+}
+
+function documentHtml(data: BillData, density: Density, headerMm: number, body: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>${billCss(data.templateDataUri, headerMm)}</style>
+</head>
+<body class="density-${density}">
+  ${body}
 </body>
 </html>`;
+}
+
+/**
+ * The bill's middle block once per density, for the preview to measure (see bill/measure.ts, which injects the
+ * probe). Same CSS and partials as the printed bill, so the heights match; no bands, so no artwork is embedded.
+ */
+export function buildBillMeasureHtml(data: BillData, key: string): string {
+  const block = (density: Density) => `<div class="measure density-${density}" data-density="${density}">
+    <div class="middle">
+      ${customerFrameHtml(data)}
+      ${itemsTableHtml(data, data.items, density, 0, true)}
+      ${footHtml(data)}
+    </div>
+  </div>`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>${billCss("", HEADER_MAX_MM)}
+  .measure { width: ${mm(PAGE_W_MM)}; }
+</style>
+</head>
+<body data-key="${esc(key)}">
+  ${block("normal")}
+  ${block("compact")}
+</body>
+</html>`;
+}
+
+/** The printable bill. Without a plan (e.g. before the preview has measured) the layout comes from an estimate. */
+export function buildBillHtml(
+  data: BillData,
+  plan: BillLayoutPlan = planBillLayout(estimateBillMetrics(data)),
+): string {
+  if (plan.kind === "single") {
+    return documentHtml(data, plan.density, plan.headerMm, singlePageHtml(data, plan.density, plan.fillerMm));
+  }
+  const pages = plan.pages.map((page, i) => planPageHtml(data, page, i, plan.pages.length)).join("");
+  return documentHtml(data, plan.density, HEADER_MAX_MM, pages);
 }

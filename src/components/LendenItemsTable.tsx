@@ -5,7 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { NewLendenItem } from "../types/entry";
 import { sumItemTotals } from "../utils/lendenAmount";
 import { formatRupees, formatWeight } from "../utils/billFormat";
-import { COMPACT_ITEM_THRESHOLD } from "../services/BillHtmlService";
 
 const metalLabel = (metal: NewLendenItem["metal"]): string | null => {
   if (metal === "gold") return "Gold";
@@ -41,7 +40,6 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
 }) => {
   const total = sumItemTotals(items);
   const totalWeight = items.reduce((sum, i) => sum + (i.weight ?? 0), 0);
-  const overflowing = items.length > COMPACT_ITEM_THRESHOLD;
 
   return (
     <View style={styles.container}>
@@ -102,15 +100,6 @@ const LendenItemsTable: React.FC<LendenItemsTableProps> = ({
             TOTAL AMOUNT {totalWeight > 0 ? `· ${formatWeight(totalWeight).main}` : ""}
           </Text>
           <Text style={styles.totalValue} numberOfLines={1}>{formatRupees(total)}</Text>
-        </View>
-      )}
-
-      {overflowing && (
-        <View style={styles.warning}>
-          <Ionicons name="warning-outline" size={16} color="#B26A00" />
-          <Text style={styles.warningText}>
-            More than {COMPACT_ITEM_THRESHOLD} items may not fit on one A5 page.
-          </Text>
         </View>
       )}
 
@@ -191,15 +180,6 @@ const styles = StyleSheet.create({
   },
   totalLabel: { flexShrink: 1, fontSize: 13, fontWeight: "700", color: "#1A1A1A" },
   totalValue: { flexShrink: 0, textAlign: "right", fontSize: 17, fontWeight: "700", color: "#1976D2" },
-  warning: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: "#FFF8E1",
-  },
-  warningText: { flex: 1, fontSize: 12, color: "#B26A00" },
   addButton: {
     flexDirection: "row",
     alignItems: "center",
