@@ -2,7 +2,7 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system/legacy";
-import { A5_HEIGHT_PT, A5_WIDTH_PT } from "./bill/geometry";
+import { PAPER, PaperSize } from "./bill/geometry";
 
 // ~151 KB of base64 that never changes — read it once per app session.
 let cachedTemplate: string | null = null;
@@ -22,20 +22,20 @@ export async function loadTemplateDataUri(): Promise<string> {
   return cachedTemplate;
 }
 
-/** Renders the bill HTML to an A5 PDF in the cache and returns its file URI. */
-async function renderA5Pdf(html: string): Promise<string> {
+/** Renders the bill HTML to a PDF of the given paper in the cache and returns its file URI. */
+async function renderPdf(html: string, paper: PaperSize): Promise<string> {
   const { uri } = await Print.printToFileAsync({
     html,
-    width: A5_WIDTH_PT,
-    height: A5_HEIGHT_PT,
+    width: PAPER[paper].widthPt,
+    height: PAPER[paper].heightPt,
     base64: false,
   });
   return uri;
 }
 
-/** Renders the bill to an A5 PDF named bill_<billNo>.pdf and opens the share sheet. */
-export async function sharePdf(html: string, billNo: number): Promise<void> {
-  const uri = await renderA5Pdf(html);
+/** Renders the bill to a PDF of its paper, named bill_<billNo>.pdf, and opens the share sheet. */
+export async function sharePdf(html: string, billNo: number, paper: PaperSize): Promise<void> {
+  const uri = await renderPdf(html, paper);
 
   // printToFileAsync emits a random filename; rename so the customer receives
   // a file called bill_9267.pdf rather than a UUID.
@@ -55,10 +55,11 @@ export async function sharePdf(html: string, billNo: number): Promise<void> {
 }
 
 /**
- * Opens the native print dialog on the same A5 PDF that sharing makes. Printing raw HTML would let Android lay it
- * out on Letter paper first and then again on whatever the dialog picks, so pages could break differently.
+ * Opens the native print dialog on the same PDF that sharing makes. Printing raw HTML would let Android lay it out
+ * on Letter paper first and then again on whatever the dialog picks, so pages could break differently. The dialog
+ * still picks the paper itself, so an A4 bill needs A4 chosen there.
  */
-export async function printBill(html: string): Promise<void> {
-  const uri = await renderA5Pdf(html);
+export async function printBill(html: string, paper: PaperSize): Promise<void> {
+  const uri = await renderPdf(html, paper);
   await Print.printAsync({ uri });
 }

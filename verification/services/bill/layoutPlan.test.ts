@@ -1,19 +1,26 @@
 import {
   CONT_STRIP_MM,
-  FOOTER_MM,
-  HEADER_MAX_MM,
-  HEADER_MIN_MM,
   MIDDLE_PAD_TOP_MM,
+  MIN_FILLER_MM,
   MORE_STRIP_MM,
-  PAGE_H_MM,
+  PAPER,
+  PaperGeometry,
   SAFETY_MM,
 } from "../../../src/services/bill/geometry";
 import {
   BillLayoutPlan,
   BillMetrics,
   DensityMetrics,
+  pageCount,
   planBillLayout,
 } from "../../../src/services/bill/layoutPlan";
+
+const {
+  footerMm: FOOTER_MM,
+  headerMaxMm: HEADER_MAX_MM,
+  headerMinMm: HEADER_MIN_MM,
+  pageHeightMm: PAGE_H_MM,
+} = PAPER.A5;
 
 // Hand-built from the desktop Chromium measurements in the plan (§2.1).
 const density = (rowMm: number, n: number, footMm: number): DensityMetrics => ({
@@ -45,24 +52,29 @@ const multi = (plan: BillLayoutPlan) => {
 };
 
 /** Independent oracle: how tall a planned page of a multi-page bill really is. */
-const pageHeight = (m: DensityMetrics, pages: { start: number; end: number; fillerMm: number }[], i: number) => {
+const pageHeight = (
+  m: DensityMetrics,
+  pages: { start: number; end: number; fillerMm: number }[],
+  i: number,
+  g: PaperGeometry = PAPER.A5,
+) => {
   const p = pages[i];
   const first = i === 0;
   const last = i === pages.length - 1;
   return (
-    (first ? HEADER_MAX_MM + MIDDLE_PAD_TOP_MM + m.frameMm : CONT_STRIP_MM + MIDDLE_PAD_TOP_MM) +
+    (first ? g.headerMaxMm + MIDDLE_PAD_TOP_MM + m.frameMm : CONT_STRIP_MM + MIDDLE_PAD_TOP_MM) +
     m.tableChromeMm +
     m.theadMm +
     sum(m.rowMm.slice(p.start, p.end)) +
     p.fillerMm +
-    (last ? m.totalRowMm + m.footMm + FOOTER_MM : MORE_STRIP_MM)
+    (last ? m.totalRowMm + m.footMm + g.footerMm : MORE_STRIP_MM)
   );
 };
 
 describe("planBillLayout", () => {
   describe("case 1 — room to spare", () => {
     it("keeps the header at its natural size and gives the rest to a ruled filler", () => {
-      const plan = single(planBillLayout(metrics(1)));
+      const plan = single(planBillLayout(metrics(1), "A5"));
       expect(plan.density).toBe("normal");
       expect(plan.headerMm).toBeCloseTo(HEADER_MAX_MM, 5);
       expect(plan.fillerMm).toBeCloseTo(PAGE_H_MM - FOOTER_MM - SAFETY_MM - HEADER_MAX_MM - content(metrics(1).normal), 5);
@@ -72,7 +84,7 @@ describe("planBillLayout", () => {
     it("fills the page exactly, leaving only the safety margin", () => {
       for (const n of [0, 1, 2, 3, 4]) {
         const m = metrics(n);
-        const plan = single(planBillLayout(m));
+        const plan = single(planBillLayout(m, "A5"));
         expect(plan.headerMm + content(m.normal) + plan.fillerMm + FOOTER_MM + SAFETY_MM).toBeCloseTo(PAGE_H_MM, 5);
       }
     });
@@ -81,7 +93,7 @@ describe("planBillLayout", () => {
       const m = metrics(4);
       // Leave exactly 1 mm under the natural header.
       m.normal.rowMm[0] += PAGE_H_MM - FOOTER_MM - SAFETY_MM - HEADER_MAX_MM - content(m.normal) - 1;
-      const plan = single(planBillLayout(m));
+      const plan = single(planBillLayout(m, "A5"));
       expect(plan.headerMm).toBeCloseTo(HEADER_MAX_MM, 5);
       expect(plan.fillerMm).toBe(0);
     });
@@ -90,7 +102,7 @@ describe("planBillLayout", () => {
   describe("case 2 — tight", () => {
     it("shrinks the header only as much as the content needs, so the page is exactly full", () => {
       const m = metrics(6);
-      const plan = single(planBillLayout(m));
+      const plan = single(planBillLayout(m, "A5"));
       expect(plan.density).toBe("normal");
       expect(plan.headerMm).toBeCloseTo(PAGE_H_MM - FOOTER_MM - SAFETY_MM - content(m.normal), 5);
       expect(plan.headerMm).toBeGreaterThan(HEADER_MIN_MM);
@@ -101,7 +113,7 @@ describe("planBillLayout", () => {
     it("never makes the header taller as rows are added at the same density", () => {
       let previous: { density: string; headerMm: number } | null = null;
       for (let n = 0; n <= 15; n++) {
-        const plan = planBillLayout(metrics(n));
+        const plan = planBillLayout(metrics(n), "A5");
         if (plan.kind !== "single") break;
         if (previous && previous.density === plan.density) {
           expect(plan.headerMm).toBeLessThanOrEqual(previous.headerMm);
@@ -112,7 +124,7 @@ describe("planBillLayout", () => {
 
     it("compacts rows and summary before giving up on one page, letting the header grow back", () => {
       const m = metrics(8);
-      const plan = single(planBillLayout(m));
+      const plan = single(planBillLayout(m, "A5"));
       expect(plan.density).toBe("compact");
       expect(plan.headerMm).toBeCloseTo(
         Math.min(HEADER_MAX_MM, PAGE_H_MM - FOOTER_MM - SAFETY_MM - content(m.compact)),
@@ -124,7 +136,7 @@ describe("planBillLayout", () => {
 
   describe("case 3 — overflow", () => {
     it("goes to several pages at normal density when even compact rows cannot fit", () => {
-      const plan = multi(planBillLayout(metrics(11)));
+      const plan = multi(planBillLayout(metrics(11), "A5"));
       expect(plan.density).toBe("normal");
       expect(plan.pages.length).toBeGreaterThanOrEqual(2);
       expect(plan.pages[0].start).toBe(0);
@@ -133,7 +145,7 @@ describe("planBillLayout", () => {
     it("splits rows in order, fits every page and leaves at least two rows with the totals", () => {
       for (let n = 11; n <= 40; n++) {
         const m = metrics(n);
-        const plan = multi(planBillLayout(m));
+        const plan = multi(planBillLayout(m, "A5"));
         const { pages } = plan;
         expect(pages[0].start).toBe(0);
         pages.forEach((p, i) => {
@@ -150,7 +162,7 @@ describe("planBillLayout", () => {
 
     it("sends the full-ledger copy to two pages with fewer items than the plain copy", () => {
       const firstMulti = (foot: typeof PLAIN) => {
-        for (let n = 0; n < 40; n++) if (planBillLayout(metrics(n, foot)).kind === "multi") return n;
+        for (let n = 0; n < 40; n++) if (planBillLayout(metrics(n, foot), "A5").kind === "multi") return n;
         return Infinity;
       };
       expect(firstMulti(LEDGER)).toBeLessThan(firstMulti(PLAIN));
@@ -160,7 +172,7 @@ describe("planBillLayout", () => {
       const m = metrics(3);
       m.normal.rowMm[1] = 250;
       m.compact.rowMm[1] = 250;
-      const plan = multi(planBillLayout(m));
+      const plan = multi(planBillLayout(m, "A5"));
       const lone = plan.pages.find((p) => p.start === 1);
       expect(lone).toEqual(expect.objectContaining({ start: 1, end: 2 }));
       expect(plan.pages[plan.pages.length - 1].end).toBe(3);
@@ -168,10 +180,68 @@ describe("planBillLayout", () => {
 
     it("still ends on a page that carries the totals when the summary is taller than any page", () => {
       const m = metrics(12, { normalFoot: 300, compactFoot: 300 });
-      const plan = multi(planBillLayout(m));
+      const plan = multi(planBillLayout(m, "A5"));
       const covered = plan.pages.flatMap((p) => Array.from({ length: p.end - p.start }, (_, k) => p.start + k));
       expect(covered).toEqual(Array.from({ length: 12 }, (_, k) => k));
       expect(plan.pages[plan.pages.length - 1].end).toBe(12);
     });
+  });
+});
+
+describe("planBillLayout on A4", () => {
+  const A4 = PAPER.A4;
+
+  it("fits on one A4 page a bill that needs two A5 pages", () => {
+    expect(planBillLayout(metrics(11), "A5").kind).toBe("multi");
+    expect(planBillLayout(metrics(11), "A4").kind).toBe("single");
+  });
+
+  it("keeps the A4 header at its natural size and rules the spare space", () => {
+    const m = metrics(1);
+    const plan = single(planBillLayout(m, "A4"));
+    expect(plan.headerMm).toBeCloseTo(A4.headerMaxMm, 5);
+    expect(plan.fillerMm).toBeCloseTo(A4.pageHeightMm - A4.footerMm - SAFETY_MM - A4.headerMaxMm - content(m.normal), 5);
+  });
+
+  it("fills an A4 page, short only by a filler too thin to draw, and keeps the header within the A4 band limits", () => {
+    for (let n = 0; n <= 25; n++) {
+      const m = metrics(n);
+      const plan = planBillLayout(m, "A4");
+      if (plan.kind !== "single") continue;
+      const d = plan.density === "normal" ? m.normal : m.compact;
+      const short = A4.pageHeightMm - (plan.headerMm + content(d) + plan.fillerMm + A4.footerMm + SAFETY_MM);
+      expect(short).toBeGreaterThanOrEqual(-1e-9);
+      expect(short).toBeLessThan(MIN_FILLER_MM);
+      expect(plan.headerMm).toBeGreaterThanOrEqual(A4.headerMinMm - 1e-9);
+      expect(plan.headerMm).toBeLessThanOrEqual(A4.headerMaxMm + 1e-9);
+    }
+  });
+
+  it("splits a bill too long even for A4 into A4 pages that each fit", () => {
+    for (let n = 20; n <= 60; n++) {
+      const m = metrics(n);
+      const plan = planBillLayout(m, "A4");
+      if (plan.kind !== "multi") continue;
+      plan.pages.forEach((_, i) => {
+        expect(pageHeight(m.normal, plan.pages, i, A4)).toBeLessThanOrEqual(A4.pageHeightMm - SAFETY_MM + 1e-9);
+      });
+      expect(plan.pages[plan.pages.length - 1].end).toBe(n);
+    }
+    expect(planBillLayout(metrics(60), "A4").kind).toBe("multi");
+  });
+});
+
+describe("pageCount", () => {
+  it("counts a one-page plan as one page", () => {
+    expect(pageCount({ kind: "single", density: "normal", headerMm: 90, fillerMm: 0 })).toBe(1);
+  });
+
+  it("counts every planned page of a long bill", () => {
+    const pages = [
+      { start: 0, end: 9, fillerMm: 0 },
+      { start: 9, end: 18, fillerMm: 0 },
+      { start: 18, end: 20, fillerMm: 12 },
+    ];
+    expect(pageCount({ kind: "multi", density: "normal", pages })).toBe(3);
   });
 });

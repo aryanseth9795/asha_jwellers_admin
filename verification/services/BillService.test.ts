@@ -21,7 +21,7 @@ beforeEach(() => jest.clearAllMocks());
 
 describe("BillService", () => {
   it("prints the same A5 PDF that sharing makes, not the raw HTML", async () => {
-    await printBill("<html>bill</html>");
+    await printBill("<html>bill</html>", "A5");
     expect(printToFileAsync).toHaveBeenCalledWith(
       expect.objectContaining({ html: "<html>bill</html>", width: 420, height: 595 }),
     );
@@ -29,9 +29,20 @@ describe("BillService", () => {
   });
 
   it("shares an A5 PDF", async () => {
-    await sharePdf("<html>bill</html>", 9267);
+    await sharePdf("<html>bill</html>", 9267, "A5");
     expect(printToFileAsync).toHaveBeenCalledWith(
       expect.objectContaining({ html: "<html>bill</html>", width: 420, height: 595 }),
     );
+  });
+
+  it("prints an A4 bill as an A4 PDF", async () => {
+    await printBill("<html>bill</html>", "A4");
+    expect(printToFileAsync).toHaveBeenCalledWith(expect.objectContaining({ width: 595, height: 842 }));
+    expect(printAsync).toHaveBeenCalledWith({ uri: "file:///cache/Print/random.pdf" });
+  });
+
+  it("shares an A4 bill as an A4 PDF", async () => {
+    await sharePdf("<html>bill</html>", 9267, "A4");
+    expect(printToFileAsync).toHaveBeenCalledWith(expect.objectContaining({ width: 595, height: 842 }));
   });
 });

@@ -33,6 +33,7 @@ const data = (over: Partial<BillData> = {}): BillData => ({
   showPaymentDetails: false,
   showTotalBaki: false,
   templateDataUri: "data:image/jpeg;base64,AAAA",
+  paper: "A5",
   ...over,
 });
 
@@ -98,7 +99,26 @@ describe("estimateBillMetrics", () => {
   });
 
   it("sends a long full-ledger bill to two pages and keeps a one-item bill on one", () => {
-    expect(planBillLayout(estimateBillMetrics(data())).kind).toBe("single");
-    expect(planBillLayout(estimateBillMetrics(ledger({ items: items(8) }))).kind).toBe("multi");
+    expect(planBillLayout(estimateBillMetrics(data()), "A5").kind).toBe("single");
+    expect(planBillLayout(estimateBillMetrics(ledger({ items: items(8) })), "A5").kind).toBe("multi");
+  });
+
+  describe("on A4", () => {
+    it("wraps a long item name less, as the Description column is far wider", () => {
+      const long = "भारी कुंदन हार सेट झुमके और मांगटीका सहित दुल्हन सेट";
+      const row = (paper: "A5" | "A4") =>
+        estimateBillMetrics(data({ paper, items: [item({ name: long, weight: 4 })] })).normal.rowMm[0];
+      expect(row("A4")).toBeLessThan(row("A5"));
+    });
+
+    it("keeps a short item name's row as tall as on A5", () => {
+      const row = (paper: "A5" | "A4") => estimateBillMetrics(data({ paper })).normal.rowMm[0];
+      expect(row("A4")).toBeCloseTo(row("A5"), 5);
+    });
+
+    it("fits on one A4 page the full-ledger bill that takes two A5 pages", () => {
+      const bill = ledger({ paper: "A4", items: items(8) });
+      expect(planBillLayout(estimateBillMetrics(bill), "A4").kind).toBe("single");
+    });
   });
 });

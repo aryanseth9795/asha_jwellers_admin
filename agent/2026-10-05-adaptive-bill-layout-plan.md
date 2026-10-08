@@ -396,3 +396,17 @@ For each of **1, 2, 4, 5, 6, 7, 9, 12, 25 items** × **plain / payment details /
 - Every one-page bill ends exactly at 209.5 mm with a 1.0 mm gap (the safety margin). Every PDF has the planned page count.
 
 **Still to do on a device:** the §11 checklist. Also confirm Android lays out the hidden 320×320 measuring WebView. If it doesn't, the 2.5 s fallback estimate still gives a correct, slightly roomier layout.
+
+## 14. A4 paper (2026-10-08)
+
+The admin can print a long bill on A4. Every bill opens on A5, and the choice is not saved with the bill.
+
+- **Geometry.** `geometry.ts` holds one `PaperGeometry` per paper in `PAPER`: the PDF size in points, the page box, and the bands worked out from the page width. A4 is a 209.5 × 296.5 mm box on a 595 × 842 pt PDF. Its header runs from 132.6 mm down to a 92.8 mm floor (0.7), and its footer is 46.6 mm.
+- **Same text size on A4.** Fonts, margins and the fixed columns are as on A5. The Description column takes the extra width: about 105 mm against 44 mm. Scaling the whole A5 bill up would hold no more rows.
+- **One pipeline.** `BillData.paper` feeds the measuring key (switching paper re-measures), the measuring width, `planBillLayout(metrics, paper)`, the estimator's wrap widths, `@page { size }` and the PDF size in `sharePdf` and `printBill`.
+- **Screen.** `PaperPicker` shows the A5 | A4 buttons. When the A5 plan needs more than one page it says so: "A5 पर N पृष्ठ बनेंगे — एक पृष्ठ के लिए A4 चुनें".
+- **Measured in desktop Edge with the real probe:**
+  - Plain copy: 20 items fit on one A4 page (14 take 2 A5 pages); 24 items take 2 A4 pages.
+  - Full ledger: 14 items fit on one A4 page (8 take 2 A5 pages); 20 items take 2 A4 pages.
+  - Every PDF has the planned page count.
+- **Printing.** The Android print dialog picks the paper itself and expo-print cannot preset it for a PDF. Choose A4 there for an A4 bill.

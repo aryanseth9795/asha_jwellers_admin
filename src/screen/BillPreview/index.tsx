@@ -7,6 +7,7 @@ import { RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../../types/entry";
 import BillMeasurer from "./BillMeasurer";
+import PaperPicker from "./PaperPicker";
 import { useBillPreview } from "./useBillPreview";
 import { styles } from "./styles";
 
@@ -99,6 +100,8 @@ const BillPreviewBody: React.FC<BodyProps> = ({ s, html, ready, actionsDisabled 
             />
           </TouchableOpacity>
         )}
+
+        <PaperPicker paper={s.paper} onChange={s.setPaper} pages={s.layout.pages} />
       </View>
 
       <View style={styles.preview}>

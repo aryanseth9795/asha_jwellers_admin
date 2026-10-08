@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BillData, buildBillHtml, buildBillMeasureHtml } from "../../services/BillHtmlService";
 import { estimateBillMetrics } from "../../services/bill/estimate";
-import { BillLayoutPlan, planBillLayout } from "../../services/bill/layoutPlan";
+import { BillLayoutPlan, pageCount, planBillLayout } from "../../services/bill/layoutPlan";
 import { billLayoutKey, parseBillMetrics } from "../../services/bill/measure";
 
 /** After this long without a measurement the bill is laid out from an estimate, so Share and Print never wait. */
@@ -12,6 +12,8 @@ export interface BillLayoutState {
   html: string;
   /** True once `html` is planned for the current inputs; Share and Print wait for it. */
   ready: boolean;
+  /** How many pages the bill prints on, once ready; null while it is being planned. */
+  pages: number | null;
   /** Fed to the hidden measuring WebView; changes only when something that moves heights changes. */
   measureHtml: string | null;
   onMeasureMessage: (raw: string) => void;
@@ -38,7 +40,9 @@ export function useBillLayout(data: BillData | null): BillLayoutState {
     const timer = setTimeout(() => {
       const current = dataRef.current;
       if (!current) return;
-      setLayout((prev) => (prev?.key === key ? prev : { key, plan: planBillLayout(estimateBillMetrics(current)) }));
+      setLayout((prev) =>
+        prev?.key === key ? prev : { key, plan: planBillLayout(estimateBillMetrics(current), current.paper) },
+      );
     }, MEASURE_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [key]);
@@ -49,17 +53,21 @@ export function useBillLayout(data: BillData | null): BillLayoutState {
       if (!key || !current) return;
       const metrics = parseBillMetrics(raw, key, current.items.length);
       // A real measurement always wins, even one that lands after the estimate.
-      if (metrics) setLayout({ key, plan: planBillLayout(metrics) });
+      if (metrics) setLayout({ key, plan: planBillLayout(metrics, current.paper) });
     },
     [key],
   );
 
-  const fresh = useMemo(
-    () => (data && layout && layout.key === key ? buildBillHtml(data, layout.plan) : null),
-    [data, layout, key],
-  );
+  const plan = data && layout && layout.key === key ? layout.plan : null;
+  const fresh = useMemo(() => (data && plan ? buildBillHtml(data, plan) : null), [data, plan]);
   const lastHtml = useRef("");
   if (fresh) lastHtml.current = fresh;
 
-  return { html: fresh ?? lastHtml.current, ready: fresh !== null, measureHtml, onMeasureMessage };
+  return {
+    html: fresh ?? lastHtml.current,
+    ready: fresh !== null,
+    pages: plan ? pageCount(plan) : null,
+    measureHtml,
+    onMeasureMessage,
+  };
 }

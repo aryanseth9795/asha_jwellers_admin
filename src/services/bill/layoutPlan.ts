@@ -1,15 +1,14 @@
-// Decides how a bill is laid out on A5 from the measured heights of its parts. Pure — safe to unit test.
+// Decides how a bill is laid out on its paper from the measured heights of its parts. Pure — safe to unit test.
 // See agent/2026-10-05-adaptive-bill-layout-plan.md §4 (the decision ladder) and §5.2 (pagination).
 
 import {
   CONT_STRIP_MM,
-  FOOTER_MM,
-  HEADER_MAX_MM,
-  HEADER_MIN_MM,
   MIDDLE_PAD_TOP_MM,
   MIN_FILLER_MM,
   MORE_STRIP_MM,
-  PAGE_H_MM,
+  PAPER,
+  PaperGeometry,
+  PaperSize,
   SAFETY_MM,
 } from "./geometry";
 
@@ -60,34 +59,38 @@ const middleMm = (d: DensityMetrics): number =>
   MIDDLE_PAD_TOP_MM + d.frameMm + d.tableChromeMm + d.theadMm + sum(d.rowMm) + d.totalRowMm + d.footMm;
 
 /** Room left for the header band once the content, footer and safety margin are placed. */
-const roomForHeader = (d: DensityMetrics): number => PAGE_H_MM - FOOTER_MM - SAFETY_MM - middleMm(d);
+const roomForHeader = (d: DensityMetrics, g: PaperGeometry): number =>
+  g.pageHeightMm - g.footerMm - SAFETY_MM - middleMm(d);
 
-export function planBillLayout(m: BillMetrics): BillLayoutPlan {
-  const normal = roomForHeader(m.normal);
-  if (normal >= HEADER_MAX_MM) {
-    return { kind: "single", density: "normal", headerMm: HEADER_MAX_MM, fillerMm: filler(normal - HEADER_MAX_MM) };
+export function planBillLayout(m: BillMetrics, paper: PaperSize): BillLayoutPlan {
+  const g = PAPER[paper];
+  const normal = roomForHeader(m.normal, g);
+  if (normal >= g.headerMaxMm) {
+    return { kind: "single", density: "normal", headerMm: g.headerMaxMm, fillerMm: filler(normal - g.headerMaxMm) };
   }
-  if (normal >= HEADER_MIN_MM) {
+  if (normal >= g.headerMinMm) {
     return { kind: "single", density: "normal", headerMm: normal, fillerMm: 0 };
   }
-  const compact = roomForHeader(m.compact);
-  if (compact >= HEADER_MIN_MM) {
-    const headerMm = Math.min(HEADER_MAX_MM, compact);
+  const compact = roomForHeader(m.compact, g);
+  if (compact >= g.headerMinMm) {
+    const headerMm = Math.min(g.headerMaxMm, compact);
     return { kind: "single", density: "compact", headerMm, fillerMm: filler(compact - headerMm) };
   }
-  return { kind: "multi", density: "normal", pages: paginate(m.normal) };
+  return { kind: "multi", density: "normal", pages: paginate(m.normal, g) };
 }
 
+export const pageCount = (plan: BillLayoutPlan): number => (plan.kind === "single" ? 1 : plan.pages.length);
+
 /** Rows that fit on a page, given whether it is the first page (header band) and the last (totals + footer). */
-const rowRoom = (d: DensityMetrics, first: boolean, last: boolean): number =>
-  PAGE_H_MM -
+const rowRoom = (d: DensityMetrics, g: PaperGeometry, first: boolean, last: boolean): number =>
+  g.pageHeightMm -
   SAFETY_MM -
-  (first ? HEADER_MAX_MM + MIDDLE_PAD_TOP_MM + d.frameMm : CONT_STRIP_MM + MIDDLE_PAD_TOP_MM) -
+  (first ? g.headerMaxMm + MIDDLE_PAD_TOP_MM + d.frameMm : CONT_STRIP_MM + MIDDLE_PAD_TOP_MM) -
   d.tableChromeMm -
   d.theadMm -
-  (last ? d.totalRowMm + d.footMm + FOOTER_MM : MORE_STRIP_MM);
+  (last ? d.totalRowMm + d.footMm + g.footerMm : MORE_STRIP_MM);
 
-function paginate(d: DensityMetrics): PagePlan[] {
+function paginate(d: DensityMetrics, g: PaperGeometry): PagePlan[] {
   const rows = d.rowMm;
   const n = rows.length;
   const pages: PagePlan[] = [];
@@ -97,14 +100,14 @@ function paginate(d: DensityMetrics): PagePlan[] {
   while (i < n) {
     const first = pages.length === 0;
     const rest = sum(rows.slice(i));
-    const lastRoom = rowRoom(d, first, true);
+    const lastRoom = rowRoom(d, g, first, true);
     if (rest <= lastRoom) {
       pages.push({ start: i, end: n, fillerMm: filler(lastRoom - rest) });
       closed = true;
       break;
     }
 
-    const room = rowRoom(d, first, false);
+    const room = rowRoom(d, g, first, false);
     let j = i;
     let used = 0;
     while (j < n && used + rows[j] <= room) used += rows[j++];

@@ -31,6 +31,7 @@ const data = (over: Partial<BillData> = {}): BillData => ({
   showPaymentDetails: false,
   showTotalBaki: false,
   templateDataUri: "data:image/jpeg;base64,AAAA",
+  paper: "A5",
   ...over,
 });
 
@@ -57,6 +58,10 @@ describe("billLayoutKey", () => {
     expect(billLayoutKey(data({ showPaymentDetails: true }))).not.toBe(key);
     expect(billLayoutKey(data({ showTotalBaki: true }))).not.toBe(key);
     expect(billLayoutKey(data({ items: [item()] }))).not.toBe(key);
+  });
+
+  it("changes when the paper changes, so the bill is measured again at the new width", () => {
+    expect(billLayoutKey(data({ paper: "A4" }))).not.toBe(billLayoutKey(data()));
   });
 });
 
@@ -130,5 +135,10 @@ describe("buildBillMeasureHtml", () => {
 
   it("holds no script of its own: the probe is injected by the measuring WebView", () => {
     expect(html).not.toMatch(/<script/i);
+  });
+
+  it("lays the blocks out at the bill's page width, so names wrap as they will print", () => {
+    expect(html).toContain(".measure { width: 148.00mm; }");
+    expect(buildBillMeasureHtml(data({ paper: "A4" }), "abc")).toContain(".measure { width: 209.50mm; }");
   });
 });

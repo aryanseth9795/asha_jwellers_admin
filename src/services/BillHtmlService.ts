@@ -3,18 +3,16 @@ import { formatBillDate, formatMetalPurity, formatRupees, formatWeight } from ".
 import { estimateBillMetrics } from "./bill/estimate";
 import {
   CONT_STRIP_MM,
-  FOOTER_MM,
   HEADER_CROP_PCT,
-  HEADER_MAX_MM,
-  HEADER_MIN_MM,
+  ITEM_COLUMN_MM,
+  MIDDLE_PAD_SIDE_MM,
   MIDDLE_PAD_TOP_MM,
   MIN_FILLER_MM,
   MORE_STRIP_MM,
-  PAGE_H_MM,
-  PAGE_W_MM,
+  PAPER,
+  PaperSize,
   TEMPLATE_H,
   TEMPLATE_W,
-  TPL_H_MM,
 } from "./bill/geometry";
 import { BillLayoutPlan, Density, PagePlan, planBillLayout } from "./bill/layoutPlan";
 import { billSummaryRows } from "./bill/summary";
@@ -26,7 +24,7 @@ export type { BillCustomer, BillData, BillJama } from "./bill/types";
 // The bill is laid out from a plan (see bill/layoutPlan.ts and
 // agent/2026-10-05-adaptive-bill-layout-plan.md): the header band's height,
 // a ruled filler for spare space, the row density, and — for long bills —
-// which rows go on which explicit A5 page. The output never holds a script:
+// which rows go on which explicit page of the chosen paper. The output never holds a script:
 // the Android PDF renderer runs none.
 // ---------------------------------------------------------------------------
 
@@ -60,12 +58,13 @@ const esc = (value: string): string =>
 
 const mm = (value: number): string => `${value.toFixed(2)}mm`;
 
-function billCss(templateDataUri: string, headerMm: number): string {
+function billCss(templateDataUri: string, headerMm: number, paper: PaperSize): string {
+  const g = PAPER[paper];
   return `
   :root { --tpl: url("${templateDataUri}"); }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  @page { size: A5; margin: 0; }
-  html, body { width: ${mm(PAGE_W_MM)}; }
+  @page { size: ${paper}; margin: 0; }
+  html, body { width: ${mm(g.pageWidthMm)}; }
   body {
     background: ${CREAM};
     color: ${INK};
@@ -74,8 +73,8 @@ function billCss(templateDataUri: string, headerMm: number): string {
     print-color-adjust: exact;
   }
   .page {
-    width: ${mm(PAGE_W_MM)};
-    height: ${mm(PAGE_H_MM)};
+    width: ${mm(g.pageWidthMm)};
+    height: ${mm(g.pageHeightMm)};
     display: flex;
     flex-direction: column;
     break-after: page;
@@ -91,22 +90,22 @@ function billCss(templateDataUri: string, headerMm: number): string {
   .band-header {
     height: ${mm(headerMm)};
     flex: 0 1 auto;
-    min-height: ${mm(HEADER_MIN_MM)};
+    min-height: ${mm(g.headerMinMm)};
     background-size: 100% ${HEADER_BG_PCT}%;
     background-position: center top;
   }
   .band-footer {
-    height: ${mm(FOOTER_MM)};
+    height: ${mm(g.footerMm)};
     flex: none;
     margin-top: auto;
-    background-size: ${mm(PAGE_W_MM)} ${mm(TPL_H_MM)};
+    background-size: ${mm(g.pageWidthMm)} ${mm(g.templateHeightMm)};
     background-position: left bottom;
   }
 
   .middle {
     flex: 1 1 auto;
     background: ${CREAM};
-    padding: ${mm(MIDDLE_PAD_TOP_MM)} 8mm 0;
+    padding: ${mm(MIDDLE_PAD_TOP_MM)} ${mm(MIDDLE_PAD_SIDE_MM)} 0;
     display: flex;
     flex-direction: column;
   }
@@ -218,7 +217,7 @@ function billCss(templateDataUri: string, headerMm: number): string {
   .cont {
     flex: none;
     height: ${mm(CONT_STRIP_MM)};
-    margin: 0 8mm;
+    margin: 0 ${mm(MIDDLE_PAD_SIDE_MM)};
     padding-bottom: 1.5mm;
     display: flex;
     align-items: flex-end;
@@ -310,12 +309,12 @@ function itemsTableHtml(data: BillData, rows: LendenItem[], density: Density, fi
       <table class="items">
         <thead>
           <tr>
-            <th style="width:9mm">Sl.No.</th>
+            <th style="width:${ITEM_COLUMN_MM.slNo}mm">Sl.No.</th>
             <th>Description</th>
-            <th style="width:22mm">Weight</th>
-            <th style="width:11mm">Qty.</th>
-            <th style="width:23mm">Metal/Purity</th>
-            <th style="width:23mm">Amount</th>
+            <th style="width:${ITEM_COLUMN_MM.weight}mm">Weight</th>
+            <th style="width:${ITEM_COLUMN_MM.qty}mm">Qty.</th>
+            <th style="width:${ITEM_COLUMN_MM.metalPurity}mm">Metal/Purity</th>
+            <th style="width:${ITEM_COLUMN_MM.amount}mm">Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -392,7 +391,7 @@ function documentHtml(data: BillData, density: Density, headerMm: number, body: 
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>${billCss(data.templateDataUri, headerMm)}</style>
+<style>${billCss(data.templateDataUri, headerMm, data.paper)}</style>
 </head>
 <body class="density-${density}">
   ${body}
@@ -417,8 +416,8 @@ export function buildBillMeasureHtml(data: BillData, key: string): string {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>${billCss("", HEADER_MAX_MM)}
-  .measure { width: ${mm(PAGE_W_MM)}; }
+<style>${billCss("", PAPER[data.paper].headerMaxMm, data.paper)}
+  .measure { width: ${mm(PAPER[data.paper].pageWidthMm)}; }
 </style>
 </head>
 <body data-key="${esc(key)}">
@@ -431,11 +430,11 @@ export function buildBillMeasureHtml(data: BillData, key: string): string {
 /** The printable bill. Without a plan (e.g. before the preview has measured) the layout comes from an estimate. */
 export function buildBillHtml(
   data: BillData,
-  plan: BillLayoutPlan = planBillLayout(estimateBillMetrics(data)),
+  plan: BillLayoutPlan = planBillLayout(estimateBillMetrics(data), data.paper),
 ): string {
   if (plan.kind === "single") {
     return documentHtml(data, plan.density, plan.headerMm, singlePageHtml(data, plan.density, plan.fillerMm));
   }
   const pages = plan.pages.map((page, i) => planPageHtml(data, page, i, plan.pages.length)).join("");
-  return documentHtml(data, plan.density, HEADER_MAX_MM, pages);
+  return documentHtml(data, plan.density, PAPER[data.paper].headerMaxMm, pages);
 }

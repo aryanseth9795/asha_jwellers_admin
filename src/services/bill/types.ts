@@ -1,4 +1,5 @@
 import { LendenItem, OldJewelleryItem } from "../../types/entry";
+import { PaperSize } from "./geometry";
 
 export interface BillCustomer {
   name: string;
@@ -26,4 +27,5 @@ export interface BillData {
   showPaymentDetails: boolean;
   showTotalBaki: boolean;
   templateDataUri: string;
+  paper: PaperSize;
 }

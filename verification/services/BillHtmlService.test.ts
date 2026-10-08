@@ -1,7 +1,9 @@
 import { buildBillHtml, BillData } from "../../src/services/BillHtmlService";
-import { CONT_STRIP_MM, HEADER_MAX_MM, HEADER_MIN_MM, MORE_STRIP_MM } from "../../src/services/bill/geometry";
+import { CONT_STRIP_MM, MORE_STRIP_MM, PAPER } from "../../src/services/bill/geometry";
 import { BillLayoutPlan } from "../../src/services/bill/layoutPlan";
 import { LendenItem, OldJewelleryItem } from "../../src/types/entry";
+
+const { headerMaxMm: HEADER_MAX_MM, headerMinMm: HEADER_MIN_MM } = PAPER.A5;
 
 const item = (over: Partial<LendenItem> = {}): LendenItem => ({
   id: 1,
@@ -32,6 +34,7 @@ const data = (over: Partial<BillData> = {}): BillData => ({
   showPaymentDetails: false,
   showTotalBaki: false,
   templateDataUri: "data:image/jpeg;base64,AAAA",
+  paper: "A5",
   ...over,
 });
 
@@ -380,6 +383,44 @@ describe("buildBillHtml", () => {
     expect(html.split('<div class="page">').length - 1).toBeGreaterThanOrEqual(2);
     expect(html).toContain("Item 20");
     expect(html).not.toContain("overflow: hidden;");
+  });
+
+  describe("paper size", () => {
+    const pageBox = (html: string) =>
+      /\.page \{\s*width: ([\d.]+)mm;\s*height: ([\d.]+)mm;/.exec(html)?.slice(1).map(Number);
+    const rule = (html: string, selector: string) =>
+      new RegExp(`${selector.replace(".", "\\.")} \\{[^}]*\\}`).exec(html)?.[0] ?? "";
+    const fourteen = Array.from({ length: 14 }, (_, i) => item({ id: i + 1, position: i + 1, name: `Item ${i + 1}` }));
+    const pageCount = (html: string) => html.split('<div class="page">').length - 1;
+
+    it("prints an A5 bill on 148 x 209.5 mm A5 pages", () => {
+      const html = buildBillHtml(data());
+      expect(html).toContain("@page { size: A5; margin: 0; }");
+      expect(pageBox(html)).toEqual([148, 209.5]);
+    });
+
+    it("prints an A4 bill on 209.5 x 296.5 mm A4 pages", () => {
+      const html = buildBillHtml(data({ paper: "A4" }));
+      expect(html).toContain("@page { size: A4; margin: 0; }");
+      expect(pageBox(html)).toEqual([209.5, 296.5]);
+    });
+
+    it("sizes the A4 header and footer bands for the wider page", () => {
+      const html = buildBillHtml(data({ paper: "A4" }));
+      expect(rule(html, ".band-header")).toContain(`min-height: ${PAPER.A4.headerMinMm.toFixed(2)}mm`);
+      expect(rule(html, ".band-footer")).toContain(`height: ${PAPER.A4.footerMm.toFixed(2)}mm`);
+      expect(rule(html, ".band-footer")).toContain("background-size: 209.50mm 314.25mm");
+    });
+
+    it("keeps an A4 one-item bill's header at its natural A4 size when no plan is given", () => {
+      const header = rule(buildBillHtml(data({ paper: "A4" })), ".band-header");
+      expect(Number(/height: ([\d.]+)mm/.exec(header)?.[1])).toBeCloseTo(PAPER.A4.headerMaxMm, 1);
+    });
+
+    it("plans on the bill's own paper, so a bill too long for one A5 page fits on one A4 page", () => {
+      expect(pageCount(buildBillHtml(data({ items: fourteen })))).toBeGreaterThanOrEqual(2);
+      expect(pageCount(buildBillHtml(data({ paper: "A4", items: fourteen })))).toBe(1);
+    });
   });
 
   describe("multi-page layout plan", () => {

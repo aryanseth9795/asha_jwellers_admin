@@ -10,6 +10,7 @@ import {
 import { getLendenItems, getNextBillNo, setLendenBillNo } from "../../database/lendenItems";
 import { getLendenOldJewelleryItems } from "../../database/lendenOldJewelleryItems";
 import { BillData } from "../../services/BillHtmlService";
+import { PaperSize } from "../../services/bill/geometry";
 import { loadTemplateDataUri, sharePdf, printBill } from "../../services/BillService";
 import { resolveEffectiveAmount } from "../../utils/lendenAmount";
 import { useBillLayout } from "./useBillLayout";
@@ -24,6 +25,8 @@ export function useBillPreview(lendenId: number) {
   const [billNoText, setBillNoText] = useState("");
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [showTotalBaki, setShowTotalBaki] = useState(false);
+  // Every bill opens on A5; the admin picks A4 for a long one. Not saved with the bill.
+  const [paper, setPaper] = useState<PaperSize>("A5");
   const [data, setData] = useState<BillData | null>(null);
 
   const load = useCallback(async () => {
@@ -77,6 +80,7 @@ export function useBillPreview(lendenId: number) {
         showPaymentDetails: false,
         showTotalBaki: false,
         templateDataUri,
+        paper: "A5",
       });
     } catch (error) {
       console.error("Error loading bill:", error);
@@ -91,10 +95,10 @@ export function useBillPreview(lendenId: number) {
     load();
   }, [load]);
 
-  // The bill as printed: the loaded data with the current toggles and bill number.
+  // The bill as printed: the loaded data with the current toggles, paper and bill number.
   const bill = useMemo(
-    () => (data ? { ...data, showPaymentDetails, showTotalBaki, billNo } : null),
-    [data, showPaymentDetails, showTotalBaki, billNo],
+    () => (data ? { ...data, showPaymentDetails, showTotalBaki, billNo, paper } : null),
+    [data, showPaymentDetails, showTotalBaki, billNo, paper],
   );
   const layout = useBillLayout(bill);
 
@@ -116,7 +120,7 @@ export function useBillPreview(lendenId: number) {
   const handleShare = async () => {
     try {
       setIsBusy(true);
-      await sharePdf(layout.html, billNo);
+      await sharePdf(layout.html, billNo, paper);
     } catch (error) {
       console.error("Share failed:", error);
       notify.error("PDF failed", "Could not create the PDF.");
@@ -128,7 +132,7 @@ export function useBillPreview(lendenId: number) {
   const handlePrint = async () => {
     try {
       setIsBusy(true);
-      await printBill(layout.html);
+      await printBill(layout.html, paper);
     } catch (error) {
       console.error("Print failed:", error);
       notify.error("Print failed", "Could not open the print dialog.");
@@ -149,6 +153,8 @@ export function useBillPreview(lendenId: number) {
     togglePaymentDetails,
     showTotalBaki,
     setShowTotalBaki,
+    paper,
+    setPaper,
     layout,
     handleShare,
     handlePrint,
